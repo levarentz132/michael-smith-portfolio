@@ -1,0 +1,1395 @@
+import express from 'express';
+import mysql from 'mysql2/promise';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import bcrypt from 'bcryptjs';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import multer from 'multer';
+
+dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+const port = process.env.PORT || 5000;
+
+// Programmatically ensure the upload directory exists
+const uploadDir = path.join(__dirname, 'uploads', 'properties');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Configure multer storage
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, `prop_${uniqueSuffix}${ext}`);
+  }
+});
+const upload = multer({ storage });
+
+app.use(cors());
+app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Initialize Database Connection Check and Table Creation
+async function initializeDatabase() {
+  try {
+    const dbConnection = await mysql.createConnection({
+      host: process.env.DB_HOST || 'localhost',
+      user: process.env.DB_USER || 'root',
+      password: process.env.DB_PASSWORD || '',
+      database: process.env.DB_NAME || 'highlanderstay',
+      port: parseInt(process.env.DB_PORT || '3306'),
+    });
+    console.log('Connected to MySQL Database: highlanderstay');
+
+    // Create settings table if not exists
+    await dbConnection.query(`
+      CREATE TABLE IF NOT EXISTS settings (
+        \`id\` INT AUTO_INCREMENT PRIMARY KEY,
+        \`setting_key\` VARCHAR(100) UNIQUE NOT NULL,
+        \`setting_value\` LONGTEXT NOT NULL,
+        \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    // Create admins table if not exists
+    await dbConnection.query(`
+      CREATE TABLE IF NOT EXISTS admins (
+        \`id\` INT AUTO_INCREMENT PRIMARY KEY,
+        \`username\` VARCHAR(100) UNIQUE NOT NULL,
+        \`password\` VARCHAR(255) NOT NULL,
+        \`name\` VARCHAR(255) NOT NULL,
+        \`email\` VARCHAR(255) DEFAULT NULL,
+        \`role\` ENUM('owner', 'admin', 'cashier') DEFAULT 'admin',
+        \`branch_id\` INT DEFAULT NULL,
+        \`is_active\` TINYINT DEFAULT 1,
+        \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    // Create articles table if not exists
+    await dbConnection.query(`
+      CREATE TABLE IF NOT EXISTS articles (
+        \`id\` INT AUTO_INCREMENT PRIMARY KEY,
+        \`title\` VARCHAR(255) NOT NULL,
+        \`content\` LONGTEXT NOT NULL,
+        \`image\` VARCHAR(255) DEFAULT '',
+        \`read_time\` VARCHAR(50) DEFAULT '5 menit baca',
+        \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    // Check if defaults exist, seed if missing
+    const [logoRows] = await dbConnection.query("SELECT COUNT(*) AS count FROM settings WHERE `setting_key` = 'logo_text'");
+    if (logoRows[0].count === 0) {
+      console.log('Seeding default settings values...');
+      const defaultSettings = [
+        ['logo_text', JSON.stringify('HS')],
+        ['logo_gradient_start', JSON.stringify('#89AACC')],
+        ['logo_gradient_end', JSON.stringify('#4E85BF')],
+        ['banner_eyebrow', JSON.stringify('Promo Spesial')],
+        ['banner_title', JSON.stringify('Diskon <span class="italic font-normal">Early Bird</span> 20%')],
+        ['banner_description', JSON.stringify('Pesan ruang impian Anda bulan ini dan nikmati potongan harga eksklusif untuk 3 bulan pertama.')],
+        ['banner_image', JSON.stringify('https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1920&q=80')],
+        ['banner_cta', JSON.stringify('Klaim Promo')],
+        ['promo_enabled', JSON.stringify('false')],
+        ['promo_text', JSON.stringify('Promo Spesial: Gunakan kode FIRSTMO untuk diskon 10% di bulan pertama!')],
+        ['logo_image', JSON.stringify('')],
+        ['whatsapp_number', JSON.stringify('628123456789')],
+        ['banners', JSON.stringify([])],
+        ['facilities_premium', JSON.stringify([
+          { id: 1, title: "Kolam Rooftop Infinity", image: "https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?auto=format&fit=crop&w=800&q=80", rotation: -4 },
+          { id: 2, title: "Lounge Bersama yang Nyaman", image: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80", rotation: 5 },
+          { id: 3, title: "Akses Kunci Kartu Pintar", image: "https://images.unsplash.com/photo-1558002038-1055907df827?auto=format&fit=crop&w=800&q=80", rotation: -2 },
+          { id: 4, title: "WiFi Fiber Kecepatan Tinggi", image: "https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=800&q=80", rotation: 3 },
+          { id: 5, title: "Dapur Bersama Lengkap", image: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80", rotation: -5 },
+          { id: 6, title: "Keamanan & CCTV 24/7", image: "https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=800&q=80", rotation: 4 }
+        ])]
+      ];
+      for (const [key, val] of defaultSettings) {
+        await dbConnection.query('INSERT INTO settings (`setting_key`, `setting_value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `setting_value` = ?', [key, val, val]);
+      }
+    } else {
+      // Ensure logo_image row is created if table was previously seeded
+      const [logoImgRows] = await dbConnection.query("SELECT COUNT(*) AS count FROM settings WHERE `setting_key` = 'logo_image'");
+      if (logoImgRows[0].count === 0) {
+        const val = JSON.stringify('');
+        await dbConnection.query('INSERT INTO settings (`setting_key`, `setting_value`) VALUES (?, ?)', ['logo_image', val]);
+      }
+      // Ensure whatsapp_number row is created if table was previously seeded
+      const [whatsappRows] = await dbConnection.query("SELECT COUNT(*) AS count FROM settings WHERE `setting_key` = 'whatsapp_number'");
+      if (whatsappRows[0].count === 0) {
+        const val = JSON.stringify('628123456789');
+        await dbConnection.query('INSERT INTO settings (`setting_key`, `setting_value`) VALUES (?, ?)', ['whatsapp_number', val]);
+      }
+      // Ensure banners row is created if table was previously seeded
+      const [bannersRows] = await dbConnection.query("SELECT COUNT(*) AS count FROM settings WHERE `setting_key` = 'banners'");
+      if (bannersRows[0].count === 0) {
+        const val = JSON.stringify([]);
+        await dbConnection.query('INSERT INTO settings (`setting_key`, `setting_value`) VALUES (?, ?)', ['banners', val]);
+      }
+      // Ensure facilities_premium row is created if table was previously seeded
+      const [facPremiumRows] = await dbConnection.query("SELECT COUNT(*) AS count FROM settings WHERE `setting_key` = 'facilities_premium'");
+      if (facPremiumRows[0].count === 0) {
+        const val = JSON.stringify([
+          { id: 1, title: "Kolam Rooftop Infinity", image: "https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?auto=format&fit=crop&w=800&q=80", rotation: -4 },
+          { id: 2, title: "Lounge Bersama yang Nyaman", image: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80", rotation: 5 },
+          { id: 3, title: "Akses Kunci Kartu Pintar", image: "https://images.unsplash.com/photo-1558002038-1055907df827?auto=format&fit=crop&w=800&q=80", rotation: -2 },
+          { id: 4, title: "WiFi Fiber Kecepatan Tinggi", image: "https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=800&q=80", rotation: 3 },
+          { id: 5, title: "Dapur Bersama Lengkap", image: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80", rotation: -5 },
+          { id: 6, title: "Keamanan & CCTV 24/7", image: "https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=800&q=80", rotation: 4 }
+        ]);
+        await dbConnection.query('INSERT INTO settings (`setting_key`, `setting_value`) VALUES (?, ?)', ['facilities_premium', val]);
+      }
+    }
+
+    // Seed default articles if empty
+    const [articleRows] = await dbConnection.query("SELECT COUNT(*) AS count FROM articles");
+    if (articleRows[0].count === 0) {
+      console.log('Seeding default articles...');
+      const defaultArticles = [
+        [
+          "Memilih Kos yang Tepat: Boarding Pribadi vs Co-living",
+          "<p>Memilih hunian sementara adalah keputusan besar yang memengaruhi kehidupan sehari-hari Anda. Bagi mahasiswa dan profesional muda, pilihan utama seringkali berkisar antara kos-kosan tradisional atau konsep modern co-living.</p><p>Co-living menawarkan ruang komunal, fasilitas bersama yang lengkap, dan rasa komunitas yang kuat, sementara boarding pribadi berfokus pada privasi penuh.</p>",
+          "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=1200&q=80",
+          "5 menit baca"
+        ],
+        [
+          "Tips Tata Letak Kamar Minimalis untuk Apartemen Studio",
+          "<p>Tinggal di apartemen studio menantang kita untuk kreatif dengan ruang yang terbatas. Tata letak yang cerdas dapat membuat ruangan terasa luas dan fungsional.</p><p>Gunakan furnitur multifungsi seperti tempat tidur dengan laci penyimpanan, dan batasi sekat masif untuk menjaga pencahayaan alami mengalir ke seluruh ruangan.</p>",
+          "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80",
+          "4 menit baca"
+        ],
+        [
+          "Etiket Co-living & Aturan Bersama yang Penting",
+          "<p>Kunci kenyamanan tinggal di ruang co-living adalah rasa saling menghargai. Etiket sederhana seperti membersihkan dapur setelah digunakan, membatasi kebisingan di malam hari, dan menjaga kebersihan ruang bersama dapat menciptakan harmoni antar penghuni.</p>",
+          "https://images.unsplash.com/photo-1516116211223-5c359a36298a?auto=format&fit=crop&w=1200&q=80",
+          "7 menit baca"
+        ],
+        [
+          "Mendekorasi Ruang Sewa Tanpa Merusak Dinding",
+          "<p>Ingin membuat kamar sewa Anda terasa lebih personal tanpa kehilangan uang deposit? Gunakan stiker dinding lepas-pasang, tanaman hias dalam pot, karpet bertekstur indah, dan gantungan perekat khusus yang tidak meninggalkan bekas pada dinding.</p>",
+          "https://images.unsplash.com/photo-1561070791-26c113006238?auto=format&fit=crop&w=1200&q=80",
+          "6 menit baca"
+        ]
+      ];
+      for (const [title, content, image, read_time] of defaultArticles) {
+        await dbConnection.query('INSERT INTO articles (title, content, image, read_time) VALUES (?, ?, ?, ?)', [title, content, image, read_time]);
+      }
+    }
+
+    await dbConnection.end();
+  } catch (error) {
+    console.error('Database connection / initialization failed:', error);
+  }
+}
+
+// Create MySQL connection pool
+const pool = mysql.createPool({
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'highlanderstay',
+  port: parseInt(process.env.DB_PORT || '3306'),
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+});
+
+// Run Initialization
+initializeDatabase();
+
+// Helper to parse price string to integer
+function parsePrice(priceStr) {
+  if (typeof priceStr === 'number') return priceStr;
+  if (!priceStr) return 1500000;
+  
+  const cleanStr = priceStr.toLowerCase();
+  
+  // E.g. "Rp 3.5M / mo" -> 3500000
+  const matchMillions = cleanStr.match(/(\d+(\.\d+)?)\s*m\b/);
+  if (matchMillions) {
+    return Math.round(parseFloat(matchMillions[1]) * 1000000);
+  }
+  
+  // Extract all digits
+  const cleanNumStr = cleanStr.replace(/[^\d]/g, '');
+  const parsed = parseInt(cleanNumStr, 10);
+  return isNaN(parsed) ? 1500000 : parsed;
+}
+
+// --- API ROUTES ---
+
+// Upload Route for Property Images
+app.post('/api/upload', upload.single('image'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded.' });
+    }
+    const relativePath = `uploads/properties/${req.file.filename}`;
+    res.json({ url: relativePath });
+  } catch (error) {
+    console.error('Error in POST /api/upload:', error);
+    res.status(500).json({ error: 'Failed to upload image' });
+  }
+});
+
+// 1. Properties Routes
+
+// GET all properties joined with locations
+app.get('/api/properties', async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT p.*, l.name AS location_name, l.slug AS location_slug
+      FROM properties p
+      LEFT JOIN locations l ON p.location_id = l.id
+    `);
+
+    // Map DB rows to Frontend Property structure
+    const mapped = rows.map((row, index) => {
+      const isApartment = row.name.toLowerCase().includes('apartment') || row.name.toLowerCase().includes('apartemen');
+      const frontendType = isApartment ? 'apartment' : 'kos';
+
+      let category = 'Premium Boarding Room';
+      if (isApartment) {
+        category = 'Luxury Apartment';
+      } else if (row.type) {
+        const typeCapitalized = row.type.charAt(0).toUpperCase() + row.type.slice(1);
+        category = `Premium Boarding Room (${typeCapitalized})`;
+      }
+
+      let formattedPrice = 'Rp. 1.500.000 / month';
+      if (row.price) {
+        const priceVal = parseInt(row.price, 10);
+        if (!isNaN(priceVal)) {
+          formattedPrice = `Rp. ${priceVal.toLocaleString('id-ID')} / month`;
+        }
+      }
+
+      let imageUrl = row.image;
+      if (!imageUrl) {
+        imageUrl = isApartment 
+          ? 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80'
+          : 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=1200&q=80';
+      } else if (imageUrl.startsWith('uploads/')) {
+        imageUrl = `/${imageUrl}`;
+      }
+
+      const colSpan = index % 3 === 0 ? 'md:col-span-7' : 'md:col-span-5';
+      const aspectRatio = index % 3 === 0 ? 'aspect-[4/3] md:aspect-[1.5/1]' : 'aspect-[4/3] md:aspect-[1.1/1]';
+
+      return {
+        id: row.id,
+        title: row.name,
+        category: category,
+        type: frontendType,
+        price: formattedPrice,
+        rawPrice: row.price,
+        location: row.location_name || 'Jakarta',
+        address: row.location,
+        rating: row.id % 2 === 0 ? '4.9 ★' : '4.8 ★',
+        image: imageUrl,
+        colSpan: colSpan,
+        aspectRatio: aspectRatio,
+        hourlyRate: row.hourly_rate,
+        minTransitHours: row.min_transit_hours || 3,
+        mapUrl: row.map_url,
+        promoPrice: row.promo_price,
+        promoLabel: row.promo_label,
+        available: row.available,
+        description: row.description || '',
+        rooms: row.rooms || 0,
+        availableRooms: row.available_rooms || 0,
+        branchId: row.branch_id,
+        status: row.status || 'available'
+      };
+    });
+
+    res.json(mapped);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch properties.' });
+  }
+});
+
+// GET a specific property by ID
+app.get('/api/properties/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [rows] = await pool.query(`
+      SELECT p.*, l.name AS location_name, l.slug AS location_slug
+      FROM properties p
+      LEFT JOIN locations l ON p.location_id = l.id
+      WHERE p.id = ?
+      LIMIT 1
+    `, [id]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Property not found.' });
+    }
+
+    const row = rows[0];
+    const isApartment = row.name.toLowerCase().includes('apartment') || row.name.toLowerCase().includes('apartemen');
+    const frontendType = isApartment ? 'apartment' : 'kos';
+
+    let category = 'Premium Boarding Room';
+    if (isApartment) {
+      category = 'Luxury Apartment';
+    } else if (row.type) {
+      const typeCapitalized = row.type.charAt(0).toUpperCase() + row.type.slice(1);
+      category = `Premium Boarding Room (${typeCapitalized})`;
+    }
+
+    let formattedPrice = 'Rp. 1.500.000 / month';
+    if (row.price) {
+      const priceVal = parseInt(row.price, 10);
+      if (!isNaN(priceVal)) {
+        formattedPrice = `Rp. ${priceVal.toLocaleString('id-ID')} / month`;
+      }
+    }
+
+    let imageUrl = row.image;
+    if (!imageUrl) {
+      imageUrl = isApartment 
+        ? 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80'
+        : 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=1200&q=80';
+    } else if (imageUrl.startsWith('uploads/')) {
+      imageUrl = `/${imageUrl}`;
+    }
+
+    res.json({
+      id: row.id,
+      title: row.name,
+      category: category,
+      type: frontendType,
+      price: formattedPrice,
+      rawPrice: row.price,
+      location: row.location_name || 'Jakarta',
+      address: row.location,
+      rating: row.id % 2 === 0 ? '4.9 ★' : '4.8 ★',
+      image: imageUrl,
+      hourlyRate: row.hourly_rate,
+      minTransitHours: row.min_transit_hours || 3,
+      mapUrl: row.map_url,
+      promoPrice: row.promo_price,
+      promoLabel: row.promo_label,
+      available: row.available,
+      description: row.description || '',
+      rooms: row.rooms || 0,
+      availableRooms: row.available_rooms || 0,
+      branchId: row.branch_id,
+      status: row.status || 'available'
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch property details.' });
+  }
+});
+
+
+// POST a new property
+app.post('/api/properties', async (req, res) => {
+  try {
+    const { 
+      title, 
+      category, 
+      type, 
+      price, 
+      location, 
+      image,
+      mapUrl,
+      hourlyRate,
+      minTransitHours,
+      promoPrice,
+      promoLabel,
+      available,
+      description,
+      rooms,
+      availableRooms,
+      branchId,
+      status
+    } = req.body;
+
+    let locationId = null;
+    if (location) {
+      const [locRows] = await pool.query('SELECT id FROM locations WHERE name = ? OR slug = ? LIMIT 1', [location, location.toLowerCase().replace(/\s+/g, '-')]);
+      if (locRows.length > 0) {
+        locationId = locRows[0].id;
+      } else {
+        const slug = location.toLowerCase().replace(/\s+/g, '-');
+        const [insertLoc] = await pool.query('INSERT INTO locations (name, slug, description) VALUES (?, ?, ?)', [location, slug, `Kawasan ${location}`]);
+        locationId = insertLoc.insertId;
+      }
+    }
+
+    const cleanPrice = parsePrice(price);
+
+    const [result] = await pool.query(
+      `INSERT INTO properties (
+        name, location, location_id, map_url, type, price, hourly_rate, min_transit_hours, 
+        promo_price, promo_label, image, available, description, rooms, available_rooms, branch_id, status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        title,
+        location || '',
+        locationId,
+        mapUrl || null,
+        type || 'kos',
+        cleanPrice,
+        hourlyRate !== undefined ? hourlyRate : null,
+        minTransitHours !== undefined ? minTransitHours : 3,
+        promoPrice !== undefined ? promoPrice : null,
+        promoLabel || null,
+        image || '',
+        available !== undefined ? (available ? 1 : 0) : 1,
+        description || category || '',
+        rooms !== undefined ? rooms : 0,
+        availableRooms !== undefined ? availableRooms : 0,
+        branchId !== undefined ? branchId : null,
+        status || 'available'
+      ]
+    );
+
+    res.status(201).json({
+      id: result.insertId,
+      title,
+      category,
+      type,
+      price,
+      location,
+      rating: '4.8 ★',
+      image
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to create property.' });
+  }
+});
+
+// PUT (update) an existing property
+app.put('/api/properties/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      title, 
+      category, 
+      type, 
+      price, 
+      location, 
+      image,
+      mapUrl,
+      hourlyRate,
+      minTransitHours,
+      promoPrice,
+      promoLabel,
+      available,
+      description,
+      rooms,
+      availableRooms,
+      branchId,
+      status
+    } = req.body;
+
+    let locationId = null;
+    if (location) {
+      const [locRows] = await pool.query('SELECT id FROM locations WHERE name = ? OR slug = ? LIMIT 1', [location, location.toLowerCase().replace(/\s+/g, '-')]);
+      if (locRows.length > 0) {
+        locationId = locRows[0].id;
+      } else {
+        const slug = location.toLowerCase().replace(/\s+/g, '-');
+        const [insertLoc] = await pool.query('INSERT INTO locations (name, slug, description) VALUES (?, ?, ?)', [location, slug, `Kawasan ${location}`]);
+        locationId = insertLoc.insertId;
+      }
+    }
+
+    const cleanPrice = parsePrice(price);
+
+    await pool.query(
+      `UPDATE properties 
+       SET name = ?, location = ?, location_id = ?, map_url = ?, type = ?, price = ?, 
+           hourly_rate = ?, min_transit_hours = ?, promo_price = ?, promo_label = ?, 
+           image = ?, available = ?, description = ?, rooms = ?, available_rooms = ?, 
+           branch_id = ?, status = ?
+       WHERE id = ?`,
+      [
+        title, 
+        location || '', 
+        locationId, 
+        mapUrl || null,
+        type || 'kos',
+        cleanPrice, 
+        hourlyRate !== undefined ? hourlyRate : null,
+        minTransitHours !== undefined ? minTransitHours : 3,
+        promoPrice !== undefined ? promoPrice : null,
+        promoLabel || null,
+        image || '', 
+        available !== undefined ? (available ? 1 : 0) : 1,
+        description || category || '', 
+        rooms !== undefined ? rooms : 0,
+        availableRooms !== undefined ? availableRooms : 0,
+        branchId !== undefined ? branchId : null,
+        status || 'available',
+        id
+      ]
+    );
+
+    res.json({ id, title, category, type, price, location, rating: '4.8 ★', image });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to update property.' });
+  }
+});
+
+// DELETE a property
+app.delete('/api/properties/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query('DELETE FROM properties WHERE id = ?', [id]);
+    res.json({ message: 'Property deleted successfully.', id });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to delete property.' });
+  }
+});
+
+// 2. Bookings Routes
+
+// GET all bookings joined with properties and tenants
+app.get('/api/bookings', async (req, res) => {
+  try {
+    const tenantId = req.query.tenantId;
+    let query = `
+      SELECT b.*, p.name AS propertyName, t.name AS tenantName, t.email AS tenantEmail
+      FROM bookings b
+      LEFT JOIN properties p ON b.property_id = p.id
+      LEFT JOIN tenants t ON b.tenant_id = t.id
+    `;
+    const params = [];
+    if (tenantId) {
+      query += ` WHERE b.tenant_id = ? `;
+      params.push(tenantId);
+    }
+    query += ` ORDER BY b.id DESC `;
+
+    const [rows] = await pool.query(query, params);
+
+    const mapped = rows.map(row => {
+      let frontendStatus = 'pending';
+      if (['confirmed', 'active', 'deposit_terbayar', 'terbayar_full'].includes(row.status)) {
+        frontendStatus = 'approved';
+      } else if (['expired', 'cancelled', 'cancel'].includes(row.status)) {
+        frontendStatus = 'rejected';
+      }
+
+      return {
+        id: row.id,
+        propertyName: row.propertyName || `Property #${row.property_id}`,
+        userName: row.tenantName || 'Anonymous Tenant',
+        userEmail: row.tenantEmail || 'no-email@example.com',
+        moveInDate: row.checkin_date ? new Date(row.checkin_date).toISOString().split('T')[0] : 'N/A',
+        status: frontendStatus,
+        createdAt: row.created_at,
+        bookingType: row.booking_type,
+        transitStartTime: row.transit_start_time ? new Date(row.transit_start_time).toISOString() : null,
+        transitEndTime: row.transit_end_time ? new Date(row.transit_end_time).toISOString() : null,
+        monthlyRent: row.monthly_rent,
+        hourlyRate: row.hourly_rate
+      };
+    });
+
+    res.json(mapped);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch bookings.' });
+  }
+});
+
+// POST a new booking linking/creating tenants
+app.post('/api/bookings', async (req, res) => {
+  try {
+    const { 
+      propertyName, 
+      userName, 
+      userEmail, 
+      phone, 
+      moveInDate,
+      bookingType = 'monthly',
+      transitDate,
+      transitStartTime,
+      transitEndTime,
+      duration,
+      tenantId: bodyTenantId
+    } = req.body;
+
+    if (!userName || !userEmail || !phone) {
+      return res.status(400).json({ error: 'Name, email, and phone number are required.' });
+    }
+
+    let propertyId = null;
+    let rentPrice = 1500000;
+    let hourlyRate = null;
+    const [propRows] = await pool.query('SELECT id, price, promo_price, hourly_rate FROM properties WHERE name = ? LIMIT 1', [propertyName]);
+    if (propRows.length > 0) {
+      propertyId = propRows[0].id;
+      rentPrice = propRows[0].promo_price || propRows[0].price;
+      hourlyRate = propRows[0].hourly_rate;
+    } else {
+      const [propRows2] = await pool.query('SELECT id, price, promo_price, hourly_rate FROM properties WHERE name LIKE ? LIMIT 1', [`%${propertyName}%`]);
+      if (propRows2.length > 0) {
+        propertyId = propRows2[0].id;
+        rentPrice = propRows2[0].promo_price || propRows2[0].price;
+        hourlyRate = propRows2[0].hourly_rate;
+      } else {
+        const [propRows3] = await pool.query('SELECT id, price, promo_price, hourly_rate FROM properties LIMIT 1');
+        if (propRows3.length > 0) {
+          propertyId = propRows3[0].id;
+          rentPrice = propRows3[0].promo_price || propRows3[0].price;
+          hourlyRate = propRows3[0].hourly_rate;
+        } else {
+          return res.status(404).json({ error: 'No properties available to book.' });
+        }
+      }
+    }
+
+    let tenantId = bodyTenantId || null;
+    if (!tenantId) {
+      // Check if there is an exact duplicate of name, email AND phone
+      const [tenantRows] = await pool.query(
+        'SELECT id FROM tenants WHERE name = ? AND email = ? AND phone = ? LIMIT 1', 
+        [userName, userEmail, phone]
+      );
+      if (tenantRows.length > 0) {
+        tenantId = tenantRows[0].id;
+      } else {
+        // Try to create a new tenant
+        try {
+          const hashedPassword = bcrypt.hashSync(phone, 10);
+          const [insertTenant] = await pool.query(
+            'INSERT INTO tenants (name, email, phone, status, password) VALUES (?, ?, ?, ?, ?)',
+            [userName, userEmail, phone, 'active', hashedPassword]
+          );
+          tenantId = insertTenant.insertId;
+        } catch (err) {
+          // If there's a duplicate key error (email or phone already exists)
+          if (err.code === 'ER_DUP_ENTRY') {
+            const [existingRows] = await pool.query(
+              'SELECT id FROM tenants WHERE email = ? OR phone = ? LIMIT 1',
+              [userEmail, phone]
+            );
+            if (existingRows.length > 0) {
+              tenantId = existingRows[0].id;
+              // Update existing tenant with the new name/email/phone
+              await pool.query(
+                'UPDATE tenants SET name = ?, email = ?, phone = ? WHERE id = ?',
+                [userName, userEmail, phone, tenantId]
+              );
+            } else {
+              throw err;
+            }
+          } else {
+            throw err;
+          }
+        }
+      }
+    } else {
+      // Verify tenantId exists
+      const [tenantCheck] = await pool.query('SELECT id FROM tenants WHERE id = ? LIMIT 1', [tenantId]);
+      if (tenantCheck.length === 0) {
+        tenantId = null; // fallback or error
+      }
+    }
+
+    const referenceNumber = `REF${Date.now()}${Math.floor(Math.random() * 1000)}`;
+    let insertQuery = '';
+    let insertParams = [];
+
+    if (bookingType === 'transit') {
+      const startDateTime = `${transitDate} ${transitStartTime}:00`;
+      let endDateTime = null;
+      let checkoutDate = transitDate;
+
+      if (duration) {
+        const durationHours = parseFloat(duration);
+        const [yr, mo, dy] = transitDate.split('-').map(Number);
+        const [hr, mn] = transitStartTime.split(':').map(Number);
+        const startDateObj = new Date(yr, mo - 1, dy, hr, mn, 0);
+        if (!isNaN(startDateObj.getTime())) {
+          const endDateObj = new Date(startDateObj.getTime() + durationHours * 60 * 60 * 1000);
+          const year = endDateObj.getFullYear();
+          const month = String(endDateObj.getMonth() + 1).padStart(2, '0');
+          const day = String(endDateObj.getDate()).padStart(2, '0');
+          const hours = String(endDateObj.getHours()).padStart(2, '0');
+          const minutes = String(endDateObj.getMinutes()).padStart(2, '0');
+          
+          endDateTime = `${year}-${month}-${day} ${hours}:${minutes}:00`;
+          checkoutDate = `${year}-${month}-${day}`;
+        } else {
+          endDateTime = `${transitDate} ${transitEndTime || transitStartTime}:00`;
+        }
+      } else if (transitEndTime) {
+        endDateTime = `${transitDate} ${transitEndTime}:00`;
+      } else {
+        endDateTime = `${transitDate} ${transitStartTime}:00`;
+      }
+
+      insertQuery = `
+        INSERT INTO bookings (
+          property_id, tenant_id, booking_date, checkin_date, checkout_date,
+          duration_months, transit_start_time, transit_end_time,
+          monthly_rent, hourly_rate, deposit_amount, status,
+          reference_number, booking_type
+        ) VALUES (?, ?, CURDATE(), ?, ?, 0, ?, ?, ?, ?, 0, 'pending', ?, 'transit')
+      `;
+      insertParams = [
+        propertyId,
+        tenantId,
+        transitDate,
+        checkoutDate,
+        startDateTime,
+        endDateTime,
+        rentPrice,
+        hourlyRate,
+        referenceNumber
+      ];
+    } else {
+      insertQuery = `
+        INSERT INTO bookings (
+          property_id, tenant_id, booking_date, checkin_date,
+          monthly_rent, deposit_amount, status, reference_number, booking_type
+        ) VALUES (?, ?, CURDATE(), ?, ?, 50000, 'pending', ?, 'monthly')
+      `;
+      insertParams = [
+        propertyId,
+        tenantId,
+        moveInDate || new Date().toISOString().split('T')[0],
+        rentPrice,
+        referenceNumber
+      ];
+    }
+
+    const [result] = await pool.query(insertQuery, insertParams);
+
+    res.status(201).json({
+      id: result.insertId,
+      propertyName,
+      userName,
+      userEmail,
+      phone,
+      moveInDate: bookingType === 'transit' ? transitDate : moveInDate,
+      status: 'pending',
+      bookingType
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to submit booking.' });
+  }
+});
+
+// PUT (update status) booking
+app.put('/api/bookings/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, adminId } = req.body;
+
+    const dbStatus = status === 'approved' ? 'confirmed' : 'cancelled';
+
+    if (status === 'approved') {
+      const [bookingRows] = await pool.query(
+        `SELECT b.*, p.name AS property_name, p.branch_id AS prop_branch_id, p.hourly_rate AS prop_hourly_rate,
+                t.name AS tenant_name
+         FROM bookings b
+         LEFT JOIN properties p ON b.property_id = p.id
+         LEFT JOIN tenants t ON b.tenant_id = t.id
+         WHERE b.id = ? LIMIT 1`,
+        [id]
+      );
+
+      if (bookingRows.length > 0) {
+        const booking = bookingRows[0];
+        if (booking.status !== 'confirmed') {
+          let amount = 0;
+          if (booking.booking_type === 'transit') {
+            const start = new Date(booking.transit_start_time);
+            const end = new Date(booking.transit_end_time);
+            const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+            const rate = booking.hourly_rate || booking.prop_hourly_rate || 0;
+            amount = Math.ceil(Math.max(1, hours) * rate);
+            if (isNaN(amount) || amount <= 0) {
+              amount = (booking.hourly_rate || booking.prop_hourly_rate || 100000) * 3;
+            }
+          } else {
+            amount = (booking.duration_months || 1) * booking.monthly_rent;
+          }
+
+          const branchId = booking.prop_branch_id || null;
+          const recordedBy = adminId || booking.created_by || 1;
+          const description = `Approved Booking #${booking.id} - ${booking.property_name || 'Space'} (Tenant: ${booking.tenant_name || 'Guest'}, Ref: ${booking.reference_number || 'N/A'})`;
+
+          await pool.query(
+            `INSERT INTO transactions (branch_id, transaction_type, category, amount, transaction_date, description, recorded_by) 
+             VALUES (?, 'income', 'booking', ?, CURDATE(), ?, ?)`,
+            [branchId, amount, description, recordedBy]
+          );
+        }
+      }
+    }
+
+    await pool.query('UPDATE bookings SET status = ? WHERE id = ?', [dbStatus, id]);
+    res.json({ id, status });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to update booking status.' });
+  }
+});
+
+// DELETE a booking
+app.delete('/api/bookings/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query('DELETE FROM bookings WHERE id = ?', [id]);
+    res.json({ message: 'Booking deleted successfully.', id });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to delete booking.' });
+  }
+});
+
+// 3. Authentication Routes
+
+// POST Admin Login
+app.post('/api/login/admin', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required.' });
+    }
+
+    const [rows] = await pool.query('SELECT * FROM admins WHERE username = ? LIMIT 1', [username]);
+    if (rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid username or password.' });
+    }
+
+    const admin = rows[0];
+    if (admin.is_active === 0) {
+      return res.status(403).json({ error: 'This admin account is suspended.' });
+    }
+
+    // Convert $2y$ to $2a$ if needed for compatibility
+    const safeHash = admin.password.startsWith('$2y$') 
+      ? admin.password.replace(/^\$2y\$/, '$2a$') 
+      : admin.password;
+
+    const isMatch = bcrypt.compareSync(password, safeHash);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Invalid username or password.' });
+    }
+
+    res.json({
+      role: admin.role || 'admin',
+      id: admin.id,
+      username: admin.username,
+      name: admin.name || 'Administrator',
+      email: admin.email,
+      branchId: admin.branch_id
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Authentication failed.' });
+  }
+});
+
+// POST Tenant Login
+app.post('/api/login/tenant', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required.' });
+    }
+
+    const [rows] = await pool.query('SELECT * FROM tenants WHERE email = ? LIMIT 1', [email]);
+    if (rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid email or password.' });
+    }
+
+    const tenant = rows[0];
+    if (tenant.status === 'inactive') {
+      return res.status(403).json({ error: 'This tenant account is inactive.' });
+    }
+
+    if (!tenant.password) {
+      return res.status(401).json({ error: 'No password set for this account. Please submit a booking first.' });
+    }
+
+    // Convert $2y$ to $2a$ if needed
+    const safeHash = tenant.password.startsWith('$2y$') 
+      ? tenant.password.replace(/^\$2y\$/, '$2a$') 
+      : tenant.password;
+
+    const isMatch = bcrypt.compareSync(password, safeHash);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Invalid email or password.' });
+    }
+
+    res.json({
+      role: 'tenant',
+      id: tenant.id,
+      name: tenant.name,
+      email: tenant.email,
+      phone: tenant.phone
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Authentication failed.' });
+  }
+});
+
+// GET Tenant Details
+app.get('/api/tenants/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [rows] = await pool.query('SELECT id, name, email, phone, status, created_at FROM tenants WHERE id = ? LIMIT 1', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Tenant not found.' });
+    }
+    res.json(rows[0]);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch tenant details.' });
+  }
+});
+
+// GET all tenants (with optional role-based filtering for cashiers)
+app.get('/api/tenants', async (req, res) => {
+  try {
+    const { adminId, role } = req.query;
+    let query = `
+      SELECT t.*, a.name AS pic_admin_name 
+      FROM tenants t 
+      LEFT JOIN admins a ON t.pic_admin_id = a.id
+    `;
+    const params = [];
+
+    if (role === 'cashier' && adminId) {
+      query += ` WHERE t.pic_admin_id = ? `;
+      params.push(adminId);
+    }
+    query += ` ORDER BY t.id DESC`;
+
+    const [rows] = await pool.query(query, params);
+    res.json(rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch tenants.' });
+  }
+});
+
+// POST a new tenant manually (assign to creator admin, set phone as default password)
+app.post('/api/tenants', async (req, res) => {
+  try {
+    const { 
+      name, 
+      email, 
+      phone, 
+      id_card_number, 
+      id_card_photo, 
+      address, 
+      emergency_contact, 
+      emergency_phone, 
+      status, 
+      pic_admin_id 
+    } = req.body;
+
+    if (!name || !phone) {
+      return res.status(400).json({ error: 'Name and phone number are required.' });
+    }
+
+    const defaultPassword = phone;
+    const hashedPassword = bcrypt.hashSync(defaultPassword, 10);
+
+    const [result] = await pool.query(
+      `INSERT INTO tenants (
+        name, email, phone, id_card_number, id_card_photo, address, 
+        emergency_contact, emergency_phone, status, pic_admin_id, password
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        name,
+        email || null,
+        phone,
+        id_card_number || null,
+        id_card_photo || null,
+        address || null,
+        emergency_contact || null,
+        emergency_phone || null,
+        status || 'active',
+        pic_admin_id || null,
+        hashedPassword
+      ]
+    );
+
+    res.status(201).json({
+      id: result.insertId,
+      name,
+      email,
+      phone,
+      id_card_number,
+      id_card_photo,
+      address,
+      emergency_contact,
+      emergency_phone,
+      status: status || 'active',
+      pic_admin_id
+    });
+  } catch (error) {
+    console.error(error);
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: 'A tenant with this email or phone number already exists.' });
+    }
+    res.status(500).json({ error: 'Failed to create tenant.' });
+  }
+});
+
+// GET all transactions (filtered by branch/recorded_by for cashier if applicable)
+app.get('/api/transactions', async (req, res) => {
+  try {
+    const { adminId, role, branchId } = req.query;
+    let query = `
+      SELECT tr.*, a.name AS recorded_by_name 
+      FROM transactions tr 
+      LEFT JOIN admins a ON tr.recorded_by = a.id
+    `;
+    const params = [];
+
+    if (role === 'cashier') {
+      if (branchId && branchId !== 'null' && branchId !== 'undefined') {
+        query += ` WHERE tr.branch_id = ? OR tr.recorded_by = ? `;
+        params.push(branchId, adminId);
+      } else if (adminId) {
+        query += ` WHERE tr.recorded_by = ? `;
+        params.push(adminId);
+      }
+    }
+    query += ` ORDER BY tr.transaction_date DESC, tr.id DESC`;
+
+    const [rows] = await pool.query(query, params);
+    res.json(rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch transactions.' });
+  }
+});
+
+// POST a new manual transaction (billing log)
+app.post('/api/transactions', async (req, res) => {
+  try {
+    const { 
+      branch_id, 
+      transaction_type, 
+      category, 
+      amount, 
+      transaction_date, 
+      description, 
+      recorded_by 
+    } = req.body;
+
+    if (!transaction_type || !amount || !transaction_date || !recorded_by) {
+      return res.status(400).json({ error: 'Transaction type, amount, date, and recorded_by are required.' });
+    }
+
+    const [result] = await pool.query(
+      `INSERT INTO transactions (
+        branch_id, transaction_type, category, amount, transaction_date, description, recorded_by
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        branch_id !== undefined ? branch_id : null,
+        transaction_type,
+        category || null,
+        amount,
+        transaction_date,
+        description || null,
+        recorded_by
+      ]
+    );
+
+    res.status(201).json({
+      id: result.insertId,
+      branch_id,
+      transaction_type,
+      category,
+      amount,
+      transaction_date,
+      description,
+      recorded_by
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to create transaction.' });
+  }
+});
+
+// GET all articles
+app.get('/api/articles', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM articles ORDER BY id DESC');
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching articles:', error);
+    res.status(500).json({ error: 'Failed to fetch articles.' });
+  }
+});
+
+// GET single article by ID
+app.get('/api/articles/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [rows] = await pool.query('SELECT * FROM articles WHERE id = ? LIMIT 1', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Article not found.' });
+    }
+    res.json(rows[0]);
+  } catch (error) {
+    console.error('Error fetching article details:', error);
+    res.status(500).json({ error: 'Failed to fetch article.' });
+  }
+});
+
+// POST a new article
+app.post('/api/articles', async (req, res) => {
+  try {
+    const { title, content, image, read_time } = req.body;
+    if (!title || !content) {
+      return res.status(400).json({ error: 'Title and content are required.' });
+    }
+    const [result] = await pool.query(
+      'INSERT INTO articles (title, content, image, read_time) VALUES (?, ?, ?, ?)',
+      [title, content, image || '', read_time || '5 menit baca']
+    );
+    res.status(201).json({
+      id: result.insertId,
+      title,
+      content,
+      image: image || '',
+      read_time: read_time || '5 menit baca',
+      created_at: new Date()
+    });
+  } catch (error) {
+    console.error('Error creating article:', error);
+    res.status(500).json({ error: 'Failed to create article.' });
+  }
+});
+
+// PUT (update) an article
+app.put('/api/articles/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, content, image, read_time } = req.body;
+    if (!title || !content) {
+      return res.status(400).json({ error: 'Title and content are required.' });
+    }
+    await pool.query(
+      'UPDATE articles SET title = ?, content = ?, image = ?, read_time = ? WHERE id = ?',
+      [title, content, image || '', read_time || '5 menit baca', id]
+    );
+    res.json({
+      id: parseInt(id, 10),
+      title,
+      content,
+      image,
+      read_time
+    });
+  } catch (error) {
+    console.error('Error updating article:', error);
+    res.status(500).json({ error: 'Failed to update article.' });
+  }
+});
+
+// DELETE an article
+app.delete('/api/articles/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query('DELETE FROM articles WHERE id = ?', [id]);
+    res.json({ success: true, message: 'Article deleted successfully.', id: parseInt(id, 10) });
+  } catch (error) {
+    console.error('Error deleting article:', error);
+    res.status(500).json({ error: 'Failed to delete article.' });
+  }
+});
+
+// --- ADMINS (USER MANAGEMENT) API ROUTES ---
+
+// GET all admins (excluding password hashes)
+app.get('/api/admins', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT id, username, name, email, role, branch_id, is_active, created_at FROM admins ORDER BY id DESC');
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching admin users:', error);
+    res.status(500).json({ error: 'Failed to fetch admin users.' });
+  }
+});
+
+// POST create a new admin
+app.post('/api/admins', async (req, res) => {
+  try {
+    const { username, password, name, email, role, branch_id, is_active } = req.body;
+    if (!username || !password || !name) {
+      return res.status(400).json({ error: 'Username, password, and name are required.' });
+    }
+
+    const hashedPassword = bcrypt.hashSync(password, 10);
+    const [result] = await pool.query(
+      `INSERT INTO admins (username, password, name, email, role, branch_id, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        username,
+        hashedPassword,
+        name,
+        email || null,
+        role || 'admin',
+        branch_id !== undefined && branch_id !== '' && branch_id !== null ? parseInt(branch_id, 10) : null,
+        is_active !== undefined ? (is_active ? 1 : 0) : 1
+      ]
+    );
+
+    res.status(201).json({
+      id: result.insertId,
+      username,
+      name,
+      email,
+      role: role || 'admin',
+      branch_id: branch_id || null,
+      is_active: is_active !== undefined ? (is_active ? 1 : 0) : 1,
+      created_at: new Date()
+    });
+  } catch (error) {
+    console.error('Error creating admin user:', error);
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: 'Username already exists.' });
+    }
+    res.status(500).json({ error: 'Failed to create admin user.' });
+  }
+});
+
+// PUT update an admin user
+app.put('/api/admins/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { username, password, name, email, role, branch_id, is_active } = req.body;
+    if (!username || !name) {
+      return res.status(400).json({ error: 'Username and name are required.' });
+    }
+
+    let updateQuery = `
+      UPDATE admins 
+      SET username = ?, name = ?, email = ?, role = ?, branch_id = ?, is_active = ?
+    `;
+    const params = [
+      username,
+      name,
+      email || null,
+      role || 'admin',
+      branch_id !== undefined && branch_id !== '' && branch_id !== null ? parseInt(branch_id, 10) : null,
+      is_active !== undefined ? (is_active ? 1 : 0) : 1
+    ];
+
+    if (password) {
+      const hashedPassword = bcrypt.hashSync(password, 10);
+      updateQuery += `, password = ? `;
+      params.push(hashedPassword);
+    }
+
+    updateQuery += ` WHERE id = ?`;
+    params.push(id);
+
+    await pool.query(updateQuery, params);
+
+    res.json({
+      id: parseInt(id, 10),
+      username,
+      name,
+      email,
+      role,
+      branch_id,
+      is_active
+    });
+  } catch (error) {
+    console.error('Error updating admin user:', error);
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: 'Username already exists.' });
+    }
+    res.status(500).json({ error: 'Failed to update admin user.' });
+  }
+});
+
+// DELETE an admin user
+app.delete('/api/admins/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query('DELETE FROM admins WHERE id = ?', [id]);
+    res.json({ success: true, message: 'Admin user deleted successfully.', id: parseInt(id, 10) });
+  } catch (error) {
+    console.error('Error deleting admin user:', error);
+    res.status(500).json({ error: 'Failed to delete admin user.' });
+  }
+});
+
+// GET Website Settings
+app.get('/api/settings', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT `setting_key`, `setting_value` FROM settings');
+    const settings = {};
+    rows.forEach(row => {
+      let val = row.setting_value;
+      try {
+        val = JSON.parse(row.setting_value);
+      } catch (e) {
+        // Fallback to raw string if it is not valid JSON
+      }
+      settings[row.setting_key] = val;
+    });
+    res.json(settings);
+  } catch (error) {
+    console.error('Error fetching settings:', error);
+    res.status(500).json({ error: 'Failed to fetch settings.' });
+  }
+});
+
+// PUT (update) Website Settings
+app.put('/api/settings', async (req, res) => {
+  try {
+    const settings = req.body;
+    if (!settings || typeof settings !== 'object') {
+      return res.status(400).json({ error: 'Invalid settings object.' });
+    }
+
+    // Save each key-value pair as a JSON serialized string
+    const promises = Object.entries(settings).map(([key, val]) => {
+      const valStr = JSON.stringify(val);
+      return pool.query(
+        'INSERT INTO settings (`setting_key`, `setting_value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `setting_value` = ?',
+        [key, valStr, valStr]
+      );
+    });
+
+    await Promise.all(promises);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating settings:', error);
+    res.status(500).json({ error: 'Failed to update settings.' });
+  }
+});
+
+// Start Express Server
+app.listen(port, () => {
+  console.log(`Express Server running on port ${port}`);
+});

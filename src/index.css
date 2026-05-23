@@ -1,0 +1,169 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: 0 0% 4%;
+  --surface: 0 0% 8%;
+  --text: 0 0% 96%;
+  --muted: 0 0% 53%;
+  --stroke: 0 0% 12%;
+  --accent: 0 0% 96%;
+}
+
+html {
+  scroll-behavior: smooth;
+  background-color: hsl(var(--bg));
+  color: hsl(var(--text));
+  font-family: 'Inter', sans-serif;
+}
+
+body {
+  background-color: hsl(var(--bg));
+  color: hsl(var(--text));
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: hsl(var(--bg));
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--stroke));
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted) / 0.5);
+}
+
+/* Custom Utilities */
+.accent-gradient {
+  background: linear-gradient(90deg, #E88A4D 0%, #D85F1F 100%);
+}
+
+.accent-gradient-hover {
+  background: linear-gradient(90deg, #E88A4D 0%, #D85F1F 100%);
+  background-size: 200% auto;
+  transition: background-position 0.5s ease;
+}
+.accent-gradient-hover:hover {
+  background-position: right center;
+}
+
+/* Halftone Pattern */
+.halftone-overlay {
+  background-image: radial-gradient(circle, #000000 1.2px, transparent 1.2px);
+  background-size: 5px 5px;
+}
+
+/* GSAP Animations */
+@keyframes scroll-down {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(200%);
+    opacity: 0;
+  }
+}
+
+@keyframes role-fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-scroll-down {
+  animation: scroll-down 1.5s ease-in-out infinite;
+}
+
+.animate-role-fade-in {
+  animation: role-fade-in 0.4s ease-out forwards;
+}
+
+.animate-gradient-shift {
+  background-size: 200% 200%;
+  animation: gradient-shift 6s ease infinite;
+}
+
+/* Custom class for blur reveal */
+.blur-in {
+  filter: blur(12px);
+  opacity: 0;
+}
+
+.name-reveal {
+  opacity: 0;
+  transform: translateY(50px);
+}
+
+/* Smooth hide default video focus outline */
+video:focus {
+  outline: none;
+}
+
+/* Hide scrollbar utility */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Animated Strikethrough for original prices when promo is active */
+@keyframes strike-draw {
+  from {
+    width: 0;
+  }
+  to {
+    width: 104%;
+  }
+}
+
+.animate-strike {
+  position: relative;
+  display: inline-block;
+  text-decoration: none !important;
+}
+
+.animate-strike::after {
+  content: '';
+  position: absolute;
+  left: -2%;
+  top: 50%;
+  width: 0;
+  height: 2px;
+  background-color: #f43f5e; /* Rose-500 for a stunning discount cross line */
+  transform: translateY(-50%);
+  animation: strike-draw 0.7s cubic-bezier(0.65, 0, 0.35, 1) 0.3s forwards;
+}
