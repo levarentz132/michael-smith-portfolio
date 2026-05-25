@@ -1637,6 +1637,17 @@ app.put('/api/settings', async (req, res) => {
   }
 });
 
+// Serve static files from the React app in production
+if (process.env.NODE_ENV === 'production') {
+  // Serve static files from dist directory
+  app.use(express.static(path.join(__dirname, 'dist')));
+
+  // Handle React routing, return all requests to React app
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+  });
+}
+
 // Start Express Server
 app.listen(port, () => {
   console.log(`Express Server running on port ${port}`);
