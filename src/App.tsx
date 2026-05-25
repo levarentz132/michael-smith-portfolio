@@ -24,6 +24,8 @@ function App() {
   const [activeSection, setActiveSection] = useState('home');
   const [bookingOpen, setBookingOpen] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+  const [showPrefPopup, setShowPrefPopup] = useState(false);
+  const [bookingPref, setBookingPref] = useState<'all' | 'monthly' | 'transit'>('all');
   const [loginOpen, setLoginOpen] = useState(false);
   const [settings, setSettings] = useState<WebsiteSettings | null>(null);
   const [userSession, setUserSession] = useState<UserSession | null>(() => {
@@ -130,7 +132,10 @@ function App() {
         <AnimatePresence mode="wait">
           {isLoading ? (
             <LoadingScreen 
-              onComplete={() => setIsLoading(false)} 
+              onComplete={() => {
+                setIsLoading(false);
+                setShowPrefPopup(true);
+              }} 
               logoImage={settings?.logo_image || ''}
               key="loader" 
             />
@@ -142,6 +147,94 @@ function App() {
               transition={{ duration: 0.8, ease: "easeOut" }}
               className="w-full relative min-h-screen bg-bg"
             >
+              {/* Homepage Booking Preference Popup */}
+              <AnimatePresence>
+                {showPrefPopup && (
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+                  >
+                    <motion.div 
+                      initial={{ scale: 0.9, y: 20 }}
+                      animate={{ scale: 1, y: 0 }}
+                      exit={{ scale: 0.9, y: 20 }}
+                      transition={{ type: "spring", damping: 25, stiffness: 250 }}
+                      className="relative w-full max-w-lg bg-surface border border-stroke rounded-[32px] p-6 sm:p-8 overflow-hidden shadow-2xl text-center flex flex-col items-center gap-6"
+                    >
+                      {/* Halftone Overlay */}
+                      <div className="absolute inset-0 halftone-overlay mix-blend-multiply opacity-10 pointer-events-none" />
+
+                      <div className="flex flex-col gap-2 relative z-10">
+                        <span className="text-[10px] text-muted uppercase tracking-[0.25em] font-bold">Pilihan Sewa</span>
+                        <h3 className="text-2xl md:text-3xl font-display italic font-semibold text-text-primary mt-1">
+                          Bagaimana Anda ingin memesan hunian?
+                        </h3>
+                        <p className="text-[11px] md:text-xs text-muted max-w-xs mx-auto leading-relaxed mt-1 font-light">
+                          Tentukan tipe sewa Anda untuk memfilter kamar dan apartemen unggulan kami yang paling cocok.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full relative z-10">
+                        {/* Monthly Option */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBookingPref('monthly');
+                            setShowPrefPopup(false);
+                            setTimeout(() => handleNavClick('work'), 150);
+                          }}
+                          className="flex flex-col gap-3.5 p-5 rounded-2xl border border-stroke bg-bg/40 hover:bg-surface transition-all duration-300 group text-left active:scale-[0.98]"
+                        >
+                          <div className="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-lg group-hover:scale-110 transition-transform">
+                            📅
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-semibold text-text-primary">Sewa Bulanan</h4>
+                            <p className="text-[10px] text-muted leading-relaxed mt-1">
+                              Sewa kamar kos atau apartemen premium dengan jangka waktu bulanan.
+                            </p>
+                          </div>
+                        </button>
+
+                        {/* Transit Option */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBookingPref('transit');
+                            setShowPrefPopup(false);
+                            setTimeout(() => handleNavClick('work'), 150);
+                          }}
+                          className="flex flex-col gap-3.5 p-5 rounded-2xl border border-stroke bg-bg/40 hover:bg-surface transition-all duration-300 group text-left active:scale-[0.98]"
+                        >
+                          <div className="w-10 h-10 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-lg group-hover:scale-110 transition-transform">
+                            ⚡
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-semibold text-text-primary">Transit (Per Jam)</h4>
+                            <p className="text-[10px] text-muted leading-relaxed mt-1">
+                              Sewa transit jangka pendek per jam untuk istirahat atau urusan singkat.
+                            </p>
+                          </div>
+                        </button>
+                      </div>
+
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setBookingPref('all');
+                          setShowPrefPopup(false);
+                        }}
+                        className="text-xs text-muted hover:text-text-primary transition-colors underline decoration-stroke/50 relative z-10 font-medium"
+                      >
+                        Lihat Semua Pilihan Hunian
+                      </button>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {/* Navbar */}
               <Navbar 
                 activeSection={activeSection} 
@@ -164,7 +257,10 @@ function App() {
                 <Banner onCtaClick={() => handleNavClick('contact')} settings={settings} />
 
                 {/* Selected Works Section */}
-                <SelectedWorks onPropertyClick={(id, title) => navigate(`/property/${id}-${slugify(title)}`)} />
+                <SelectedWorks 
+                  onPropertyClick={(id, title) => navigate(`/property/${id}-${slugify(title)}`)} 
+                  initialBookingFilter={bookingPref}
+                />
 
                 {/* Journal Section */}
                 <Journal />

@@ -11,6 +11,7 @@ import {
   fetchTenantInfo,
   fetchTenants,
   createTenant,
+  updateTenant,
   fetchTransactions,
   createTransaction,
   fetchSettings,
@@ -53,7 +54,7 @@ export const AdminPanel: React.FC = () => {
   const isAdminRole = (role?: string) => role === 'admin' || role === 'owner' || role === 'cashier';
 
   const [tenantInfo, setTenantInfo] = useState<TenantInfo | null>(null);
-  const [activeTab, setActiveTab] = useState<'bookings' | 'properties' | 'tenants' | 'earnings' | 'settings' | 'articles' | 'users'>('bookings');
+  const [activeTab, setActiveTab] = useState<'bookings' | 'monthly_bookings' | 'properties' | 'tenants' | 'earnings' | 'settings' | 'articles' | 'users'>('bookings');
 
   // Settings tab states
   const [logoText, setLogoText] = useState('HS');
@@ -102,6 +103,16 @@ export const AdminPanel: React.FC = () => {
   const [userRole, setUserRole] = useState<'owner' | 'admin' | 'cashier'>('cashier');
   const [userBranchId, setUserBranchId] = useState('');
   const [userIsActive, setUserIsActive] = useState(true);
+
+  // Transit booking approval verification states
+  const [approvingBooking, setApprovingBooking] = useState<Booking | null>(null);
+  const [approveIdCardNumber, setApproveIdCardNumber] = useState('');
+  const [approveIdCardPhoto, setApproveIdCardPhoto] = useState('');
+  const [approveAddress, setApproveAddress] = useState('');
+  const [approveEmergencyContact, setApproveEmergencyContact] = useState('');
+  const [approveEmergencyPhone, setApproveEmergencyPhone] = useState('');
+  const [isUploadingApprovePhoto, setIsUploadingApprovePhoto] = useState(false);
+  const [approvePhotoError, setApprovePhotoError] = useState('');
 
   const handleBannerImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -324,6 +335,7 @@ export const AdminPanel: React.FC = () => {
 
   // Tenants manual creation modal & search
   const [isTenantModalOpen, setIsTenantModalOpen] = useState(false);
+  const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
   const [newTenantName, setNewTenantName] = useState('');
   const [newTenantEmail, setNewTenantEmail] = useState('');
   const [newTenantPhone, setNewTenantPhone] = useState('');
@@ -399,6 +411,9 @@ export const AdminPanel: React.FC = () => {
 
   useEffect(() => {
     if (session) {
+      if (session.role === 'cashier') {
+        setActiveTab('bookings');
+      }
       Promise.resolve().then(() => {
         loadData(session);
       });
@@ -416,22 +431,149 @@ export const AdminPanel: React.FC = () => {
     navigate('/');
   };
 
-  // Booking Actions
-  const handleApproveBooking = async (id: number) => {
+  const getStatusBadgeClass = (status: string) => {
+    switch (status) {
+      case 'approved':
+      case 'confirmed':
+        return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+      case 'rejected':
+      case 'cancelled':
+        return 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
+      case 'followup':
+        return 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
+      case 'surveyed':
+        return 'bg-purple-500/10 text-purple-400 border border-purple-500/20';
+      case 'payments':
+        return 'bg-teal-500/10 text-teal-400 border border-teal-500/20';
+      case 'pending':
+      default:
+        return 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'approved':
+      case 'confirmed':
+        return 'APPROVED';
+      case 'rejected':
+      case 'cancelled':
+        return 'REJECTED';
+      case 'followup':
+        return 'FOLLOW UP';
+      case 'surveyed':
+        return 'SURVEYED';
+      case 'payments':
+        return 'PAYMENTS';
+      case 'pending':
+      default:
+        return 'PENDING';
+    }
+  };
+
+  const handleOpenApproveModal = (booking: Booking) => {
+    setApprovingBooking(booking);
+    setApproveIdCardNumber(booking.idCardNumber || '');
+    setApproveIdCardPhoto(booking.idCardPhoto || '');
+    setApproveAddress(booking.address || '');
+    setApproveEmergencyContact(booking.emergencyContact || '');
+    setApproveEmergencyPhone(booking.emergencyPhone || '');
+    setApprovePhotoError('');
+  };
+
+  const handleApprovePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setApprovePhotoError('Pilih file gambar valid (PNG, JPG, dll).');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setApprovePhotoError('Ukuran gambar tidak boleh melebihi 5MB.');
+      return;
+    }
+
+    setIsUploadingApprovePhoto(true);
+    setApprovePhotoError('');
+
+    const formData = new FormData();
+    formData.append('image', file);
+
     try {
-      await updateBookingStatus(id, 'approved', session?.id);
-      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'approved' } : b));
-      // Refresh transactions after approval
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!res.ok) {
+        throw new Error('Upload failed');
+      }
+
+      const data = await res.json();
+      setApproveIdCardPhoto('/' + data.url);
+    } catch (err) {
+      console.error(err);
+      setApprovePhotoError('Gagal mengunggah foto KTP. Silakan coba lagi.');
+    } finally {
+      setIsUploadingApprovePhoto(false);
+    }
+  };
+
+  const handleConfirmApproval = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!approvingBooking || !approvingBooking.id) return;
+
+    if (!approveIdCardNumber || !approveIdCardPhoto || !approveAddress || !approveEmergencyContact || !approveEmergencyPhone) {
+      alert('Semua informasi identitas dan kontak darurat wajib diisi.');
+      return;
+    }
+
+    try {
+      const extraDetails = {
+        idCardNumber: approveIdCardNumber,
+        idCardPhoto: approveIdCardPhoto,
+        address: approveAddress,
+        emergencyContact: approveEmergencyContact,
+        emergencyPhone: approveEmergencyPhone
+      };
+
+      await updateBookingStatus(approvingBooking.id, 'approved', session?.id, extraDetails);
+      
+      setBookings(prev => prev.map(b => b.id === approvingBooking.id ? { 
+        ...b, 
+        status: 'approved',
+        idCardNumber: approveIdCardNumber,
+        idCardPhoto: approveIdCardPhoto,
+        address: approveAddress,
+        emergencyContact: approveEmergencyContact,
+        emergencyPhone: approveEmergencyPhone
+      } : b));
+
+      setApprovingBooking(null);
+
       if (session) {
         const txs = await fetchTransactions(session.id, session.role, session.branchId);
         setTransactions(txs);
       }
     } catch (err) {
       console.error(err);
-      alert('Failed to update booking status.');
+      alert(err instanceof Error ? err.message : 'Gagal menyetujui booking.');
     }
   };
 
+  const handleUpdateMonthlyStatus = async (id: number, newStatus: string) => {
+    try {
+      await updateBookingStatus(id, newStatus, session?.id);
+      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: newStatus } : b));
+    } catch (err) {
+      console.error(err);
+      alert('Gagal memperbarui status booking.');
+    }
+  };
+
+  // Booking Actions
   const handleRejectBooking = async (id: number) => {
     try {
       await updateBookingStatus(id, 'rejected', session?.id);
@@ -823,27 +965,62 @@ export const AdminPanel: React.FC = () => {
   };
 
   // Tenant Actions
+  const handleOpenAddTenantModal = () => {
+    setEditingTenant(null);
+    setNewTenantName('');
+    setNewTenantEmail('');
+    setNewTenantPhone('');
+    setNewTenantIdCardNumber('');
+    setNewTenantIdCardPhoto('');
+    setNewTenantAddress('');
+    setNewTenantEmergencyContact('');
+    setNewTenantEmergencyPhone('');
+    setNewTenantStatus('active');
+    setIsTenantModalOpen(true);
+  };
+
+  const handleOpenEditTenantModal = (tenant: Tenant) => {
+    setEditingTenant(tenant);
+    setNewTenantName(tenant.name || '');
+    setNewTenantEmail(tenant.email || '');
+    setNewTenantPhone(tenant.phone || '');
+    setNewTenantIdCardNumber(tenant.id_card_number || '');
+    setNewTenantIdCardPhoto(tenant.id_card_photo || '');
+    setNewTenantAddress(tenant.address || '');
+    setNewTenantEmergencyContact(tenant.emergency_contact || '');
+    setNewTenantEmergencyPhone(tenant.emergency_phone || '');
+    setNewTenantStatus(tenant.status || 'active');
+    setIsTenantModalOpen(true);
+  };
+
   const handleSaveTenant = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTenantName || !newTenantPhone) {
       alert('Name and phone number are required.');
       return;
     }
+    const payload = {
+      name: newTenantName,
+      email: newTenantEmail || null,
+      phone: newTenantPhone,
+      id_card_number: newTenantIdCardNumber || null,
+      id_card_photo: newTenantIdCardPhoto || null,
+      address: newTenantAddress || null,
+      emergency_contact: newTenantEmergencyContact || null,
+      emergency_phone: newTenantEmergencyPhone || null,
+      status: newTenantStatus,
+      pic_admin_id: editingTenant ? editingTenant.pic_admin_id : (session?.id || null)
+    };
+
     try {
-      await createTenant({
-        name: newTenantName,
-        email: newTenantEmail || null,
-        phone: newTenantPhone,
-        id_card_number: newTenantIdCardNumber || null,
-        id_card_photo: newTenantIdCardPhoto || null,
-        address: newTenantAddress || null,
-        emergency_contact: newTenantEmergencyContact || null,
-        emergency_phone: newTenantEmergencyPhone || null,
-        status: newTenantStatus,
-        pic_admin_id: session?.id || null
-      });
+      if (editingTenant && editingTenant.id) {
+        await updateTenant(editingTenant.id, { id: editingTenant.id, ...payload });
+      } else {
+        await createTenant(payload);
+      }
 
       setIsTenantModalOpen(false);
+      setEditingTenant(null);
       setNewTenantName('');
       setNewTenantEmail('');
       setNewTenantPhone('');
@@ -860,7 +1037,7 @@ export const AdminPanel: React.FC = () => {
       }
     } catch (err) {
       console.error(err);
-      alert(err instanceof Error ? err.message : 'Failed to create tenant.');
+      alert(err instanceof Error ? err.message : 'Failed to save tenant.');
     }
   };
 
@@ -1010,16 +1187,26 @@ export const AdminPanel: React.FC = () => {
                         activeTab === 'bookings' ? 'text-bg bg-text-primary' : 'text-muted hover:text-text-primary'
                       }`}
                     >
-                      Bookings ({bookings.length})
+                      Transit ({bookings.filter(b => b.bookingType === 'transit').length})
                     </button>
                     <button
-                      onClick={() => setActiveTab('properties')}
+                      onClick={() => setActiveTab('monthly_bookings')}
                       className={`text-xs font-semibold uppercase tracking-wider rounded-full px-5 py-2.5 transition-all duration-300 ${
-                        activeTab === 'properties' ? 'text-bg bg-text-primary' : 'text-muted hover:text-text-primary'
+                        activeTab === 'monthly_bookings' ? 'text-bg bg-text-primary' : 'text-muted hover:text-text-primary'
                       }`}
                     >
-                      Properties ({properties.length})
+                      Bulanan ({bookings.filter(b => b.bookingType !== 'transit').length})
                     </button>
+                    {session?.role !== 'cashier' && (
+                      <button
+                        onClick={() => setActiveTab('properties')}
+                        className={`text-xs font-semibold uppercase tracking-wider rounded-full px-5 py-2.5 transition-all duration-300 ${
+                          activeTab === 'properties' ? 'text-bg bg-text-primary' : 'text-muted hover:text-text-primary'
+                        }`}
+                      >
+                        Properties ({properties.length})
+                      </button>
+                    )}
                     <button
                       onClick={() => setActiveTab('tenants')}
                       className={`text-xs font-semibold uppercase tracking-wider rounded-full px-5 py-2.5 transition-all duration-300 ${
@@ -1036,22 +1223,26 @@ export const AdminPanel: React.FC = () => {
                     >
                       Earnings
                     </button>
-                    <button
-                      onClick={() => setActiveTab('settings')}
-                      className={`text-xs font-semibold uppercase tracking-wider rounded-full px-5 py-2.5 transition-all duration-300 ${
-                        activeTab === 'settings' ? 'text-bg bg-text-primary' : 'text-muted hover:text-text-primary'
-                      }`}
-                    >
-                      Settings
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('articles')}
-                      className={`text-xs font-semibold uppercase tracking-wider rounded-full px-5 py-2.5 transition-all duration-300 ${
-                        activeTab === 'articles' ? 'text-bg bg-text-primary' : 'text-muted hover:text-text-primary'
-                      }`}
-                    >
-                      Panduan Terbaru ({articles.length})
-                    </button>
+                    {session?.role !== 'cashier' && (
+                      <button
+                        onClick={() => setActiveTab('settings')}
+                        className={`text-xs font-semibold uppercase tracking-wider rounded-full px-5 py-2.5 transition-all duration-300 ${
+                          activeTab === 'settings' ? 'text-bg bg-text-primary' : 'text-muted hover:text-text-primary'
+                        }`}
+                      >
+                        Settings
+                      </button>
+                    )}
+                    {session?.role !== 'cashier' && (
+                      <button
+                        onClick={() => setActiveTab('articles')}
+                        className={`text-xs font-semibold uppercase tracking-wider rounded-full px-5 py-2.5 transition-all duration-300 ${
+                          activeTab === 'articles' ? 'text-bg bg-text-primary' : 'text-muted hover:text-text-primary'
+                        }`}
+                      >
+                        Panduan Terbaru ({articles.length})
+                      </button>
+                    )}
                     {(session?.role === 'admin' || session?.role === 'owner') && (
                       <button
                         onClick={() => setActiveTab('users')}
@@ -1082,7 +1273,7 @@ export const AdminPanel: React.FC = () => {
                     )}
                     {activeTab === 'tenants' && (
                       <button
-                        onClick={() => setIsTenantModalOpen(true)}
+                        onClick={handleOpenAddTenantModal}
                         className="relative group rounded-full text-xs font-semibold uppercase tracking-wider px-6 py-2.5 bg-text-primary text-bg hover:bg-bg hover:text-text-primary transition-all duration-300 border border-transparent"
                       >
                         <span className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 p-[1px] accent-gradient" style={{ margin: '-1px' }} />
@@ -1122,9 +1313,9 @@ export const AdminPanel: React.FC = () => {
                 {/* BOOKINGS TABLE TAB */}
                 {activeTab === 'bookings' && (
                   <div className="bg-surface/30 border border-stroke/50 rounded-3xl overflow-hidden shadow-xl">
-                    {bookings.length === 0 ? (
+                    {bookings.filter(b => b.bookingType === 'transit').length === 0 ? (
                       <div className="py-16 text-center text-muted text-xs uppercase tracking-widest font-medium">
-                        No bookings found in the database.
+                        No transit bookings found in the database.
                       </div>
                     ) : (
                       <div className="overflow-x-auto">
@@ -1135,17 +1326,19 @@ export const AdminPanel: React.FC = () => {
                               <th className="py-4 px-6">Space Preference</th>
                               <th className="py-4 px-6">Schedule / Date</th>
                               <th className="py-4 px-6">Status</th>
+                              <th className="py-4 px-6">PIC</th>
                               <th className="py-4 px-6">Created At</th>
                               <th className="py-4 px-6 text-right">Actions</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-stroke/30 text-sm">
-                            {bookings.map((booking) => (
+                            {bookings.filter(b => b.bookingType === 'transit').map((booking) => (
                               <tr key={booking.id} className="hover:bg-surface/20 transition-colors duration-200">
                                 <td className="py-4 px-6">
                                   <div className="flex flex-col">
                                     <span className="font-semibold text-text-primary">{booking.userName}</span>
                                     <span className="text-xs text-muted font-light">{booking.userEmail}</span>
+                                    {booking.phone && <span className="text-[11px] text-muted font-light mt-0.5">{booking.phone}</span>}
                                   </div>
                                 </td>
                                 <td className="py-4 px-6 text-text-primary font-medium">
@@ -1168,15 +1361,12 @@ export const AdminPanel: React.FC = () => {
                                   )}
                                 </td>
                                 <td className="py-4 px-6">
-                                  <span className={`text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full ${
-                                    booking.status === 'approved' 
-                                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
-                                      : booking.status === 'rejected'
-                                      ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                                      : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                                  }`}>
-                                    {booking.status}
+                                  <span className={`text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full ${getStatusBadgeClass(booking.status)}`}>
+                                    {getStatusLabel(booking.status)}
                                   </span>
+                                </td>
+                                <td className="py-4 px-6 text-xs font-medium text-text-primary font-sans">
+                                  {booking.approvedByName || '-'}
                                 </td>
                                 <td className="py-4 px-6 text-xs text-muted">
                                   {booking.createdAt ? new Date(booking.createdAt).toLocaleDateString() : '-'}
@@ -1186,7 +1376,7 @@ export const AdminPanel: React.FC = () => {
                                     {booking.status === 'pending' && (
                                       <>
                                         <button
-                                          onClick={() => handleApproveBooking(booking.id!)}
+                                          onClick={() => handleOpenApproveModal(booking)}
                                           className="text-xs font-semibold bg-emerald-500 text-bg hover:bg-emerald-400 px-3 py-1.5 rounded-lg transition-colors"
                                         >
                                           Approve
@@ -1198,6 +1388,103 @@ export const AdminPanel: React.FC = () => {
                                           Reject
                                         </button>
                                       </>
+                                    )}
+                                    {session?.role !== 'cashier' && (
+                                      <button
+                                        onClick={() => handleDeleteBookingRecord(booking.id!)}
+                                        className="text-xs font-semibold border border-stroke text-muted hover:text-rose-400 hover:border-rose-500/30 px-3 py-1.5 rounded-lg transition-colors"
+                                      >
+                                        Delete
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* MONTHLY BOOKINGS TABLE TAB */}
+                {activeTab === 'monthly_bookings' && (
+                  <div className="bg-surface/30 border border-stroke/50 rounded-3xl overflow-hidden shadow-xl">
+                    {bookings.filter(b => b.bookingType !== 'transit').length === 0 ? (
+                      <div className="py-16 text-center text-muted text-xs uppercase tracking-widest font-medium">
+                        No monthly bookings found in the database.
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="border-b border-stroke/60 bg-surface/50 text-[10px] text-muted uppercase tracking-[0.15em] font-semibold">
+                              <th className="py-4 px-6">Tenant</th>
+                              <th className="py-4 px-6">Space Preference</th>
+                              <th className="py-4 px-6 font-sans">Move In Date</th>
+                              <th className="py-4 px-6">Status</th>
+                              <th className="py-4 px-6">PIC</th>
+                              <th className="py-4 px-6 font-sans">Notes/Survey</th>
+                              <th className="py-4 px-6">Created At</th>
+                              <th className="py-4 px-6 text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-stroke/30 text-sm">
+                            {bookings.filter(b => b.bookingType !== 'transit').map((booking) => (
+                              <tr key={booking.id} className="hover:bg-surface/20 transition-colors duration-200">
+                                <td className="py-4 px-6">
+                                  <div className="flex flex-col">
+                                    <span className="font-semibold text-text-primary">{booking.userName}</span>
+                                    <span className="text-xs text-muted font-light">{booking.userEmail}</span>
+                                    {booking.phone && <span className="text-[11px] text-muted">{booking.phone}</span>}
+                                  </div>
+                                </td>
+                                <td className="py-4 px-6 text-text-primary font-medium">
+                                  {booking.propertyName}
+                                </td>
+                                <td className="py-4 px-6 text-muted">
+                                  {booking.moveInDate}
+                                </td>
+                                <td className="py-4 px-6">
+                                  <span className={`text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full ${getStatusBadgeClass(booking.status)}`}>
+                                    {getStatusLabel(booking.status)}
+                                  </span>
+                                </td>
+                                <td className="py-4 px-6 text-xs font-medium text-text-primary font-sans">
+                                  {booking.approvedByName || '-'}
+                                </td>
+                                <td className="py-4 px-6 text-xs text-muted max-w-[200px] truncate font-sans" title={booking.notes || ''}>
+                                  {booking.notes || '-'}
+                                </td>
+                                <td className="py-4 px-6 text-xs text-muted">
+                                  {booking.createdAt ? new Date(booking.createdAt).toLocaleDateString() : '-'}
+                                </td>
+                                <td className="py-4 px-6 text-right">
+                                  <div className="flex justify-end gap-2">
+                                    {booking.status !== 'followup' && (
+                                      <button
+                                        onClick={() => handleUpdateMonthlyStatus(booking.id!, 'followup')}
+                                        className="text-xs font-semibold bg-blue-500 text-bg hover:bg-blue-400 px-3 py-1.5 rounded-lg transition-colors font-sans"
+                                      >
+                                        Follow Up
+                                      </button>
+                                    )}
+                                    {booking.status !== 'surveyed' && (
+                                      <button
+                                        onClick={() => handleUpdateMonthlyStatus(booking.id!, 'surveyed')}
+                                        className="text-xs font-semibold bg-purple-500 text-bg hover:bg-purple-400 px-3 py-1.5 rounded-lg transition-colors font-sans"
+                                      >
+                                        Surveyed
+                                      </button>
+                                    )}
+                                    {booking.status !== 'payments' && (
+                                      <button
+                                        onClick={() => handleUpdateMonthlyStatus(booking.id!, 'payments')}
+                                        className="text-xs font-semibold bg-teal-500 text-bg hover:bg-teal-400 px-3 py-1.5 rounded-lg transition-colors font-sans"
+                                      >
+                                        Payments
+                                      </button>
                                     )}
                                     <button
                                       onClick={() => handleDeleteBookingRecord(booking.id!)}
@@ -1340,6 +1627,7 @@ export const AdminPanel: React.FC = () => {
                                 <th className="py-4 px-6">Address</th>
                                 <th className="py-4 px-6">Emergency Contact</th>
                                 <th className="py-4 px-6">PIC / Status</th>
+                                <th className="py-4 px-6 text-right">Actions</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-stroke/30 text-sm">
@@ -1391,6 +1679,14 @@ export const AdminPanel: React.FC = () => {
                                       </span>
                                       <span className="text-[10px] text-muted">PIC: {t.pic_admin_name || 'System / Default'}</span>
                                     </div>
+                                  </td>
+                                  <td className="py-4 px-6 text-right">
+                                    <button
+                                      onClick={() => handleOpenEditTenantModal(t)}
+                                      className="text-xs font-semibold border border-stroke hover:border-white/20 text-text-primary px-3 py-1.5 rounded-lg transition-colors font-sans"
+                                    >
+                                      Edit
+                                    </button>
                                   </td>
                                 </tr>
                               ))}
@@ -2048,6 +2344,42 @@ export const AdminPanel: React.FC = () => {
                       </div>
 
                       <div className="flex flex-col gap-1">
+                        <span className="text-[10px] text-muted uppercase tracking-wider font-semibold">KTP / Passport Number</span>
+                        <span className="text-sm font-semibold text-text-primary">{tenantInfo?.id_card_number || 'Not Verified'}</span>
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] text-muted uppercase tracking-wider font-semibold">Residential Address</span>
+                        <span className="text-sm font-semibold text-text-primary whitespace-pre-wrap">{tenantInfo?.address || 'Not Verified'}</span>
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] text-muted uppercase tracking-wider font-semibold">Emergency Contact</span>
+                        <span className="text-sm font-semibold text-text-primary">
+                          {tenantInfo?.emergency_contact ? `${tenantInfo.emergency_contact} (${tenantInfo.emergency_phone || '-'})` : 'Not Verified'}
+                        </span>
+                      </div>
+
+                      {tenantInfo?.id_card_photo && (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] text-muted uppercase tracking-wider font-semibold">KTP / ID Card Photo</span>
+                          <div>
+                            <a
+                              href={tenantInfo.id_card_photo.startsWith('/') ? tenantInfo.id_card_photo : `/${tenantInfo.id_card_photo}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs text-blue-400 hover:text-blue-300 font-semibold hover:underline inline-flex items-center gap-1 mt-1 font-sans"
+                            >
+                              <span>View Uploaded KTP / ID Card</span>
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                              </svg>
+                            </a>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex flex-col gap-1">
                         <span className="text-[10px] text-muted uppercase tracking-wider font-semibold">Status</span>
                         <div>
                           <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -2436,7 +2768,7 @@ export const AdminPanel: React.FC = () => {
 
             <div className="border-b border-stroke pb-4 mb-6">
               <h3 className="text-xl font-display italic font-semibold text-text-primary">
-                Add New Tenant Database
+                {editingTenant ? 'Edit Tenant Details' : 'Add New Tenant Database'}
               </h3>
             </div>
 
@@ -2554,7 +2886,140 @@ export const AdminPanel: React.FC = () => {
                 className="w-full relative group rounded-full text-xs font-semibold uppercase tracking-wider py-4 bg-text-primary text-bg hover:bg-bg hover:text-text-primary transition-all duration-300 border border-transparent mt-4"
               >
                 <span className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 p-[1px] accent-gradient" style={{ margin: '-1px' }} />
-                Register Tenant
+                {editingTenant ? 'Save Tenant Details' : 'Register Tenant'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Transit Booking Approval & Identity Verification Modal */}
+      {approvingBooking && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+          <div 
+            onClick={() => setApprovingBooking(null)}
+            className="absolute inset-0 bg-black/85 backdrop-blur-sm"
+          />
+
+          <div className="relative w-full max-w-lg bg-surface border border-stroke rounded-3xl p-6 sm:p-8 shadow-2xl text-left overflow-y-auto max-h-[90vh]">
+            <button 
+              onClick={() => setApprovingBooking(null)}
+              className="absolute top-4 right-4 text-muted hover:text-text-primary text-xl"
+            >
+              ✕
+            </button>
+
+            <div className="border-b border-stroke pb-4 mb-6">
+              <h3 className="text-xl font-display italic font-semibold text-text-primary font-sans">
+                Verifikasi Identitas & Kontak Darurat
+              </h3>
+              <p className="text-xs text-muted mt-1 leading-normal font-sans">
+                Lengkapi informasi identitas penyewa ({approvingBooking.userName}) sebelum menyetujui pesanan transit.
+              </p>
+            </div>
+
+            <form onSubmit={handleConfirmApproval} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-muted uppercase tracking-wider font-semibold font-sans">Nomor Identitas (KTP / Passport)*</label>
+                <input 
+                  type="text"
+                  required
+                  placeholder="Masukkan nomor KTP atau Passport"
+                  value={approveIdCardNumber}
+                  onChange={(e) => setApproveIdCardNumber(e.target.value)}
+                  className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-xs text-text-primary focus:outline-none focus:border-white/20 transition-colors font-sans"
+                />
+              </div>
+
+              {/* Photo KTP Upload */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-muted uppercase tracking-wider font-semibold font-sans">Foto Identitas (KTP / Passport)*</label>
+                <div className="flex items-center gap-4 p-4 rounded-xl border border-stroke bg-bg/50 hover:bg-bg transition-colors">
+                  <div className="relative w-20 h-20 rounded-lg overflow-hidden border border-stroke bg-bg-muted flex-shrink-0 flex items-center justify-center bg-surface">
+                    {approveIdCardPhoto ? (
+                      <img 
+                        src={approveIdCardPhoto} 
+                        alt="KTP Preview" 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="text-muted text-xs font-sans">No Image</div>
+                    )}
+                    {isUploadingApprovePhoto && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                        <Loader2 className="w-5 h-5 animate-spin text-white" />
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex-1 flex flex-col gap-1">
+                    <label className="cursor-pointer bg-white/10 hover:bg-white/15 text-text-primary font-medium text-xs py-2 px-3.5 rounded-lg border border-white/5 inline-flex items-center justify-center gap-2 transition-all active:scale-[0.98] w-fit font-sans">
+                      <Upload className="w-3.5 h-3.5" />
+                      {isUploadingApprovePhoto ? 'Mengunggah...' : 'Pilih Gambar'}
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={handleApprovePhotoUpload} 
+                        className="hidden" 
+                        disabled={isUploadingApprovePhoto}
+                      />
+                    </label>
+                    <p className="text-[10px] text-muted leading-normal font-sans">
+                      Mendukung PNG, JPG, JPEG hingga 5MB.
+                    </p>
+                    {approvePhotoError && (
+                      <p className="text-[10px] text-red-400 font-medium font-sans">
+                        {approvePhotoError}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-muted uppercase tracking-wider font-semibold font-sans">Alamat Lengkap KTP*</label>
+                <input 
+                  type="text"
+                  required
+                  placeholder="Masukkan alamat lengkap sesuai KTP"
+                  value={approveAddress}
+                  onChange={(e) => setApproveAddress(e.target.value)}
+                  className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-xs text-text-primary focus:outline-none focus:border-white/20 transition-colors font-sans"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs text-muted uppercase tracking-wider font-semibold font-sans">Nama Kontak Darurat*</label>
+                  <input 
+                    type="text"
+                    required
+                    placeholder="Nama Kerabat"
+                    value={approveEmergencyContact}
+                    onChange={(e) => setApproveEmergencyContact(e.target.value)}
+                    className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-xs text-text-primary focus:outline-none focus:border-white/20 transition-colors font-sans"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs text-muted uppercase tracking-wider font-semibold font-sans">Nomor Telp Darurat*</label>
+                  <input 
+                    type="text"
+                    required
+                    placeholder="No. Telp Kerabat"
+                    value={approveEmergencyPhone}
+                    onChange={(e) => setApproveEmergencyPhone(e.target.value)}
+                    className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-xs text-text-primary focus:outline-none focus:border-white/20 transition-colors font-sans"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isUploadingApprovePhoto}
+                className="w-full relative group rounded-full text-xs font-semibold uppercase tracking-wider py-4 bg-emerald-500 text-bg hover:bg-emerald-400 transition-all duration-300 border border-transparent mt-4 font-sans disabled:opacity-50"
+              >
+                Setujui & Simpan Verifikasi
               </button>
             </form>
           </div>

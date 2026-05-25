@@ -189,6 +189,24 @@ async function initializeDatabase() {
       }
     }
 
+    // Check if deposit column exists in properties table, add if missing
+    const [propCols] = await dbConnection.query("SHOW COLUMNS FROM properties LIKE 'deposit'");
+    if (propCols.length === 0) {
+      console.log("Adding 'deposit' column to properties table...");
+      await dbConnection.query("ALTER TABLE properties ADD COLUMN deposit INT DEFAULT 0");
+    }
+
+    // Check if approved_by column exists in bookings table, add if missing
+    const [bookingCols] = await dbConnection.query("SHOW COLUMNS FROM bookings LIKE 'approved_by'");
+    if (bookingCols.length === 0) {
+      console.log("Adding 'approved_by' column to bookings table...");
+      await dbConnection.query("ALTER TABLE bookings ADD COLUMN approved_by INT DEFAULT NULL");
+    }
+
+    // Modify bookings status column type to VARCHAR(50) to support custom statuses
+    console.log("Modifying bookings status column type to VARCHAR(50)...");
+    await dbConnection.query("ALTER TABLE bookings MODIFY COLUMN status VARCHAR(50) DEFAULT 'pending'");
+
     await dbConnection.end();
   } catch (error) {
     console.error('Database connection / initialization failed:', error);
@@ -312,7 +330,8 @@ app.get('/api/properties', async (req, res) => {
         rooms: row.rooms || 0,
         availableRooms: row.available_rooms || 0,
         branchId: row.branch_id,
-        status: row.status || 'available'
+        status: row.status || 'available',
+        deposit: row.deposit || 0
       };
     });
 
@@ -389,7 +408,8 @@ app.get('/api/properties/:id', async (req, res) => {
       rooms: row.rooms || 0,
       availableRooms: row.available_rooms || 0,
       branchId: row.branch_id,
-      status: row.status || 'available'
+      status: row.status || 'available',
+      deposit: row.deposit || 0
     });
   } catch (error) {
     console.error(error);
@@ -401,12 +421,12 @@ app.get('/api/properties/:id', async (req, res) => {
 // POST a new property
 app.post('/api/properties', async (req, res) => {
   try {
-    const { 
-      title, 
-      category, 
-      type, 
-      price, 
-      location, 
+    const {
+      title,
+      category,
+      type,
+      price,
+      location,
       image,
       mapUrl,
       hourlyRate,
@@ -418,7 +438,8 @@ app.post('/api/properties', async (req, res) => {
       rooms,
       availableRooms,
       branchId,
-      status
+      status,
+      deposit
     } = req.body;
 
     let locationId = null;
@@ -437,9 +458,9 @@ app.post('/api/properties', async (req, res) => {
 
     const [result] = await pool.query(
       `INSERT INTO properties (
-        name, location, location_id, map_url, type, price, hourly_rate, min_transit_hours, 
-        promo_price, promo_label, image, available, description, rooms, available_rooms, branch_id, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        name, location, location_id, map_url, type, price, hourly_rate, min_transit_hours,
+        promo_price, promo_label, image, available, description, rooms, available_rooms, branch_id, status, deposit
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         title,
         location || '',
@@ -457,19 +478,76 @@ app.post('/api/properties', async (req, res) => {
         rooms !== undefined ? rooms : 0,
         availableRooms !== undefined ? availableRooms : 0,
         branchId !== undefined ? branchId : null,
-        status || 'available'
+        status || 'available',
+        deposit !== undefined ? deposit : 0
       ]
     );
 
+    // Fetch the newly created property
+    const [insertedRows] = await pool.query(`
+      SELECT p.*, l.name AS location_name, l.slug AS location_slug
+      FROM properties p
+      LEFT JOIN locations l ON p.location_id = l.id
+      WHERE p.id = ?
+      LIMIT 1
+    `, [result.insertId]);
+
+    if (insertedRows.length === 0) {
+      return res.status(404).json({ error: 'Property not found after creation.' });
+    }
+
+    const row = insertedRows[0];
+    const isApartment = row.name.toLowerCase().includes('apartment') || row.name.toLowerCase().includes('apartemen');
+    const frontendType = isApartment ? 'apartment' : 'kos';
+
+    let categoryStr = 'Premium Boarding Room';
+    if (isApartment) {
+      categoryStr = 'Luxury Apartment';
+    } else if (row.type) {
+      const typeCapitalized = row.type.charAt(0).toUpperCase() + row.type.slice(1);
+      categoryStr = `Premium Boarding Room (${typeCapitalized})`;
+    }
+
+    let formattedPrice = 'Rp. 1.500.000 / month';
+    if (row.price) {
+      const priceVal = parseInt(row.price, 10);
+      if (!isNaN(priceVal)) {
+        formattedPrice = `Rp. ${priceVal.toLocaleString('id-ID')} / month`;
+      }
+    }
+
+    let imageUrl = row.image;
+    if (!imageUrl) {
+      imageUrl = isApartment 
+        ? 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80'
+        : 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=1200&q=80';
+    } else if (imageUrl.startsWith('uploads/')) {
+      imageUrl = `/${imageUrl}`;
+    }
+
     res.status(201).json({
-      id: result.insertId,
-      title,
-      category,
-      type,
-      price,
-      location,
-      rating: '4.8 ★',
-      image
+      id: row.id,
+      title: row.name,
+      category: categoryStr,
+      type: frontendType,
+      price: formattedPrice,
+      rawPrice: row.price,
+      location: row.location_name || 'Jakarta',
+      address: row.location,
+      rating: row.id % 2 === 0 ? '4.9 ★' : '4.8 ★',
+      image: imageUrl,
+      hourlyRate: row.hourly_rate,
+      minTransitHours: row.min_transit_hours || 3,
+      mapUrl: row.map_url,
+      promoPrice: row.promo_price,
+      promoLabel: row.promo_label,
+      available: row.available,
+      description: row.description || '',
+      rooms: row.rooms || 0,
+      availableRooms: row.available_rooms || 0,
+      branchId: row.branch_id,
+      status: row.status || 'available',
+      deposit: row.deposit || 0
     });
   } catch (error) {
     console.error(error);
@@ -498,7 +576,8 @@ app.put('/api/properties/:id', async (req, res) => {
       rooms,
       availableRooms,
       branchId,
-      status
+      status,
+      deposit
     } = req.body;
 
     let locationId = null;
@@ -520,7 +599,7 @@ app.put('/api/properties/:id', async (req, res) => {
        SET name = ?, location = ?, location_id = ?, map_url = ?, type = ?, price = ?, 
            hourly_rate = ?, min_transit_hours = ?, promo_price = ?, promo_label = ?, 
            image = ?, available = ?, description = ?, rooms = ?, available_rooms = ?, 
-           branch_id = ?, status = ?
+           branch_id = ?, status = ?, deposit = ?
        WHERE id = ?`,
       [
         title, 
@@ -540,11 +619,77 @@ app.put('/api/properties/:id', async (req, res) => {
         availableRooms !== undefined ? availableRooms : 0,
         branchId !== undefined ? branchId : null,
         status || 'available',
+        deposit !== undefined ? deposit : 0,
         id
       ]
     );
 
-    res.json({ id, title, category, type, price, location, rating: '4.8 ★', image });
+    // Fetch the updated property with location joined
+    const [updatedRows] = await pool.query(`
+      SELECT p.*, l.name AS location_name, l.slug AS location_slug
+      FROM properties p
+      LEFT JOIN locations l ON p.location_id = l.id
+      WHERE p.id = ?
+      LIMIT 1
+    `, [id]);
+
+    if (updatedRows.length === 0) {
+      return res.status(404).json({ error: 'Property not found after update.' });
+    }
+
+    const row = updatedRows[0];
+    const isApartment = row.name.toLowerCase().includes('apartment') || row.name.toLowerCase().includes('apartemen');
+    const frontendType = isApartment ? 'apartment' : 'kos';
+
+    let categoryStr = 'Premium Boarding Room';
+    if (isApartment) {
+      categoryStr = 'Luxury Apartment';
+    } else if (row.type) {
+      const typeCapitalized = row.type.charAt(0).toUpperCase() + row.type.slice(1);
+      categoryStr = `Premium Boarding Room (${typeCapitalized})`;
+    }
+
+    let formattedPrice = 'Rp. 1.500.000 / month';
+    if (row.price) {
+      const priceVal = parseInt(row.price, 10);
+      if (!isNaN(priceVal)) {
+        formattedPrice = `Rp. ${priceVal.toLocaleString('id-ID')} / month`;
+      }
+    }
+
+    let imageUrl = row.image;
+    if (!imageUrl) {
+      imageUrl = isApartment 
+        ? 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80'
+        : 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=1200&q=80';
+    } else if (imageUrl.startsWith('uploads/')) {
+      imageUrl = `/${imageUrl}`;
+    }
+
+    res.json({
+      id: row.id,
+      title: row.name,
+      category: categoryStr,
+      type: frontendType,
+      price: formattedPrice,
+      rawPrice: row.price,
+      location: row.location_name || 'Jakarta',
+      address: row.location,
+      rating: row.id % 2 === 0 ? '4.9 ★' : '4.8 ★',
+      image: imageUrl,
+      hourlyRate: row.hourly_rate,
+      minTransitHours: row.min_transit_hours || 3,
+      mapUrl: row.map_url,
+      promoPrice: row.promo_price,
+      promoLabel: row.promo_label,
+      available: row.available,
+      description: row.description || '',
+      rooms: row.rooms || 0,
+      availableRooms: row.available_rooms || 0,
+      branchId: row.branch_id,
+      status: row.status || 'available',
+      deposit: row.deposit || 0
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to update property.' });
@@ -570,10 +715,15 @@ app.get('/api/bookings', async (req, res) => {
   try {
     const tenantId = req.query.tenantId;
     let query = `
-      SELECT b.*, p.name AS propertyName, t.name AS tenantName, t.email AS tenantEmail
+      SELECT b.*, p.name AS propertyName, t.name AS tenantName, t.email AS tenantEmail, t.phone AS tenantPhone,
+             t.id_card_number AS tenantIdCardNumber, t.id_card_photo AS tenantIdCardPhoto,
+             t.address AS tenantAddress, t.emergency_contact AS tenantEmergencyContact,
+             t.emergency_phone AS tenantEmergencyPhone,
+             a.name AS approvedByName
       FROM bookings b
       LEFT JOIN properties p ON b.property_id = p.id
       LEFT JOIN tenants t ON b.tenant_id = t.id
+      LEFT JOIN admins a ON b.approved_by = a.id
     `;
     const params = [];
     if (tenantId) {
@@ -590,6 +740,8 @@ app.get('/api/bookings', async (req, res) => {
         frontendStatus = 'approved';
       } else if (['expired', 'cancelled', 'cancel'].includes(row.status)) {
         frontendStatus = 'rejected';
+      } else if (row.status) {
+        frontendStatus = row.status;
       }
 
       return {
@@ -597,6 +749,7 @@ app.get('/api/bookings', async (req, res) => {
         propertyName: row.propertyName || `Property #${row.property_id}`,
         userName: row.tenantName || 'Anonymous Tenant',
         userEmail: row.tenantEmail || 'no-email@example.com',
+        phone: row.tenantPhone || '',
         moveInDate: row.checkin_date ? new Date(row.checkin_date).toISOString().split('T')[0] : 'N/A',
         status: frontendStatus,
         createdAt: row.created_at,
@@ -604,7 +757,14 @@ app.get('/api/bookings', async (req, res) => {
         transitStartTime: row.transit_start_time ? new Date(row.transit_start_time).toISOString() : null,
         transitEndTime: row.transit_end_time ? new Date(row.transit_end_time).toISOString() : null,
         monthlyRent: row.monthly_rent,
-        hourlyRate: row.hourly_rate
+        hourlyRate: row.hourly_rate,
+        notes: row.notes,
+        idCardNumber: row.tenantIdCardNumber || '',
+        idCardPhoto: row.tenantIdCardPhoto || '',
+        address: row.tenantAddress || '',
+        emergencyContact: row.tenantEmergencyContact || '',
+        emergencyPhone: row.tenantEmergencyPhone || '',
+        approvedByName: row.approvedByName || null
       };
     });
 
@@ -629,7 +789,15 @@ app.post('/api/bookings', async (req, res) => {
       transitStartTime,
       transitEndTime,
       duration,
-      tenantId: bodyTenantId
+      tenantId: bodyTenantId,
+      idCardNumber,
+      idCardPhoto,
+      address,
+      emergencyContact,
+      emergencyPhone,
+      surveyDate,
+      surveyTime,
+      notes: bodyNotes
     } = req.body;
 
     if (!userName || !userEmail || !phone) {
@@ -639,23 +807,27 @@ app.post('/api/bookings', async (req, res) => {
     let propertyId = null;
     let rentPrice = 1500000;
     let hourlyRate = null;
-    const [propRows] = await pool.query('SELECT id, price, promo_price, hourly_rate FROM properties WHERE name = ? LIMIT 1', [propertyName]);
+    let depositAmount = 50000;
+    const [propRows] = await pool.query('SELECT id, price, promo_price, hourly_rate, deposit FROM properties WHERE name = ? LIMIT 1', [propertyName]);
     if (propRows.length > 0) {
       propertyId = propRows[0].id;
       rentPrice = propRows[0].promo_price || propRows[0].price;
       hourlyRate = propRows[0].hourly_rate;
+      depositAmount = propRows[0].deposit !== null && propRows[0].deposit !== undefined ? propRows[0].deposit : 50000;
     } else {
-      const [propRows2] = await pool.query('SELECT id, price, promo_price, hourly_rate FROM properties WHERE name LIKE ? LIMIT 1', [`%${propertyName}%`]);
+      const [propRows2] = await pool.query('SELECT id, price, promo_price, hourly_rate, deposit FROM properties WHERE name LIKE ? LIMIT 1', [`%${propertyName}%`]);
       if (propRows2.length > 0) {
         propertyId = propRows2[0].id;
         rentPrice = propRows2[0].promo_price || propRows2[0].price;
         hourlyRate = propRows2[0].hourly_rate;
+        depositAmount = propRows2[0].deposit !== null && propRows2[0].deposit !== undefined ? propRows2[0].deposit : 50000;
       } else {
-        const [propRows3] = await pool.query('SELECT id, price, promo_price, hourly_rate FROM properties LIMIT 1');
+        const [propRows3] = await pool.query('SELECT id, price, promo_price, hourly_rate, deposit FROM properties LIMIT 1');
         if (propRows3.length > 0) {
           propertyId = propRows3[0].id;
           rentPrice = propRows3[0].promo_price || propRows3[0].price;
           hourlyRate = propRows3[0].hourly_rate;
+          depositAmount = propRows3[0].deposit !== null && propRows3[0].deposit !== undefined ? propRows3[0].deposit : 50000;
         } else {
           return res.status(404).json({ error: 'No properties available to book.' });
         }
@@ -664,49 +836,36 @@ app.post('/api/bookings', async (req, res) => {
 
     let tenantId = bodyTenantId || null;
     if (!tenantId) {
-      // Check if there is an exact duplicate of name, email AND phone
-      const [tenantRows] = await pool.query(
-        'SELECT id FROM tenants WHERE name = ? AND email = ? AND phone = ? LIMIT 1', 
-        [userName, userEmail, phone]
+      // Check if a tenant with this email OR phone already exists
+      const [existingTenant] = await pool.query(
+        'SELECT id FROM tenants WHERE email = ? OR phone = ? LIMIT 1',
+        [userEmail, phone]
       );
-      if (tenantRows.length > 0) {
-        tenantId = tenantRows[0].id;
-      } else {
-        // Try to create a new tenant
-        try {
-          const hashedPassword = bcrypt.hashSync(phone, 10);
-          const [insertTenant] = await pool.query(
-            'INSERT INTO tenants (name, email, phone, status, password) VALUES (?, ?, ?, ?, ?)',
-            [userName, userEmail, phone, 'active', hashedPassword]
-          );
-          tenantId = insertTenant.insertId;
-        } catch (err) {
-          // If there's a duplicate key error (email or phone already exists)
-          if (err.code === 'ER_DUP_ENTRY') {
-            const [existingRows] = await pool.query(
-              'SELECT id FROM tenants WHERE email = ? OR phone = ? LIMIT 1',
-              [userEmail, phone]
-            );
-            if (existingRows.length > 0) {
-              tenantId = existingRows[0].id;
-              // Update existing tenant with the new name/email/phone
-              await pool.query(
-                'UPDATE tenants SET name = ?, email = ?, phone = ? WHERE id = ?',
-                [userName, userEmail, phone, tenantId]
-              );
-            } else {
-              throw err;
-            }
-          } else {
-            throw err;
-          }
+      if (existingTenant.length > 0) {
+        return res.status(400).json({ error: 'Akun dengan email atau nomor telepon ini sudah terdaftar. Silakan masuk terlebih dahulu.' });
+      }
+
+      // Try to create a new tenant
+      try {
+        const hashedPassword = bcrypt.hashSync(phone, 10);
+        const [insertTenant] = await pool.query(
+          `INSERT INTO tenants (name, email, phone, status, password, id_card_number, id_card_photo, address, emergency_contact, emergency_phone) 
+           VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?, ?)`,
+          [userName, userEmail, phone, hashedPassword, idCardNumber || null, idCardPhoto || null, address || null, emergencyContact || null, emergencyPhone || null]
+        );
+        tenantId = insertTenant.insertId;
+      } catch (err) {
+        if (err.code === 'ER_DUP_ENTRY') {
+          return res.status(400).json({ error: 'Akun dengan email atau nomor telepon ini sudah terdaftar. Silakan masuk terlebih dahulu.' });
+        } else {
+          throw err;
         }
       }
     } else {
       // Verify tenantId exists
       const [tenantCheck] = await pool.query('SELECT id FROM tenants WHERE id = ? LIMIT 1', [tenantId]);
       if (tenantCheck.length === 0) {
-        tenantId = null; // fallback or error
+        return res.status(400).json({ error: 'Sesi penyewa tidak valid.' });
       }
     }
 
@@ -763,18 +922,24 @@ app.post('/api/bookings', async (req, res) => {
         referenceNumber
       ];
     } else {
+      let notes = bodyNotes || null;
+      if (surveyDate) {
+        notes = `Survei: ${surveyDate} pukul ${surveyTime || '10:00'}`;
+      }
       insertQuery = `
         INSERT INTO bookings (
           property_id, tenant_id, booking_date, checkin_date,
-          monthly_rent, deposit_amount, status, reference_number, booking_type
-        ) VALUES (?, ?, CURDATE(), ?, ?, 50000, 'pending', ?, 'monthly')
+          monthly_rent, deposit_amount, status, reference_number, booking_type, notes
+        ) VALUES (?, ?, CURDATE(), ?, ?, ?, 'pending', ?, 'monthly', ?)
       `;
       insertParams = [
         propertyId,
         tenantId,
         moveInDate || new Date().toISOString().split('T')[0],
         rentPrice,
-        referenceNumber
+        depositAmount,
+        referenceNumber,
+        notes
       ];
     }
 
@@ -800,9 +965,14 @@ app.post('/api/bookings', async (req, res) => {
 app.put('/api/bookings/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, adminId } = req.body;
+    const { status, adminId, idCardNumber, idCardPhoto, address, emergencyContact, emergencyPhone } = req.body;
 
-    const dbStatus = status === 'approved' ? 'confirmed' : 'cancelled';
+    let dbStatus = status;
+    if (status === 'approved') {
+      dbStatus = 'confirmed';
+    } else if (status === 'rejected') {
+      dbStatus = 'cancelled';
+    }
 
     if (status === 'approved') {
       const [bookingRows] = await pool.query(
@@ -815,21 +985,36 @@ app.put('/api/bookings/:id', async (req, res) => {
         [id]
       );
 
-      if (bookingRows.length > 0) {
-        const booking = bookingRows[0];
-        if (booking.status !== 'confirmed') {
+      if (bookingRows.length === 0) {
+        return res.status(404).json({ error: 'Booking not found.' });
+      }
+
+      const booking = bookingRows[0];
+      const tenantId = booking.tenant_id;
+
+      if (!idCardNumber || !idCardPhoto || !address || !emergencyContact || !emergencyPhone) {
+        return res.status(400).json({ error: 'Informasi identitas (KTP/Passport) dan kontak darurat wajib diisi untuk persetujuan.' });
+      }
+
+      if (tenantId) {
+        await pool.query(
+          `UPDATE tenants 
+           SET id_card_number = ?, id_card_photo = ?, address = ?, emergency_contact = ?, emergency_phone = ? 
+           WHERE id = ?`,
+          [idCardNumber, idCardPhoto, address, emergencyContact, emergencyPhone, tenantId]
+        );
+      }
+
+      if (booking.status !== 'confirmed') {
+        if (booking.booking_type === 'transit') {
           let amount = 0;
-          if (booking.booking_type === 'transit') {
-            const start = new Date(booking.transit_start_time);
-            const end = new Date(booking.transit_end_time);
-            const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-            const rate = booking.hourly_rate || booking.prop_hourly_rate || 0;
-            amount = Math.ceil(Math.max(1, hours) * rate);
-            if (isNaN(amount) || amount <= 0) {
-              amount = (booking.hourly_rate || booking.prop_hourly_rate || 100000) * 3;
-            }
-          } else {
-            amount = (booking.duration_months || 1) * booking.monthly_rent;
+          const start = new Date(booking.transit_start_time);
+          const end = new Date(booking.transit_end_time);
+          const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+          const rate = booking.hourly_rate || booking.prop_hourly_rate || 0;
+          amount = Math.ceil(Math.max(1, hours) * rate);
+          if (isNaN(amount) || amount <= 0) {
+            amount = (booking.hourly_rate || booking.prop_hourly_rate || 100000) * 3;
           }
 
           const branchId = booking.prop_branch_id || null;
@@ -845,7 +1030,7 @@ app.put('/api/bookings/:id', async (req, res) => {
       }
     }
 
-    await pool.query('UPDATE bookings SET status = ? WHERE id = ?', [dbStatus, id]);
+    await pool.query('UPDATE bookings SET status = ?, approved_by = ? WHERE id = ?', [dbStatus, adminId || null, id]);
     res.json({ id, status });
   } catch (error) {
     console.error(error);
@@ -958,7 +1143,7 @@ app.post('/api/login/tenant', async (req, res) => {
 app.get('/api/tenants/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const [rows] = await pool.query('SELECT id, name, email, phone, status, created_at FROM tenants WHERE id = ? LIMIT 1', [id]);
+    const [rows] = await pool.query('SELECT id, name, email, phone, id_card_number, id_card_photo, address, emergency_contact, emergency_phone, status, created_at FROM tenants WHERE id = ? LIMIT 1', [id]);
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Tenant not found.' });
     }
@@ -1056,6 +1241,69 @@ app.post('/api/tenants', async (req, res) => {
       return res.status(400).json({ error: 'A tenant with this email or phone number already exists.' });
     }
     res.status(500).json({ error: 'Failed to create tenant.' });
+  }
+});
+
+// PUT (update) an existing tenant
+app.put('/api/tenants/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      name, 
+      email, 
+      phone, 
+      id_card_number, 
+      id_card_photo, 
+      address, 
+      emergency_contact, 
+      emergency_phone, 
+      status, 
+      pic_admin_id 
+    } = req.body;
+
+    if (!name || !phone) {
+      return res.status(400).json({ error: 'Name and phone number are required.' });
+    }
+
+    await pool.query(
+      `UPDATE tenants 
+       SET name = ?, email = ?, phone = ?, id_card_number = ?, id_card_photo = ?, address = ?, 
+           emergency_contact = ?, emergency_phone = ?, status = ?, pic_admin_id = ?
+       WHERE id = ?`,
+      [
+        name,
+        email || null,
+        phone,
+        id_card_number || null,
+        id_card_photo || null,
+        address || null,
+        emergency_contact || null,
+        emergency_phone || null,
+        status || 'active',
+        pic_admin_id || null,
+        id
+      ]
+    );
+
+    res.json({
+      id: parseInt(id, 10),
+      name,
+      email,
+      phone,
+      id_card_number,
+      id_card_photo,
+      address,
+      emergency_contact,
+      emergency_phone,
+      status,
+      pic_admin_id
+    });
+  } catch (error) {
+    console.error(error);
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: 'A tenant with this email or phone number already exists.' });
+    }
+    res.status(500).json({ error: 'Failed to update tenant.' });
   }
 });
 

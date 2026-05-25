@@ -10,12 +10,19 @@ gsap.registerPlugin(ScrollTrigger);
 
 interface SelectedWorksProps {
   onPropertyClick: (id: number, title: string) => void;
+  initialBookingFilter?: 'all' | 'monthly' | 'transit';
 }
 
-export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick }) => {
+export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick, initialBookingFilter }) => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [filter, setFilter] = useState<'all' | 'kos' | 'apartment'>('all');
   const [bookingFilter, setBookingFilter] = useState<'all' | 'monthly' | 'transit'>('all');
+
+  useEffect(() => {
+    if (initialBookingFilter) {
+      setBookingFilter(initialBookingFilter);
+    }
+  }, [initialBookingFilter]);
   const [locationFilter, setLocationFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [isFilterOpen, setIsFilterOpen] = useState(false);

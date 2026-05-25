@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { createBooking } from '../api';
+import { createBooking, fetchSettings } from '../api';
 import type { Property, UserSession, Booking } from '../api';
 
 interface BookingModalProps {
@@ -18,10 +18,29 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
   const [transitStartTime, setTransitStartTime] = useState('');
   const [transitDuration, setTransitDuration] = useState<number>(3);
   const [session, setSession] = useState<UserSession | null>(null);
+
+  // New fields for monthly bookings
+  const [surveyDate, setSurveyDate] = useState('');
+  const [surveyTime, setSurveyTime] = useState('');
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [whatsappNumber, setWhatsappNumber] = useState('628123456789');
+
+  useEffect(() => {
+    const loadWa = async () => {
+      try {
+        const s = await fetchSettings();
+        if (s && s.whatsapp_number) {
+          setWhatsappNumber(s.whatsapp_number);
+        }
+      } catch (err) {
+        console.error('Failed to load whatsapp number in BookingModal', err);
+      }
+    };
+    loadWa();
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -31,7 +50,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
         setDate('');
         setTransitStartTime('');
         setTransitDuration(property?.minTransitHours || 3);
-        setError('');
+        setSurveyDate('');
+        setSurveyTime('');
 
         // Load session
         const savedSession = localStorage.getItem('userSession');
@@ -61,6 +81,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
       }, 0);
     }
   }, [isOpen, property]);
+
+
 
   const getTransitSummary = () => {
     if (!transitStartTime || !transitDuration || !property?.hourlyRate) return null;
@@ -115,6 +137,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
       setError('Mohon isi semua kolom.');
       return;
     }
+    
     if (bookingType === 'transit') {
       if (!transitStartTime || !transitDuration) {
         setError('Mohon tentukan waktu mulai dan durasi transit.');
@@ -125,13 +148,18 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
         setError(sum.error || 'Detail transit tidak valid.');
         return;
       }
+    } else {
+      if (!surveyDate || !surveyTime) {
+        setError('Mohon tentukan tanggal dan waktu rencana survei.');
+        return;
+      }
     }
     
     setError('');
     setIsSubmitting(true);
 
     try {
-      const payload: Omit<Booking, 'id' | 'status'> & { phone: string } = {
+      const payload: Omit<Booking, 'id' | 'status'> & { phone: string } & { surveyDate?: string; surveyTime?: string } = {
         propertyName: property?.title || '',
         userName: name,
         userEmail: email,
@@ -148,10 +176,28 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
         payload.transitDate = date;
         payload.transitStartTime = transitStartTime;
         payload.duration = transitDuration;
+      } else {
+        payload.surveyDate = surveyDate;
+        payload.surveyTime = surveyTime;
       }
 
-      await createBooking(payload);
+      await createBooking(payload as any);
       setIsSuccess(true);
+
+      if (bookingType === 'monthly') {
+        const waMessage = encodeURIComponent(
+          `Halo Admin Highlanderstay, saya baru saja mengajukan sewa Bulanan.\n\n` +
+          `Detail Pemesanan:\n` +
+          `- Properti: ${propertyName}\n` +
+          `- Nama: ${name}\n` +
+          `- Email: ${email}\n` +
+          `- Telepon: ${phone}\n` +
+          `- Rencana Masuk: ${date}\n` +
+          `- Rencana Survei: ${surveyDate} pukul ${surveyTime}`
+        );
+        const waUrl = `https://wa.me/${whatsappNumber}?text=${waMessage}`;
+        window.open(waUrl, '_blank');
+      }
       setTimeout(() => {
         setIsSuccess(false);
         if (!session) {
@@ -162,6 +208,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
         setDate('');
         setTransitStartTime('');
         setTransitDuration(property?.minTransitHours || 3);
+        setSurveyDate('');
+        setSurveyTime('');
         onClose();
       }, 2000);
     } catch (err) {
@@ -187,13 +235,13 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
             className="absolute inset-0 bg-black/80 backdrop-blur-md"
           />
 
-          {/* Modal Container */}
+          {/* Modal Container (Scrollable) */}
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", damping: 25, stiffness: 250 }}
-            className="relative w-full max-w-md bg-surface border border-stroke rounded-3xl p-6 sm:p-8 overflow-hidden shadow-2xl text-left"
+            className="relative w-full max-w-md bg-surface border border-stroke rounded-3xl p-6 sm:p-8 overflow-y-auto max-h-[90vh] shadow-2xl text-left"
           >
             {/* Top Close Button */}
             <button 
@@ -213,7 +261,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                 </div>
                 <h3 className="text-xl font-display font-medium text-text-primary mb-2">Pemesanan Terkirim!</h3>
                 <p className="text-xs text-muted max-w-xs leading-relaxed">
-                  Kami telah menerima permintaan jadwal Anda untuk <strong>{propertyName}</strong>. Tim kami akan menghubungi Anda secepatnya.
+                  Kami telah menerima permintaan reservasi/survei Anda untuk <strong>{propertyName}</strong>. Tim kami akan menghubungi Anda secepatnya.
                 </p>
               </div>
             ) : (
@@ -261,7 +309,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                   </div>
                 ) : null}
 
-                {/* Input Name, Email, Phone or Active Session Profile Card */}
+                {/* Shared User Identity Section */}
                 {session ? (
                   <div className="bg-bg/40 border border-stroke rounded-2xl p-4 flex flex-col gap-3 relative overflow-hidden backdrop-blur-md">
                     <div className="absolute top-0 right-0 bg-text-primary/10 px-2 py-0.5 rounded-bl-xl border-l border-b border-stroke/50">
@@ -287,7 +335,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                   <>
                     {/* Input Name */}
                     <div className="flex flex-col gap-2">
-                      <label className="text-xs text-muted uppercase tracking-wider font-medium">Nama Anda</label>
+                      <label className="text-xs text-muted uppercase tracking-wider font-medium">Nama Anda *</label>
                       <input 
                         type="text"
                         required
@@ -300,7 +348,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
 
                     {/* Input Email */}
                     <div className="flex flex-col gap-2">
-                      <label className="text-xs text-muted uppercase tracking-wider font-medium">Alamat Email</label>
+                      <label className="text-xs text-muted uppercase tracking-wider font-medium">Alamat Email *</label>
                       <input 
                         type="email"
                         required
@@ -313,7 +361,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
 
                     {/* Input Phone */}
                     <div className="flex flex-col gap-2">
-                      <label className="text-xs text-muted uppercase tracking-wider font-medium">Nomor Telepon</label>
+                      <label className="text-xs text-muted uppercase tracking-wider font-medium">Nomor Telepon *</label>
                       <input 
                         type="tel"
                         required
@@ -328,10 +376,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
 
                 {/* Conditional Fields based on bookingType */}
                 {bookingType === 'monthly' ? (
-                  /* Move-in Date */
-                  <div className="flex flex-col gap-4">
+                  <>
+                    {/* Target Move-in Date */}
                     <div className="flex flex-col gap-2">
-                      <label className="text-xs text-muted uppercase tracking-wider font-medium">Tanggal Masuk Target</label>
+                      <label className="text-xs text-muted uppercase tracking-wider font-medium">Tanggal Masuk Rencana *</label>
                       <input 
                         type="date"
                         required
@@ -340,6 +388,35 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                         className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors duration-200"
                       />
                     </div>
+
+                    {/* Survey Date & Time */}
+                    <div className="border-t border-stroke/40 pt-4 mt-2 flex flex-col gap-4">
+                      <span className="text-[10px] text-muted uppercase tracking-[0.2em] font-semibold">Jadwal Survei Lokasi</span>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-2">
+                          <label className="text-xs text-muted uppercase tracking-wider font-medium">Tanggal Survei *</label>
+                          <input 
+                            type="date"
+                            required
+                            value={surveyDate}
+                            onChange={(e) => setSurveyDate(e.target.value)}
+                            className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors duration-200"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <label className="text-xs text-muted uppercase tracking-wider font-medium">Waktu Survei *</label>
+                          <input 
+                            type="time"
+                            required
+                            value={surveyTime}
+                            onChange={(e) => setSurveyTime(e.target.value)}
+                            className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors duration-200"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Monthly pricing summary */}
                     <div className="bg-bg border border-stroke/70 rounded-2xl p-4 flex flex-col gap-2 text-xs">
                       <div className="flex justify-between text-muted">
@@ -361,21 +438,23 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                       </div>
                       <div className="flex justify-between text-muted">
                         <span>Deposit Keamanan:</span>
-                        <span className="text-text-primary font-semibold">Rp 50.000</span>
+                        <span className="text-text-primary font-semibold">
+                          Rp {Number(property?.deposit || 0).toLocaleString('id-ID')}
+                        </span>
                       </div>
                       <div className="flex justify-between border-t border-stroke/40 pt-2 mt-1 text-sm font-bold text-text-primary">
                         <span>Est. Pembayaran Bulan Pertama:</span>
                         <span className="text-emerald-400">
-                          Rp {((property?.promoPrice ? property.promoPrice : (property?.rawPrice || 1500000)) + 50000).toLocaleString('id-ID')}
+                          Rp {((property?.promoPrice ? property.promoPrice : (property?.rawPrice || 1500000)) + Number(property?.deposit || 0)).toLocaleString('id-ID')}
                         </span>
                       </div>
                     </div>
-                  </div>
+                  </>
                 ) : (
-                  /* Transit Options */
                   <>
+                    {/* Transit target date & schedule */}
                     <div className="flex flex-col gap-2">
-                      <label className="text-xs text-muted uppercase tracking-wider font-medium">Tanggal Transit</label>
+                      <label className="text-xs text-muted uppercase tracking-wider font-medium">Tanggal Transit *</label>
                       <input 
                         type="date"
                         required
@@ -386,7 +465,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="flex flex-col gap-2">
-                        <label className="text-xs text-muted uppercase tracking-wider font-medium">Waktu Mulai</label>
+                        <label className="text-xs text-muted uppercase tracking-wider font-medium">Waktu Mulai *</label>
                         <input 
                           type="time"
                           required
@@ -396,7 +475,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                         />
                       </div>
                       <div className="flex flex-col gap-2">
-                        <label className="text-xs text-muted uppercase tracking-wider font-medium">Durasi (Jam)</label>
+                        <label className="text-xs text-muted uppercase tracking-wider font-medium">Durasi (Jam) *</label>
                         <input 
                           type="number"
                           required
@@ -408,6 +487,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                         />
                       </div>
                     </div>
+
+
 
                     {/* Transit cost summary */}
                     {summary && (

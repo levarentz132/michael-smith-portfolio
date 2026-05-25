@@ -22,6 +22,7 @@ export interface Property {
   promoLabel?: string | null;
   available?: number | boolean;
   branchId?: number | null;
+  deposit?: number | null;
 }
 
 export interface Booking {
@@ -31,7 +32,7 @@ export interface Booking {
   userEmail: string;
   phone?: string;
   moveInDate: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'followup' | 'surveyed' | 'payments' | string;
   createdAt?: string;
   bookingType?: 'monthly' | 'transit';
   transitDate?: string;
@@ -41,6 +42,13 @@ export interface Booking {
   monthlyRent?: number;
   hourlyRate?: number | null;
   tenantId?: number;
+  idCardNumber?: string | null;
+  idCardPhoto?: string | null;
+  address?: string | null;
+  emergencyContact?: string | null;
+  emergencyPhone?: string | null;
+  notes?: string | null;
+  approvedByName?: string | null;
 }
 
 export interface UserSession {
@@ -159,11 +167,22 @@ export async function createBooking(booking: Omit<Booking, 'id' | 'status'> & { 
 }
 
 // Update booking status (approve / reject)
-export async function updateBookingStatus(id: number, status: 'approved' | 'rejected', adminId?: number): Promise<{ id: number, status: string }> {
+export async function updateBookingStatus(
+  id: number, 
+  status: string, 
+  adminId?: number,
+  extraDetails?: {
+    idCardNumber?: string | null;
+    idCardPhoto?: string | null;
+    address?: string | null;
+    emergencyContact?: string | null;
+    emergencyPhone?: string | null;
+  }
+): Promise<{ id: number, status: string }> {
   const res = await fetch(`/api/bookings/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status, adminId })
+    body: JSON.stringify({ status, adminId, ...extraDetails })
   });
   return handleResponse<{ id: number, status: string }>(res, 'Failed to update booking status');
 }
@@ -208,6 +227,11 @@ export interface TenantInfo {
   name: string;
   email: string;
   phone: string;
+  id_card_number?: string | null;
+  id_card_photo?: string | null;
+  address?: string | null;
+  emergency_contact?: string | null;
+  emergency_phone?: string | null;
   status: string;
   created_at: string;
 }
@@ -234,6 +258,16 @@ export async function createTenant(tenant: Omit<Tenant, 'id'>): Promise<Tenant> 
     body: JSON.stringify(tenant)
   });
   return handleResponse<Tenant>(res, 'Failed to create tenant');
+}
+
+// Update a tenant
+export async function updateTenant(id: number, tenant: Tenant): Promise<Tenant> {
+  const res = await fetch(`/api/tenants/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(tenant)
+  });
+  return handleResponse<Tenant>(res, 'Failed to update tenant');
 }
 
 // Fetch all transactions
