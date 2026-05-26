@@ -1486,12 +1486,14 @@ export const AdminPanel: React.FC = () => {
                                         Payments
                                       </button>
                                     )}
-                                    <button
-                                      onClick={() => handleDeleteBookingRecord(booking.id!)}
-                                      className="text-xs font-semibold border border-stroke text-muted hover:text-rose-400 hover:border-rose-500/30 px-3 py-1.5 rounded-lg transition-colors"
-                                    >
-                                      Delete
-                                    </button>
+                                    {session?.role !== 'cashier' && (
+                                      <button
+                                        onClick={() => handleDeleteBookingRecord(booking.id!)}
+                                        className="text-xs font-semibold border border-stroke text-muted hover:text-rose-400 hover:border-rose-500/30 px-3 py-1.5 rounded-lg transition-colors"
+                                      >
+                                        Delete
+                                      </button>
+                                    )}
                                   </div>
                                 </td>
                               </tr>

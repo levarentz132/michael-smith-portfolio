@@ -308,7 +308,7 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick, i
                     transition={{ duration: 0.5 }}
                     key={project.id || index}
                     onClick={() => project.id && onPropertyClick(project.id, project.title)}
-                    className="group relative overflow-hidden bg-surface border border-stroke rounded-2xl md:rounded-3xl cursor-pointer w-full col-span-1 md:col-span-6 lg:col-span-4 aspect-[4/3]"
+                    className="group relative overflow-hidden bg-surface border border-stroke rounded-2xl md:rounded-3xl cursor-pointer w-full col-span-2 md:col-span-6 lg:col-span-4 aspect-[4/3]"
                   >
                     {/* Image with scale transition */}
                     <img 
@@ -319,9 +319,6 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick, i
 
                     {/* Glassmorphic border light effect on hover */}
                     <div className="absolute inset-0 border border-white/0 group-hover:border-white/10 rounded-2xl md:rounded-3xl transition-colors duration-500 pointer-events-none z-20" />
-
-                    {/* Halftone Overlay */}
-                    <div className="absolute inset-0 halftone-overlay mix-blend-multiply opacity-20 pointer-events-none" />
 
                     {/* Top Badge Overlay (Price & Rating) */}
                     <div className="absolute top-2 left-2 right-2 md:top-4 md:left-4 md:right-4 flex justify-between items-center z-10 transition-all duration-300 group-hover:opacity-0 group-hover:scale-95">
