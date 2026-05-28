@@ -288,6 +288,16 @@ function parsePrice(priceStr) {
   return isNaN(parsed) ? 1500000 : parsed;
 }
 
+// Helper to preserve local database time without timezone shifts
+function formatLocalDatetime(dateVal) {
+  if (!dateVal) return null;
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return dateVal;
+  
+  const pad = (num, size = 2) => String(num).padStart(size, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
 // --- API ROUTES ---
 
 // Upload Route for Property Images
@@ -786,7 +796,10 @@ app.get('/api/bookings', async (req, res) => {
   try {
     const tenantId = req.query.tenantId;
     let query = `
-      SELECT b.*, p.name AS propertyName, t.name AS tenantName, t.email AS tenantEmail, t.phone AS tenantPhone,
+      SELECT b.*, 
+             DATE_FORMAT(b.transit_start_time, '%Y-%m-%dT%H:%i:%s') AS transit_start_time,
+             DATE_FORMAT(b.transit_end_time, '%Y-%m-%dT%H:%i:%s') AS transit_end_time,
+             p.name AS propertyName, t.name AS tenantName, t.email AS tenantEmail, t.phone AS tenantPhone,
              t.id_card_number AS tenantIdCardNumber, t.id_card_photo AS tenantIdCardPhoto,
              t.address AS tenantAddress, t.emergency_contact AS tenantEmergencyContact,
              t.emergency_phone AS tenantEmergencyPhone,
@@ -825,8 +838,8 @@ app.get('/api/bookings', async (req, res) => {
         status: frontendStatus,
         createdAt: row.created_at,
         bookingType: row.booking_type,
-        transitStartTime: row.transit_start_time ? new Date(row.transit_start_time).toISOString() : null,
-        transitEndTime: row.transit_end_time ? new Date(row.transit_end_time).toISOString() : null,
+        transitStartTime: row.transit_start_time || null,
+        transitEndTime: row.transit_end_time || null,
         monthlyRent: row.monthly_rent,
         hourlyRate: row.hourly_rate,
         notes: row.notes,
