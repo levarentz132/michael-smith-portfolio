@@ -72,7 +72,7 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick, i
     const matchesLocation = locationFilter === 'all' ? true : prop.location.toLowerCase() === locationFilter.toLowerCase();
     const matchesBooking = 
       bookingFilter === 'all' ? true : 
-      bookingFilter === 'transit' ? (prop.hourlyRate !== null && prop.hourlyRate !== undefined && Number(prop.hourlyRate) > 0) : 
+      bookingFilter === 'transit' ? !!(prop.transit3h || prop.transit6h || prop.transit12h) : 
       bookingFilter === 'monthly' ? true : // All properties support monthly rent
       true;
     return matchesType && matchesLocation && matchesBooking;

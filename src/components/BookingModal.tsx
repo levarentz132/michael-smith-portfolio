@@ -19,6 +19,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
   const [transitDuration, setTransitDuration] = useState<number>(3);
   const [session, setSession] = useState<UserSession | null>(null);
 
+  const hasTransitSupport = !!(property?.transit3h || property?.transit6h || property?.transit12h);
+
   // New fields for monthly bookings
   const [surveyDate, setSurveyDate] = useState('');
   const [surveyTime, setSurveyTime] = useState('');
@@ -85,18 +87,18 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
 
 
   const getTransitSummary = () => {
-    if (!transitStartTime || !transitDuration || !property?.hourlyRate) return null;
+    if (!transitStartTime || !transitDuration || !property) return null;
     
-    const minHours = property?.minTransitHours || 3;
-    if (transitDuration < minHours) {
-      return { error: `Durasi transit minimum adalah ${minHours} jam.` };
+    let estimatedCost = 0;
+    if (transitDuration === 3 && property.transit3h) {
+      estimatedCost = property.transit3h;
+    } else if (transitDuration === 6 && property.transit6h) {
+      estimatedCost = property.transit6h;
+    } else if (transitDuration === 12 && property.transit12h) {
+      estimatedCost = property.transit12h;
+    } else {
+      return { error: 'Silakan pilih paket transit yang valid (3, 6, atau 12 jam).' };
     }
-    if (transitDuration > 24) {
-      return { error: 'Durasi transit maksimum adalah 24 jam.' };
-    }
-    
-    const rate = property.hourlyRate;
-    const estimatedCost = transitDuration * rate;
     
     return {
       hours: transitDuration,
@@ -279,8 +281,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                   </div>
                 )}
 
-                {/* Booking Type Selector Tabs (Only show if hourlyRate exists) */}
-                {property?.hourlyRate ? (
+                {/* Booking Type Selector Tabs (Only show if transit is supported) */}
+                {hasTransitSupport ? (
                   <div className="grid grid-cols-2 bg-bg border border-stroke p-1 rounded-full">
                     <button
                       type="button"
@@ -304,7 +306,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                         bookingType === 'transit' ? 'text-bg bg-text-primary' : 'text-muted hover:text-text-primary'
                       }`}
                     >
-                      Transit (Per Jam)
+                      Transit
                     </button>
                   </div>
                 ) : null}
@@ -474,21 +476,87 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                           className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors duration-200"
                         />
                       </div>
-                      <div className="flex flex-col gap-2">
-                        <label className="text-xs text-muted uppercase tracking-wider font-medium">Durasi (Jam) *</label>
-                        <input 
-                          type="number"
-                          required
-                          min={property?.minTransitHours || 3}
-                          max={24}
-                          value={transitDuration}
-                          onChange={(e) => setTransitDuration(Number(e.target.value))}
-                          className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors duration-200"
-                        />
+                      <div className="flex flex-col gap-2 justify-end">
+                        {/* Empty spacing helper */}
                       </div>
                     </div>
 
-
+                    {/* Interactive Transit Package Selection Table */}
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs text-muted uppercase tracking-wider font-medium font-semibold">Pilih Paket Transit *</label>
+                      <div className="overflow-hidden rounded-xl border border-stroke bg-bg/50">
+                        <table className="w-full text-left text-xs border-collapse">
+                          <thead>
+                            <tr className="border-b border-stroke bg-white/5 text-muted font-medium">
+                              <th className="py-2.5 px-3">Durasi</th>
+                              <th className="py-2.5 px-3 text-right">Tarif</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {property?.transit3h ? (
+                              <tr 
+                                onClick={() => setTransitDuration(3)}
+                                className={`border-b border-stroke last:border-0 cursor-pointer transition-colors ${
+                                  transitDuration === 3 
+                                    ? 'bg-text-primary/10 border-l-2 border-l-emerald-400 font-semibold' 
+                                    : 'hover:bg-white/5'
+                                }`}
+                              >
+                                <td className="py-3 px-3 text-text-primary flex items-center gap-2 select-none">
+                                  <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${transitDuration === 3 ? 'border-emerald-400' : 'border-stroke'}`}>
+                                    {transitDuration === 3 && <div className="w-2 h-2 rounded-full bg-emerald-400" />}
+                                  </div>
+                                  3 Jam
+                                </td>
+                                <td className="py-3 px-3 text-right text-emerald-400 font-bold">
+                                  Rp {property.transit3h.toLocaleString('id-ID')}
+                                </td>
+                              </tr>
+                            ) : null}
+                            {property?.transit6h ? (
+                              <tr 
+                                onClick={() => setTransitDuration(6)}
+                                className={`border-b border-stroke last:border-0 cursor-pointer transition-colors ${
+                                  transitDuration === 6 
+                                    ? 'bg-text-primary/10 border-l-2 border-l-emerald-400 font-semibold' 
+                                    : 'hover:bg-white/5'
+                                }`}
+                              >
+                                <td className="py-3 px-3 text-text-primary flex items-center gap-2 select-none">
+                                  <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${transitDuration === 6 ? 'border-emerald-400' : 'border-stroke'}`}>
+                                    {transitDuration === 6 && <div className="w-2 h-2 rounded-full bg-emerald-400" />}
+                                  </div>
+                                  6 Jam
+                                </td>
+                                <td className="py-3 px-3 text-right text-emerald-400 font-bold">
+                                  Rp {property.transit6h.toLocaleString('id-ID')}
+                                </td>
+                              </tr>
+                            ) : null}
+                            {property?.transit12h ? (
+                              <tr 
+                                onClick={() => setTransitDuration(12)}
+                                className={`border-b border-stroke last:border-0 cursor-pointer transition-colors ${
+                                  transitDuration === 12 
+                                    ? 'bg-text-primary/10 border-l-2 border-l-emerald-400 font-semibold' 
+                                    : 'hover:bg-white/5'
+                                }`}
+                              >
+                                <td className="py-3 px-3 text-text-primary flex items-center gap-2 select-none">
+                                  <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${transitDuration === 12 ? 'border-emerald-400' : 'border-stroke'}`}>
+                                    {transitDuration === 12 && <div className="w-2 h-2 rounded-full bg-emerald-400" />}
+                                  </div>
+                                  12 Jam
+                                </td>
+                                <td className="py-3 px-3 text-right text-emerald-400 font-bold">
+                                  Rp {property.transit12h.toLocaleString('id-ID')}
+                                </td>
+                              </tr>
+                            ) : null}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
 
                     {/* Transit cost summary */}
                     {summary && (
@@ -498,12 +566,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                         ) : (
                           <>
                             <div className="flex justify-between text-muted">
-                              <span>Tarif Per Jam:</span>
-                              <span className="text-text-primary font-semibold">Rp {property?.hourlyRate?.toLocaleString('id-ID')} / jam</span>
-                            </div>
-                            <div className="flex justify-between text-muted">
-                              <span>Total Jam:</span>
-                              <span className="text-text-primary font-semibold">{summary.hours} jam</span>
+                              <span>Paket Transit Terpilih:</span>
+                              <span className="text-text-primary font-semibold">{summary.hours} Jam</span>
                             </div>
                             {getTransitEndTimeString() && (
                               <div className="flex justify-between text-muted">
@@ -512,7 +576,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                               </div>
                             )}
                             <div className="flex justify-between border-t border-stroke/40 pt-2 mt-1 text-sm font-bold text-text-primary">
-                              <span>Estimasi Biaya:</span>
+                              <span>Total Tarif:</span>
                               <span className="text-emerald-400">{summary.formattedCost}</span>
                             </div>
                           </>

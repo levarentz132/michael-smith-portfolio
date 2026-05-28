@@ -324,6 +324,9 @@ export const AdminPanel: React.FC = () => {
   const [mapUrl, setMapUrl] = useState('');
   const [hourlyRate, setHourlyRate] = useState('');
   const [minTransitHours, setMinTransitHours] = useState('3');
+  const [transit3h, setTransit3h] = useState('');
+  const [transit6h, setTransit6h] = useState('');
+  const [transit12h, setTransit12h] = useState('');
   const [promoPrice, setPromoPrice] = useState('');
   const [promoLabel, setPromoLabel] = useState('');
   const [available, setAvailable] = useState(true);
@@ -608,6 +611,9 @@ export const AdminPanel: React.FC = () => {
     setMapUrl('');
     setHourlyRate('');
     setMinTransitHours('3');
+    setTransit3h('');
+    setTransit6h('');
+    setTransit12h('');
     setPromoPrice('');
     setPromoLabel('');
     setAvailable(true);
@@ -631,6 +637,9 @@ export const AdminPanel: React.FC = () => {
     setMapUrl(prop.mapUrl || '');
     setHourlyRate(prop.hourlyRate !== undefined && prop.hourlyRate !== null ? String(prop.hourlyRate) : '');
     setMinTransitHours(prop.minTransitHours !== undefined ? String(prop.minTransitHours) : '3');
+    setTransit3h(prop.transit3h !== undefined && prop.transit3h !== null ? String(prop.transit3h) : '');
+    setTransit6h(prop.transit6h !== undefined && prop.transit6h !== null ? String(prop.transit6h) : '');
+    setTransit12h(prop.transit12h !== undefined && prop.transit12h !== null ? String(prop.transit12h) : '');
     setPromoPrice(prop.promoPrice !== undefined && prop.promoPrice !== null ? String(prop.promoPrice) : '');
     setPromoLabel(prop.promoLabel || '');
     setAvailable(prop.available === undefined ? true : !!prop.available);
@@ -676,6 +685,9 @@ export const AdminPanel: React.FC = () => {
       mapUrl: mapUrl || undefined,
       hourlyRate: hourlyRate !== '' ? parseFloat(hourlyRate) : null,
       minTransitHours: minTransitHours !== '' ? parseInt(minTransitHours, 10) : 3,
+      transit3h: transit3h !== '' ? parseFloat(transit3h) : null,
+      transit6h: transit6h !== '' ? parseFloat(transit6h) : null,
+      transit12h: transit12h !== '' ? parseFloat(transit12h) : null,
       promoPrice: promoPrice !== '' ? parseFloat(promoPrice) : null,
       promoLabel: promoLabel || null,
       available: available ? 1 : 0,
@@ -1557,12 +1569,19 @@ export const AdminPanel: React.FC = () => {
                               ) : (
                                 <span className="text-text-primary font-medium">{prop.price}</span>
                               )}
-                              {prop.hourlyRate && (
+                              {(prop.transit3h || prop.transit6h || prop.transit12h) ? (
+                                <>
+                                  <span className="w-1 h-1 rounded-full bg-stroke" />
+                                  <span className="text-emerald-400 font-semibold text-[11px]">
+                                    Transit: 3h({prop.transit3h ? formatCurrency(prop.transit3h) : '-'}) | 6h({prop.transit6h ? formatCurrency(prop.transit6h) : '-'}) | 12h({prop.transit12h ? formatCurrency(prop.transit12h) : '-'})
+                                  </span>
+                                </>
+                              ) : prop.hourlyRate ? (
                                 <>
                                   <span className="w-1 h-1 rounded-full bg-stroke" />
                                   <span className="text-emerald-400 font-semibold">{formatCurrency(prop.hourlyRate)}/hr</span>
                                 </>
-                              )}
+                              ) : null}
                             </div>
                             <div className="flex items-center gap-2 text-[10px] text-muted mt-2">
                               <span className={`px-2 py-0.5 rounded-full border ${prop.status === 'full' ? 'bg-rose-500/15 border-rose-500/20 text-rose-400' : 'bg-emerald-500/15 border-emerald-500/20 text-emerald-400'}`}>
@@ -2618,25 +2637,36 @@ export const AdminPanel: React.FC = () => {
               </div>
 
               {/* Transit configuration */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-muted uppercase tracking-wider">Hourly Rate (Rupiah, empty if no transit)</label>
+                  <label className="text-xs text-muted uppercase tracking-wider">Transit 3h Price (Rp, empty if none)</label>
                   <input 
                     type="number"
-                    placeholder="e.g. 100000"
-                    value={hourlyRate}
-                    onChange={(e) => setHourlyRate(e.target.value)}
+                    placeholder="e.g. 300000"
+                    value={transit3h}
+                    onChange={(e) => setTransit3h(e.target.value)}
                     className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors"
                   />
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-muted uppercase tracking-wider">Minimum Transit Hours (default: 3)</label>
+                  <label className="text-xs text-muted uppercase tracking-wider">Transit 6h Price (Rp, empty if none)</label>
                   <input 
                     type="number"
-                    placeholder="3"
-                    value={minTransitHours}
-                    onChange={(e) => setMinTransitHours(e.target.value)}
+                    placeholder="e.g. 500000"
+                    value={transit6h}
+                    onChange={(e) => setTransit6h(e.target.value)}
+                    className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs text-muted uppercase tracking-wider">Transit 12h Price (Rp, empty if none)</label>
+                  <input 
+                    type="number"
+                    placeholder="e.g. 800000"
+                    value={transit12h}
+                    onChange={(e) => setTransit12h(e.target.value)}
                     className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors"
                   />
                 </div>

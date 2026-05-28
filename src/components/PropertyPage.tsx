@@ -212,7 +212,7 @@ export const PropertyPage: React.FC = () => {
     );
   }
 
-  const supportsTransit = Number(property.hourlyRate) > 0;
+  const supportsTransit = !!(property.transit3h || property.transit6h || property.transit12h);
   const isAvailable = property.status !== 'booked' && (property.availableRooms ?? 1) > 0;
 
   return (
@@ -462,17 +462,50 @@ export const PropertyPage: React.FC = () => {
                     <span className="text-[10px] text-muted font-light mt-1">Termasuk biaya pemeliharaan gedung</span>
                   </div>
 
-                  {/* Transit (Hourly) Pricing */}
+                  {/* Transit (Package) Pricing */}
                   {supportsTransit ? (
-                    <div className="bg-bg/60 border border-stroke/60 rounded-2xl p-4 flex flex-col relative overflow-hidden">
-                      <div className="absolute top-0 right-0 bg-text-primary/10 px-2 py-0.5 rounded-bl-xl border-l border-b border-stroke/50">
-                        <span className="text-[8px] text-text-primary font-bold uppercase tracking-wider">Per Jam</span>
+                    <div className="bg-bg/60 border border-stroke/60 rounded-2xl p-4 flex flex-col relative overflow-hidden text-left">
+                      <div className="absolute top-0 right-0 bg-text-primary/10 px-2.5 py-0.5 rounded-bl-xl border-l border-b border-stroke/50">
+                        <span className="text-[8px] text-text-primary font-bold uppercase tracking-wider">Paket Transit</span>
                       </div>
-                      <span className="text-[9px] text-muted uppercase tracking-widest font-semibold mb-1">Tarif Transit</span>
-                      <span className="text-xl md:text-2xl font-display font-medium text-text-primary leading-none mb-1">
-                        Rp {property.hourlyRate?.toLocaleString('id-ID')} <span className="text-xs text-muted font-normal">/ jam</span>
-                      </span>
-                      <span className="text-[10px] text-muted font-light">Durasi min: {property.minTransitHours || 3} jam</span>
+                      <span className="text-[9px] text-muted uppercase tracking-widest font-semibold mb-2.5">Pilihan Paket Transit</span>
+                      
+                      <div className="overflow-hidden rounded-xl border border-stroke/40 bg-surface/30">
+                        <table className="w-full text-left text-xs border-collapse">
+                          <thead>
+                            <tr className="border-b border-stroke/30 bg-white/5">
+                              <th className="py-2 px-3 text-muted font-medium">Durasi</th>
+                              <th className="py-2 px-3 text-right text-muted font-medium">Tarif</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {property.transit3h ? (
+                              <tr className="border-b border-stroke/20 last:border-0 hover:bg-white/5 transition-colors">
+                                <td className="py-2 px-3 font-medium">3 Jam</td>
+                                <td className="py-2 px-3 text-right text-emerald-400 font-semibold">Rp {property.transit3h.toLocaleString('id-ID')}</td>
+                              </tr>
+                            ) : null}
+                            {property.transit6h ? (
+                              <tr className="border-b border-stroke/20 last:border-0 hover:bg-white/5 transition-colors">
+                                <td className="py-2 px-3 font-medium">6 Jam</td>
+                                <td className="py-2 px-3 text-right text-emerald-400 font-semibold">Rp {property.transit6h.toLocaleString('id-ID')}</td>
+                              </tr>
+                            ) : null}
+                            {property.transit12h ? (
+                              <tr className="border-b border-stroke/20 last:border-0 hover:bg-white/5 transition-colors">
+                                <td className="py-2 px-3 font-medium">12 Jam</td>
+                                <td className="py-2 px-3 text-right text-emerald-400 font-semibold">Rp {property.transit12h.toLocaleString('id-ID')}</td>
+                              </tr>
+                            ) : null}
+                            {!property.transit3h && !property.transit6h && !property.transit12h && property.hourlyRate ? (
+                              <tr className="hover:bg-white/5 transition-colors">
+                                <td className="py-2 px-3 font-medium">Per Jam</td>
+                                <td className="py-2 px-3 text-right text-emerald-400 font-semibold">Rp {property.hourlyRate.toLocaleString('id-ID')} / jam</td>
+                              </tr>
+                            ) : null}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   ) : (
                     <div className="bg-bg/30 border border-dashed border-stroke/50 rounded-2xl p-4 flex flex-col text-center opacity-70">

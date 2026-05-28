@@ -196,6 +196,33 @@ async function initializeDatabase() {
       await dbConnection.query("ALTER TABLE properties ADD COLUMN deposit INT DEFAULT 0");
     }
 
+    // Check if transit_3h, transit_6h, transit_12h columns exist in properties table, add if missing
+    const [propCols3h] = await dbConnection.query("SHOW COLUMNS FROM properties LIKE 'transit_3h'");
+    if (propCols3h.length === 0) {
+      console.log("Adding transit package columns to properties table...");
+      await dbConnection.query("ALTER TABLE properties ADD COLUMN transit_3h INT DEFAULT NULL");
+      await dbConnection.query("ALTER TABLE properties ADD COLUMN transit_6h INT DEFAULT NULL");
+      await dbConnection.query("ALTER TABLE properties ADD COLUMN transit_12h INT DEFAULT NULL");
+      
+      const [hourlyRateCheck] = await dbConnection.query("SHOW COLUMNS FROM properties LIKE 'hourly_rate'");
+      if (hourlyRateCheck.length > 0) {
+        // Seed them based on existing hourly_rate if it exists
+        await dbConnection.query("UPDATE properties SET transit_3h = hourly_rate * 3, transit_6h = hourly_rate * 6, transit_12h = hourly_rate * 12 WHERE hourly_rate IS NOT NULL");
+      }
+    }
+
+    // Drop legacy hourly_rate and min_transit_hours columns if they still exist
+    const [hourlyRateCheck] = await dbConnection.query("SHOW COLUMNS FROM properties LIKE 'hourly_rate'");
+    if (hourlyRateCheck.length > 0) {
+      console.log("Dropping legacy 'hourly_rate' column from properties table...");
+      await dbConnection.query("ALTER TABLE properties DROP COLUMN hourly_rate");
+    }
+    const [minTransitHoursCheck] = await dbConnection.query("SHOW COLUMNS FROM properties LIKE 'min_transit_hours'");
+    if (minTransitHoursCheck.length > 0) {
+      console.log("Dropping legacy 'min_transit_hours' column from properties table...");
+      await dbConnection.query("ALTER TABLE properties DROP COLUMN min_transit_hours");
+    }
+
     // Check if approved_by column exists in bookings table, add if missing
     const [bookingCols] = await dbConnection.query("SHOW COLUMNS FROM bookings LIKE 'approved_by'");
     if (bookingCols.length === 0) {
@@ -320,8 +347,11 @@ app.get('/api/properties', async (req, res) => {
         image: imageUrl,
         colSpan: colSpan,
         aspectRatio: aspectRatio,
-        hourlyRate: row.hourly_rate,
-        minTransitHours: row.min_transit_hours || 3,
+        hourlyRate: null,
+        minTransitHours: 3,
+        transit3h: row.transit_3h,
+        transit6h: row.transit_6h,
+        transit12h: row.transit_12h,
         mapUrl: row.map_url,
         promoPrice: row.promo_price,
         promoLabel: row.promo_label,
@@ -398,8 +428,11 @@ app.get('/api/properties/:id', async (req, res) => {
       address: row.location,
       rating: row.id % 2 === 0 ? '4.9 ★' : '4.8 ★',
       image: imageUrl,
-      hourlyRate: row.hourly_rate,
-      minTransitHours: row.min_transit_hours || 3,
+      hourlyRate: null,
+      minTransitHours: 3,
+      transit3h: row.transit_3h,
+      transit6h: row.transit_6h,
+      transit12h: row.transit_12h,
       mapUrl: row.map_url,
       promoPrice: row.promo_price,
       promoLabel: row.promo_label,
@@ -431,6 +464,9 @@ app.post('/api/properties', async (req, res) => {
       mapUrl,
       hourlyRate,
       minTransitHours,
+      transit3h,
+      transit6h,
+      transit12h,
       promoPrice,
       promoLabel,
       available,
@@ -458,9 +494,10 @@ app.post('/api/properties', async (req, res) => {
 
     const [result] = await pool.query(
       `INSERT INTO properties (
-        name, location, location_id, map_url, type, price, hourly_rate, min_transit_hours,
-        promo_price, promo_label, image, available, description, rooms, available_rooms, branch_id, status, deposit
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        name, location, location_id, map_url, type, price,
+        promo_price, promo_label, image, available, description, rooms, available_rooms, branch_id, status, deposit,
+        transit_3h, transit_6h, transit_12h
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         title,
         location || '',
@@ -468,8 +505,6 @@ app.post('/api/properties', async (req, res) => {
         mapUrl || null,
         type || 'kos',
         cleanPrice,
-        hourlyRate !== undefined ? hourlyRate : null,
-        minTransitHours !== undefined ? minTransitHours : 3,
         promoPrice !== undefined ? promoPrice : null,
         promoLabel || null,
         image || '',
@@ -479,7 +514,10 @@ app.post('/api/properties', async (req, res) => {
         availableRooms !== undefined ? availableRooms : 0,
         branchId !== undefined ? branchId : null,
         status || 'available',
-        deposit !== undefined ? deposit : 0
+        deposit !== undefined ? deposit : 0,
+        transit3h !== undefined ? transit3h : null,
+        transit6h !== undefined ? transit6h : null,
+        transit12h !== undefined ? transit12h : null
       ]
     );
 
@@ -536,8 +574,11 @@ app.post('/api/properties', async (req, res) => {
       address: row.location,
       rating: row.id % 2 === 0 ? '4.9 ★' : '4.8 ★',
       image: imageUrl,
-      hourlyRate: row.hourly_rate,
-      minTransitHours: row.min_transit_hours || 3,
+      hourlyRate: null,
+      minTransitHours: 3,
+      transit3h: row.transit_3h,
+      transit6h: row.transit_6h,
+      transit12h: row.transit_12h,
       mapUrl: row.map_url,
       promoPrice: row.promo_price,
       promoLabel: row.promo_label,
@@ -569,6 +610,9 @@ app.put('/api/properties/:id', async (req, res) => {
       mapUrl,
       hourlyRate,
       minTransitHours,
+      transit3h,
+      transit6h,
+      transit12h,
       promoPrice,
       promoLabel,
       available,
@@ -597,9 +641,10 @@ app.put('/api/properties/:id', async (req, res) => {
     await pool.query(
       `UPDATE properties 
        SET name = ?, location = ?, location_id = ?, map_url = ?, type = ?, price = ?, 
-           hourly_rate = ?, min_transit_hours = ?, promo_price = ?, promo_label = ?, 
+           promo_price = ?, promo_label = ?, 
            image = ?, available = ?, description = ?, rooms = ?, available_rooms = ?, 
-           branch_id = ?, status = ?, deposit = ?
+           branch_id = ?, status = ?, deposit = ?,
+           transit_3h = ?, transit_6h = ?, transit_12h = ?
        WHERE id = ?`,
       [
         title, 
@@ -608,8 +653,6 @@ app.put('/api/properties/:id', async (req, res) => {
         mapUrl || null,
         type || 'kos',
         cleanPrice, 
-        hourlyRate !== undefined ? hourlyRate : null,
-        minTransitHours !== undefined ? minTransitHours : 3,
         promoPrice !== undefined ? promoPrice : null,
         promoLabel || null,
         image || '', 
@@ -620,6 +663,9 @@ app.put('/api/properties/:id', async (req, res) => {
         branchId !== undefined ? branchId : null,
         status || 'available',
         deposit !== undefined ? deposit : 0,
+        transit3h !== undefined ? transit3h : null,
+        transit6h !== undefined ? transit6h : null,
+        transit12h !== undefined ? transit12h : null,
         id
       ]
     );
@@ -677,8 +723,11 @@ app.put('/api/properties/:id', async (req, res) => {
       address: row.location,
       rating: row.id % 2 === 0 ? '4.9 ★' : '4.8 ★',
       image: imageUrl,
-      hourlyRate: row.hourly_rate,
-      minTransitHours: row.min_transit_hours || 3,
+      hourlyRate: null,
+      minTransitHours: 3,
+      transit3h: row.transit_3h,
+      transit6h: row.transit_6h,
+      transit12h: row.transit_12h,
       mapUrl: row.map_url,
       promoPrice: row.promo_price,
       promoLabel: row.promo_label,
@@ -806,27 +855,31 @@ app.post('/api/bookings', async (req, res) => {
 
     let propertyId = null;
     let rentPrice = 1500000;
+    const durationHours = duration ? parseInt(duration, 10) : 3;
     let hourlyRate = null;
     let depositAmount = 50000;
-    const [propRows] = await pool.query('SELECT id, price, promo_price, hourly_rate, deposit FROM properties WHERE name = ? LIMIT 1', [propertyName]);
+    const [propRows] = await pool.query('SELECT id, price, promo_price, transit_3h, transit_6h, transit_12h, deposit FROM properties WHERE name = ? LIMIT 1', [propertyName]);
     if (propRows.length > 0) {
       propertyId = propRows[0].id;
       rentPrice = propRows[0].promo_price || propRows[0].price;
-      hourlyRate = propRows[0].hourly_rate;
+      const rateVal = durationHours === 3 ? propRows[0].transit_3h : durationHours === 6 ? propRows[0].transit_6h : durationHours === 12 ? propRows[0].transit_12h : null;
+      hourlyRate = rateVal ? rateVal / durationHours : null;
       depositAmount = propRows[0].deposit !== null && propRows[0].deposit !== undefined ? propRows[0].deposit : 50000;
     } else {
-      const [propRows2] = await pool.query('SELECT id, price, promo_price, hourly_rate, deposit FROM properties WHERE name LIKE ? LIMIT 1', [`%${propertyName}%`]);
+      const [propRows2] = await pool.query('SELECT id, price, promo_price, transit_3h, transit_6h, transit_12h, deposit FROM properties WHERE name LIKE ? LIMIT 1', [`%${propertyName}%`]);
       if (propRows2.length > 0) {
         propertyId = propRows2[0].id;
         rentPrice = propRows2[0].promo_price || propRows2[0].price;
-        hourlyRate = propRows2[0].hourly_rate;
+        const rateVal = durationHours === 3 ? propRows2[0].transit_3h : durationHours === 6 ? propRows2[0].transit_6h : durationHours === 12 ? propRows2[0].transit_12h : null;
+        hourlyRate = rateVal ? rateVal / durationHours : null;
         depositAmount = propRows2[0].deposit !== null && propRows2[0].deposit !== undefined ? propRows2[0].deposit : 50000;
       } else {
-        const [propRows3] = await pool.query('SELECT id, price, promo_price, hourly_rate, deposit FROM properties LIMIT 1');
+        const [propRows3] = await pool.query('SELECT id, price, promo_price, transit_3h, transit_6h, transit_12h, deposit FROM properties LIMIT 1');
         if (propRows3.length > 0) {
           propertyId = propRows3[0].id;
           rentPrice = propRows3[0].promo_price || propRows3[0].price;
-          hourlyRate = propRows3[0].hourly_rate;
+          const rateVal = durationHours === 3 ? propRows3[0].transit_3h : durationHours === 6 ? propRows3[0].transit_6h : durationHours === 12 ? propRows3[0].transit_12h : null;
+          hourlyRate = rateVal ? rateVal / durationHours : null;
           depositAmount = propRows3[0].deposit !== null && propRows3[0].deposit !== undefined ? propRows3[0].deposit : 50000;
         } else {
           return res.status(404).json({ error: 'No properties available to book.' });
@@ -976,7 +1029,8 @@ app.put('/api/bookings/:id', async (req, res) => {
 
     if (status === 'approved') {
       const [bookingRows] = await pool.query(
-        `SELECT b.*, p.name AS property_name, p.branch_id AS prop_branch_id, p.hourly_rate AS prop_hourly_rate,
+        `SELECT b.*, p.name AS property_name, p.branch_id AS prop_branch_id,
+                p.transit_3h, p.transit_6h, p.transit_12h,
                 t.name AS tenant_name
          FROM bookings b
          LEFT JOIN properties p ON b.property_id = p.id
@@ -1011,10 +1065,21 @@ app.put('/api/bookings/:id', async (req, res) => {
           const start = new Date(booking.transit_start_time);
           const end = new Date(booking.transit_end_time);
           const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-          const rate = booking.hourly_rate || booking.prop_hourly_rate || 0;
-          amount = Math.ceil(Math.max(1, hours) * rate);
+          const roundedHours = Math.round(hours);
+
+          if (roundedHours === 3 && booking.transit_3h) {
+            amount = booking.transit_3h;
+          } else if (roundedHours === 6 && booking.transit_6h) {
+            amount = booking.transit_6h;
+          } else if (roundedHours === 12 && booking.transit_12h) {
+            amount = booking.transit_12h;
+          } else {
+            const rate = booking.hourly_rate || 0;
+            amount = Math.ceil(Math.max(1, hours) * rate);
+          }
+
           if (isNaN(amount) || amount <= 0) {
-            amount = (booking.hourly_rate || booking.prop_hourly_rate || 100000) * 3;
+            amount = booking.transit_3h || (booking.hourly_rate || 100000) * 3;
           }
 
           const branchId = booking.prop_branch_id || null;

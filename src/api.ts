@@ -13,6 +13,9 @@ export interface Property {
   rawPrice?: number;
   address?: string;
   minTransitHours?: number;
+  transit3h?: number | null;
+  transit6h?: number | null;
+  transit12h?: number | null;
   mapUrl?: string;
   description?: string;
   rooms?: number;
