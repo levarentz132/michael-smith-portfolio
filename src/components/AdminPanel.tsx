@@ -327,6 +327,7 @@ export const AdminPanel: React.FC = () => {
   const [transit3h, setTransit3h] = useState('');
   const [transit6h, setTransit6h] = useState('');
   const [transit12h, setTransit12h] = useState('');
+  const [transit24h, setTransit24h] = useState('');
   const [promoPrice, setPromoPrice] = useState('');
   const [promoLabel, setPromoLabel] = useState('');
   const [available, setAvailable] = useState(true);
@@ -448,6 +449,10 @@ export const AdminPanel: React.FC = () => {
         return 'bg-purple-500/10 text-purple-400 border border-purple-500/20';
       case 'payments':
         return 'bg-teal-500/10 text-teal-400 border border-teal-500/20';
+      case 'checked_out':
+      case 'checked out':
+      case 'completed':
+        return 'bg-sky-500/10 text-sky-400 border border-sky-500/20';
       case 'pending':
       default:
         return 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
@@ -468,6 +473,10 @@ export const AdminPanel: React.FC = () => {
         return 'SURVEYED';
       case 'payments':
         return 'PAYMENTS';
+      case 'checked_out':
+      case 'checked out':
+      case 'completed':
+        return 'CHECKED OUT';
       case 'pending':
       default:
         return 'PENDING';
@@ -587,6 +596,32 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
+  const getBookingAmount = (booking: Booking) => {
+    if (booking.bookingType === 'transit') {
+      if (booking.transitStartTime && booking.transitEndTime && booking.hourlyRate) {
+        const start = new Date(booking.transitStartTime);
+        const end = new Date(booking.transitEndTime);
+        const hours = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60));
+        return Math.max(1, hours) * booking.hourlyRate;
+      }
+      return 0;
+    } else {
+      return booking.monthlyRent || 0;
+    }
+  };
+
+  const handleCheckoutTransit = async (id: number) => {
+    if (!window.confirm('Apakah Anda yakin ingin melakukan checkout untuk pemesanan ini?')) return;
+    try {
+      await updateBookingStatus(id, 'checked_out', session?.id);
+      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'checked_out' } : b));
+      alert('Checkout berhasil! Terima kasih.');
+    } catch (err) {
+      console.error(err);
+      alert('Gagal melakukan checkout.');
+    }
+  };
+
   const handleDeleteBookingRecord = async (id: number) => {
     if (!window.confirm('Delete this booking record?')) return;
     try {
@@ -614,6 +649,7 @@ export const AdminPanel: React.FC = () => {
     setTransit3h('');
     setTransit6h('');
     setTransit12h('');
+    setTransit24h('');
     setPromoPrice('');
     setPromoLabel('');
     setAvailable(true);
@@ -640,6 +676,7 @@ export const AdminPanel: React.FC = () => {
     setTransit3h(prop.transit3h !== undefined && prop.transit3h !== null ? String(prop.transit3h) : '');
     setTransit6h(prop.transit6h !== undefined && prop.transit6h !== null ? String(prop.transit6h) : '');
     setTransit12h(prop.transit12h !== undefined && prop.transit12h !== null ? String(prop.transit12h) : '');
+    setTransit24h(prop.transit24h !== undefined && prop.transit24h !== null ? String(prop.transit24h) : '');
     setPromoPrice(prop.promoPrice !== undefined && prop.promoPrice !== null ? String(prop.promoPrice) : '');
     setPromoLabel(prop.promoLabel || '');
     setAvailable(prop.available === undefined ? true : !!prop.available);
@@ -688,6 +725,7 @@ export const AdminPanel: React.FC = () => {
       transit3h: transit3h !== '' ? parseFloat(transit3h) : null,
       transit6h: transit6h !== '' ? parseFloat(transit6h) : null,
       transit12h: transit12h !== '' ? parseFloat(transit12h) : null,
+      transit24h: transit24h !== '' ? parseFloat(transit24h) : null,
       promoPrice: promoPrice !== '' ? parseFloat(promoPrice) : null,
       promoLabel: promoLabel || null,
       available: available ? 1 : 0,
@@ -1337,6 +1375,7 @@ export const AdminPanel: React.FC = () => {
                               <th className="py-4 px-6">Tenant</th>
                               <th className="py-4 px-6">Space Preference</th>
                               <th className="py-4 px-6">Schedule / Date</th>
+                              <th className="py-4 px-6">Amount</th>
                               <th className="py-4 px-6">Status</th>
                               <th className="py-4 px-6">PIC</th>
                               <th className="py-4 px-6">Created At</th>
@@ -1372,6 +1411,9 @@ export const AdminPanel: React.FC = () => {
                                     <span>{booking.moveInDate}</span>
                                   )}
                                 </td>
+                                <td className="py-4 px-6 text-emerald-400 font-semibold font-sans">
+                                  {formatCurrency(getBookingAmount(booking))}
+                                </td>
                                 <td className="py-4 px-6">
                                   <span className={`text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full ${getStatusBadgeClass(booking.status)}`}>
                                     {getStatusLabel(booking.status)}
@@ -1400,6 +1442,14 @@ export const AdminPanel: React.FC = () => {
                                           Reject
                                         </button>
                                       </>
+                                    )}
+                                    {booking.status === 'approved' && (
+                                      <button
+                                        onClick={() => handleCheckoutTransit(booking.id!)}
+                                        className="text-xs font-semibold bg-blue-500 text-bg hover:bg-blue-400 px-3 py-1.5 rounded-lg transition-colors"
+                                      >
+                                        Checkout
+                                      </button>
                                     )}
                                     {session?.role !== 'cashier' && (
                                       <button
@@ -1569,11 +1619,11 @@ export const AdminPanel: React.FC = () => {
                               ) : (
                                 <span className="text-text-primary font-medium">{prop.price}</span>
                               )}
-                              {(prop.transit3h || prop.transit6h || prop.transit12h) ? (
+                              {(prop.transit3h || prop.transit6h || prop.transit12h || prop.transit24h) ? (
                                 <>
                                   <span className="w-1 h-1 rounded-full bg-stroke" />
                                   <span className="text-emerald-400 font-semibold text-[11px]">
-                                    Transit: 3h({prop.transit3h ? formatCurrency(prop.transit3h) : '-'}) | 6h({prop.transit6h ? formatCurrency(prop.transit6h) : '-'}) | 12h({prop.transit12h ? formatCurrency(prop.transit12h) : '-'})
+                                    Transit: 3h({prop.transit3h ? formatCurrency(prop.transit3h) : '-'}) | 6h({prop.transit6h ? formatCurrency(prop.transit6h) : '-'}) | 12h({prop.transit12h ? formatCurrency(prop.transit12h) : '-'}) | 24h({prop.transit24h ? formatCurrency(prop.transit24h) : '-'})
                                   </span>
                                 </>
                               ) : prop.hourlyRate ? (
@@ -2445,19 +2495,31 @@ export const AdminPanel: React.FC = () => {
                                   <span>Move-in Date: <strong className="text-text-primary">{booking.moveInDate}</strong></span>
                                 )}
                                 <span className="w-1.5 h-1.5 rounded-full bg-stroke hidden sm:inline-block" />
+                                <span>Amount: <strong className="text-emerald-400">{formatCurrency(getBookingAmount(booking))}</strong></span>
+                                <span className="w-1.5 h-1.5 rounded-full bg-stroke hidden sm:inline-block" />
                                 <span>Submitted: {booking.createdAt ? new Date(booking.createdAt).toLocaleDateString() : '-'}</span>
                               </div>
                             </div>
 
-                            <div className="shrink-0">
+                            <div className="shrink-0 flex items-center gap-3">
+                              {booking.bookingType === 'transit' && booking.status === 'approved' && (
+                                <button
+                                  onClick={() => handleCheckoutTransit(booking.id!)}
+                                  className="text-xs font-semibold bg-blue-500 text-bg hover:bg-blue-400 px-4 py-2 rounded-full transition-colors"
+                                >
+                                  Checkout
+                                </button>
+                              )}
                               <span className={`text-[10px] uppercase font-bold tracking-wider px-3.5 py-1.5 rounded-full ${
                                 booking.status === 'approved' 
                                   ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
                                   : booking.status === 'rejected'
                                   ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                                  : booking.status === 'checked_out' || booking.status === 'checked out' || booking.status === 'completed'
+                                  ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20'
                                   : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                               }`}>
-                                {booking.status}
+                                {booking.status === 'checked_out' ? 'checked out' : booking.status}
                               </span>
                             </div>
                           </div>
@@ -2637,7 +2699,7 @@ export const AdminPanel: React.FC = () => {
               </div>
 
               {/* Transit configuration */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs text-muted uppercase tracking-wider">Transit 3h Price (Rp, empty if none)</label>
                   <input 
@@ -2667,6 +2729,17 @@ export const AdminPanel: React.FC = () => {
                     placeholder="e.g. 800000"
                     value={transit12h}
                     onChange={(e) => setTransit12h(e.target.value)}
+                    className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs text-muted uppercase tracking-wider">Transit 24h Price (Rp, empty if none)</label>
+                  <input 
+                    type="number"
+                    placeholder="e.g. 1500000"
+                    value={transit24h}
+                    onChange={(e) => setTransit24h(e.target.value)}
                     className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors"
                   />
                 </div>

@@ -16,6 +16,7 @@ export interface Property {
   transit3h?: number | null;
   transit6h?: number | null;
   transit12h?: number | null;
+  transit24h?: number | null;
   mapUrl?: string;
   description?: string;
   rooms?: number;

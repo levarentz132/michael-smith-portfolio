@@ -212,7 +212,7 @@ export const PropertyPage: React.FC = () => {
     );
   }
 
-  const supportsTransit = !!(property.transit3h || property.transit6h || property.transit12h);
+  const supportsTransit = !!(property.transit3h || property.transit6h || property.transit12h || property.transit24h);
   const isAvailable = property.status !== 'booked' && (property.availableRooms ?? 1) > 0;
 
   return (
@@ -491,18 +491,24 @@ export const PropertyPage: React.FC = () => {
                                 <td className="py-2 px-3 text-right text-emerald-400 font-semibold">Rp {property.transit6h.toLocaleString('id-ID')}</td>
                               </tr>
                             ) : null}
-                            {property.transit12h ? (
-                              <tr className="border-b border-stroke/20 last:border-0 hover:bg-white/5 transition-colors">
-                                <td className="py-2 px-3 font-medium">12 Jam</td>
-                                <td className="py-2 px-3 text-right text-emerald-400 font-semibold">Rp {property.transit12h.toLocaleString('id-ID')}</td>
-                              </tr>
-                            ) : null}
-                            {!property.transit3h && !property.transit6h && !property.transit12h && property.hourlyRate ? (
-                              <tr className="hover:bg-white/5 transition-colors">
-                                <td className="py-2 px-3 font-medium">Per Jam</td>
-                                <td className="py-2 px-3 text-right text-emerald-400 font-semibold">Rp {property.hourlyRate.toLocaleString('id-ID')} / jam</td>
-                              </tr>
-                            ) : null}
+                             {property.transit12h ? (
+                               <tr className="border-b border-stroke/20 last:border-0 hover:bg-white/5 transition-colors">
+                                 <td className="py-2 px-3 font-medium">12 Jam</td>
+                                 <td className="py-2 px-3 text-right text-emerald-400 font-semibold">Rp {property.transit12h.toLocaleString('id-ID')}</td>
+                               </tr>
+                             ) : null}
+                             {property.transit24h ? (
+                               <tr className="border-b border-stroke/20 last:border-0 hover:bg-white/5 transition-colors">
+                                 <td className="py-2 px-3 font-medium">24 Jam</td>
+                                 <td className="py-2 px-3 text-right text-emerald-400 font-semibold">Rp {property.transit24h.toLocaleString('id-ID')}</td>
+                               </tr>
+                             ) : null}
+                             {!property.transit3h && !property.transit6h && !property.transit12h && !property.transit24h && property.hourlyRate ? (
+                               <tr className="hover:bg-white/5 transition-colors">
+                                 <td className="py-2 px-3 font-medium">Per Jam</td>
+                                 <td className="py-2 px-3 text-right text-emerald-400 font-semibold">Rp {property.hourlyRate.toLocaleString('id-ID')} / jam</td>
+                               </tr>
+                             ) : null}
                           </tbody>
                         </table>
                       </div>

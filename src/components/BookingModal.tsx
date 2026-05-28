@@ -19,7 +19,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
   const [transitDuration, setTransitDuration] = useState<number>(3);
   const [session, setSession] = useState<UserSession | null>(null);
 
-  const hasTransitSupport = !!(property?.transit3h || property?.transit6h || property?.transit12h);
+  const hasTransitSupport = !!(property?.transit3h || property?.transit6h || property?.transit12h || property?.transit24h);
 
   // New fields for monthly bookings
   const [surveyDate, setSurveyDate] = useState('');
@@ -96,8 +96,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
       estimatedCost = property.transit6h;
     } else if (transitDuration === 12 && property.transit12h) {
       estimatedCost = property.transit12h;
+    } else if (transitDuration === 24 && property.transit24h) {
+      estimatedCost = property.transit24h;
     } else {
-      return { error: 'Silakan pilih paket transit yang valid (3, 6, atau 12 jam).' };
+      return { error: 'Silakan pilih paket transit yang valid (3, 6, 12, atau 24 jam).' };
     }
     
     return {
@@ -550,6 +552,26 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                                 </td>
                                 <td className="py-3 px-3 text-right text-emerald-400 font-bold">
                                   Rp {property.transit12h.toLocaleString('id-ID')}
+                                </td>
+                              </tr>
+                            ) : null}
+                            {property?.transit24h ? (
+                              <tr 
+                                onClick={() => setTransitDuration(24)}
+                                className={`border-b border-stroke last:border-0 cursor-pointer transition-colors ${
+                                  transitDuration === 24 
+                                    ? 'bg-text-primary/10 border-l-2 border-l-emerald-400 font-semibold' 
+                                    : 'hover:bg-white/5'
+                                }`}
+                              >
+                                <td className="py-3 px-3 text-text-primary flex items-center gap-2 select-none">
+                                  <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${transitDuration === 24 ? 'border-emerald-400' : 'border-stroke'}`}>
+                                    {transitDuration === 24 && <div className="w-2 h-2 rounded-full bg-emerald-400" />}
+                                  </div>
+                                  24 Jam
+                                </td>
+                                <td className="py-3 px-3 text-right text-emerald-400 font-bold">
+                                  Rp {property.transit24h.toLocaleString('id-ID')}
                                 </td>
                               </tr>
                             ) : null}

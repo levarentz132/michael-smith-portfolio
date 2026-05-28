@@ -211,6 +211,20 @@ async function initializeDatabase() {
       }
     }
 
+    // Check if transit_24h column exists in properties table, add if missing
+    const [propCols24h] = await dbConnection.query("SHOW COLUMNS FROM properties LIKE 'transit_24h'");
+    if (propCols24h.length === 0) {
+      console.log("Adding transit_24h package column to properties table...");
+      await dbConnection.query("ALTER TABLE properties ADD COLUMN transit_24h INT DEFAULT NULL");
+      
+      const [hourlyRateCheck] = await dbConnection.query("SHOW COLUMNS FROM properties LIKE 'hourly_rate'");
+      if (hourlyRateCheck.length > 0) {
+        await dbConnection.query("UPDATE properties SET transit_24h = hourly_rate * 24 WHERE hourly_rate IS NOT NULL");
+      } else {
+        await dbConnection.query("UPDATE properties SET transit_24h = transit_12h * 2 WHERE transit_12h IS NOT NULL");
+      }
+    }
+
     // Drop legacy hourly_rate and min_transit_hours columns if they still exist
     const [hourlyRateCheck] = await dbConnection.query("SHOW COLUMNS FROM properties LIKE 'hourly_rate'");
     if (hourlyRateCheck.length > 0) {
@@ -352,6 +366,7 @@ app.get('/api/properties', async (req, res) => {
         transit3h: row.transit_3h,
         transit6h: row.transit_6h,
         transit12h: row.transit_12h,
+        transit24h: row.transit_24h,
         mapUrl: row.map_url,
         promoPrice: row.promo_price,
         promoLabel: row.promo_label,
@@ -433,6 +448,7 @@ app.get('/api/properties/:id', async (req, res) => {
       transit3h: row.transit_3h,
       transit6h: row.transit_6h,
       transit12h: row.transit_12h,
+      transit24h: row.transit_24h,
       mapUrl: row.map_url,
       promoPrice: row.promo_price,
       promoLabel: row.promo_label,
@@ -467,6 +483,7 @@ app.post('/api/properties', async (req, res) => {
       transit3h,
       transit6h,
       transit12h,
+      transit24h,
       promoPrice,
       promoLabel,
       available,
@@ -496,8 +513,8 @@ app.post('/api/properties', async (req, res) => {
       `INSERT INTO properties (
         name, location, location_id, map_url, type, price,
         promo_price, promo_label, image, available, description, rooms, available_rooms, branch_id, status, deposit,
-        transit_3h, transit_6h, transit_12h
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        transit_3h, transit_6h, transit_12h, transit_24h
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         title,
         location || '',
@@ -517,7 +534,8 @@ app.post('/api/properties', async (req, res) => {
         deposit !== undefined ? deposit : 0,
         transit3h !== undefined ? transit3h : null,
         transit6h !== undefined ? transit6h : null,
-        transit12h !== undefined ? transit12h : null
+        transit12h !== undefined ? transit12h : null,
+        transit24h !== undefined ? transit24h : null
       ]
     );
 
@@ -579,6 +597,7 @@ app.post('/api/properties', async (req, res) => {
       transit3h: row.transit_3h,
       transit6h: row.transit_6h,
       transit12h: row.transit_12h,
+      transit24h: row.transit_24h,
       mapUrl: row.map_url,
       promoPrice: row.promo_price,
       promoLabel: row.promo_label,
@@ -613,6 +632,7 @@ app.put('/api/properties/:id', async (req, res) => {
       transit3h,
       transit6h,
       transit12h,
+      transit24h,
       promoPrice,
       promoLabel,
       available,
@@ -644,7 +664,7 @@ app.put('/api/properties/:id', async (req, res) => {
            promo_price = ?, promo_label = ?, 
            image = ?, available = ?, description = ?, rooms = ?, available_rooms = ?, 
            branch_id = ?, status = ?, deposit = ?,
-           transit_3h = ?, transit_6h = ?, transit_12h = ?
+           transit_3h = ?, transit_6h = ?, transit_12h = ?, transit_24h = ?
        WHERE id = ?`,
       [
         title, 
@@ -666,6 +686,7 @@ app.put('/api/properties/:id', async (req, res) => {
         transit3h !== undefined ? transit3h : null,
         transit6h !== undefined ? transit6h : null,
         transit12h !== undefined ? transit12h : null,
+        transit24h !== undefined ? transit24h : null,
         id
       ]
     );
@@ -728,6 +749,7 @@ app.put('/api/properties/:id', async (req, res) => {
       transit3h: row.transit_3h,
       transit6h: row.transit_6h,
       transit12h: row.transit_12h,
+      transit24h: row.transit_24h,
       mapUrl: row.map_url,
       promoPrice: row.promo_price,
       promoLabel: row.promo_label,
@@ -858,27 +880,27 @@ app.post('/api/bookings', async (req, res) => {
     const durationHours = duration ? parseInt(duration, 10) : 3;
     let hourlyRate = null;
     let depositAmount = 50000;
-    const [propRows] = await pool.query('SELECT id, price, promo_price, transit_3h, transit_6h, transit_12h, deposit FROM properties WHERE name = ? LIMIT 1', [propertyName]);
+    const [propRows] = await pool.query('SELECT id, price, promo_price, transit_3h, transit_6h, transit_12h, transit_24h, deposit FROM properties WHERE name = ? LIMIT 1', [propertyName]);
     if (propRows.length > 0) {
       propertyId = propRows[0].id;
       rentPrice = propRows[0].promo_price || propRows[0].price;
-      const rateVal = durationHours === 3 ? propRows[0].transit_3h : durationHours === 6 ? propRows[0].transit_6h : durationHours === 12 ? propRows[0].transit_12h : null;
+      const rateVal = durationHours === 3 ? propRows[0].transit_3h : durationHours === 6 ? propRows[0].transit_6h : durationHours === 12 ? propRows[0].transit_12h : durationHours === 24 ? propRows[0].transit_24h : null;
       hourlyRate = rateVal ? rateVal / durationHours : null;
       depositAmount = propRows[0].deposit !== null && propRows[0].deposit !== undefined ? propRows[0].deposit : 50000;
     } else {
-      const [propRows2] = await pool.query('SELECT id, price, promo_price, transit_3h, transit_6h, transit_12h, deposit FROM properties WHERE name LIKE ? LIMIT 1', [`%${propertyName}%`]);
+      const [propRows2] = await pool.query('SELECT id, price, promo_price, transit_3h, transit_6h, transit_12h, transit_24h, deposit FROM properties WHERE name LIKE ? LIMIT 1', [`%${propertyName}%`]);
       if (propRows2.length > 0) {
         propertyId = propRows2[0].id;
         rentPrice = propRows2[0].promo_price || propRows2[0].price;
-        const rateVal = durationHours === 3 ? propRows2[0].transit_3h : durationHours === 6 ? propRows2[0].transit_6h : durationHours === 12 ? propRows2[0].transit_12h : null;
+        const rateVal = durationHours === 3 ? propRows2[0].transit_3h : durationHours === 6 ? propRows2[0].transit_6h : durationHours === 12 ? propRows2[0].transit_12h : durationHours === 24 ? propRows2[0].transit_24h : null;
         hourlyRate = rateVal ? rateVal / durationHours : null;
         depositAmount = propRows2[0].deposit !== null && propRows2[0].deposit !== undefined ? propRows2[0].deposit : 50000;
       } else {
-        const [propRows3] = await pool.query('SELECT id, price, promo_price, transit_3h, transit_6h, transit_12h, deposit FROM properties LIMIT 1');
+        const [propRows3] = await pool.query('SELECT id, price, promo_price, transit_3h, transit_6h, transit_12h, transit_24h, deposit FROM properties LIMIT 1');
         if (propRows3.length > 0) {
           propertyId = propRows3[0].id;
           rentPrice = propRows3[0].promo_price || propRows3[0].price;
-          const rateVal = durationHours === 3 ? propRows3[0].transit_3h : durationHours === 6 ? propRows3[0].transit_6h : durationHours === 12 ? propRows3[0].transit_12h : null;
+          const rateVal = durationHours === 3 ? propRows3[0].transit_3h : durationHours === 6 ? propRows3[0].transit_6h : durationHours === 12 ? propRows3[0].transit_12h : durationHours === 24 ? propRows3[0].transit_24h : null;
           hourlyRate = rateVal ? rateVal / durationHours : null;
           depositAmount = propRows3[0].deposit !== null && propRows3[0].deposit !== undefined ? propRows3[0].deposit : 50000;
         } else {
@@ -1030,7 +1052,7 @@ app.put('/api/bookings/:id', async (req, res) => {
     if (status === 'approved') {
       const [bookingRows] = await pool.query(
         `SELECT b.*, p.name AS property_name, p.branch_id AS prop_branch_id,
-                p.transit_3h, p.transit_6h, p.transit_12h,
+                p.transit_3h, p.transit_6h, p.transit_12h, p.transit_24h,
                 t.name AS tenant_name
          FROM bookings b
          LEFT JOIN properties p ON b.property_id = p.id
@@ -1073,6 +1095,8 @@ app.put('/api/bookings/:id', async (req, res) => {
             amount = booking.transit_6h;
           } else if (roundedHours === 12 && booking.transit_12h) {
             amount = booking.transit_12h;
+          } else if (roundedHours === 24 && booking.transit_24h) {
+            amount = booking.transit_24h;
           } else {
             const rate = booking.hourly_rate || 0;
             amount = Math.ceil(Math.max(1, hours) * rate);
