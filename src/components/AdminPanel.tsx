@@ -27,7 +27,7 @@ import {
 } from '../api';
 import type { Property, Booking, UserSession, TenantInfo, Tenant, Transaction, Article, AdminUser } from '../api';
 import { useNavigate } from 'react-router-dom';
-import { Upload, Loader2, Trash2, Plus } from 'lucide-react';
+import { Upload, Loader2, Trash2, Plus, Printer } from 'lucide-react';
 import { useSEO } from '../hooks/useSEO';
 
 export const AdminPanel: React.FC = () => {
@@ -258,6 +258,9 @@ export const AdminPanel: React.FC = () => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [earningStartDate, setEarningStartDate] = useState('');
+  const [earningEndDate, setEarningEndDate] = useState('');
+  const [selectedInvoiceBooking, setSelectedInvoiceBooking] = useState<Booking | null>(null);
   
   const [loading, setLoading] = useState(() => {
     const savedSession = localStorage.getItem('userSession');
@@ -1137,12 +1140,29 @@ export const AdminPanel: React.FC = () => {
     );
   });
 
+  // Filter transactions by date range
+  const filteredTransactions = transactions.filter(tx => {
+    if (!tx.transaction_date) return true;
+    const txDate = new Date(tx.transaction_date);
+    if (earningStartDate) {
+      const start = new Date(earningStartDate);
+      start.setHours(0, 0, 0, 0);
+      if (txDate < start) return false;
+    }
+    if (earningEndDate) {
+      const end = new Date(earningEndDate);
+      end.setHours(23, 59, 59, 999);
+      if (txDate > end) return false;
+    }
+    return true;
+  });
+
   // Calculate earnings stats
-  const totalIncome = transactions
+  const totalIncome = filteredTransactions
     .filter(t => t.transaction_type === 'income')
     .reduce((sum, t) => sum + Number(t.amount), 0);
 
-  const totalExpense = transactions
+  const totalExpense = filteredTransactions
     .filter(t => t.transaction_type === 'expense')
     .reduce((sum, t) => sum + Number(t.amount), 0);
 
@@ -1449,6 +1469,15 @@ export const AdminPanel: React.FC = () => {
                                         className="text-xs font-semibold bg-blue-500 text-bg hover:bg-blue-400 px-3 py-1.5 rounded-lg transition-colors"
                                       >
                                         Checkout
+                                      </button>
+                                    )}
+                                    {(booking.status === 'checked_out' || booking.status === 'checked out') && (
+                                      <button
+                                        onClick={() => setSelectedInvoiceBooking(booking)}
+                                        className="text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+                                      >
+                                        <Printer className="w-3.5 h-3.5" />
+                                        Invoice
                                       </button>
                                     )}
                                     {session?.role !== 'cashier' && (
@@ -1800,14 +1829,45 @@ export const AdminPanel: React.FC = () => {
 
                     {/* Transaction Logs Table */}
                     <div className="bg-surface/30 border border-stroke/50 rounded-3xl overflow-hidden shadow-xl text-left">
-                      <div className="px-6 py-4 border-b border-stroke/60 bg-surface/50 flex justify-between items-center">
+                      <div className="px-6 py-4 border-b border-stroke/60 bg-surface/50 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
                         <h4 className="text-sm font-semibold uppercase tracking-wider text-text-primary">
                           Transaction Histories & Bills
                         </h4>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <div className="flex items-center gap-2">
+                            <label className="text-[10px] text-muted uppercase tracking-wider font-semibold">Start Date:</label>
+                            <input 
+                              type="date"
+                              value={earningStartDate}
+                              onChange={(e) => setEarningStartDate(e.target.value)}
+                              className="bg-bg border border-stroke rounded-xl px-3 py-1.5 text-xs text-text-primary focus:outline-none focus:border-text-primary/40 font-sans"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <label className="text-[10px] text-muted uppercase tracking-wider font-semibold">End Date:</label>
+                            <input 
+                              type="date"
+                              value={earningEndDate}
+                              onChange={(e) => setEarningEndDate(e.target.value)}
+                              className="bg-bg border border-stroke rounded-xl px-3 py-1.5 text-xs text-text-primary focus:outline-none focus:border-text-primary/40 font-sans"
+                            />
+                          </div>
+                          {(earningStartDate || earningEndDate) && (
+                            <button
+                              onClick={() => {
+                                setEarningStartDate('');
+                                setEarningEndDate('');
+                              }}
+                              className="text-[10px] uppercase font-bold tracking-wider text-rose-400 hover:text-rose-300 transition-colors py-1 px-2 border border-rose-500/20 bg-rose-500/5 rounded-lg"
+                            >
+                              Reset
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      {transactions.length === 0 ? (
+                      {filteredTransactions.length === 0 ? (
                         <div className="py-16 text-center text-muted text-xs uppercase tracking-widest font-medium">
-                          No transactions logged yet. Approved bookings appear here automatically.
+                          No transactions found for the selected date range.
                         </div>
                       ) : (
                         <div className="overflow-x-auto">
@@ -1823,7 +1883,7 @@ export const AdminPanel: React.FC = () => {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-stroke/30 text-sm">
-                              {transactions.map((tx) => (
+                              {filteredTransactions.map((tx) => (
                                 <tr key={tx.id} className="hover:bg-surface/20 transition-colors duration-200">
                                   <td className="py-4 px-6 text-xs text-muted">
                                     {tx.transaction_date ? new Date(tx.transaction_date).toLocaleDateString() : '-'}
@@ -2508,6 +2568,15 @@ export const AdminPanel: React.FC = () => {
                                   className="text-xs font-semibold bg-blue-500 text-bg hover:bg-blue-400 px-4 py-2 rounded-full transition-colors"
                                 >
                                   Checkout
+                                </button>
+                              )}
+                              {booking.bookingType === 'transit' && (booking.status === 'checked_out' || booking.status === 'checked out') && (
+                                <button
+                                  onClick={() => setSelectedInvoiceBooking(booking)}
+                                  className="text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 px-4 py-2 rounded-full transition-colors flex items-center gap-1.5"
+                                >
+                                  <Printer className="w-3.5 h-3.5" />
+                                  Invoice
                                 </button>
                               )}
                               <span className={`text-[10px] uppercase font-bold tracking-wider px-3.5 py-1.5 rounded-full ${
@@ -3576,6 +3645,168 @@ export const AdminPanel: React.FC = () => {
                 Simpan Staf
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* INVOICE PRINT MODAL */}
+      {selectedInvoiceBooking && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <style>{`
+            @media print {
+              body * {
+                visibility: hidden !important;
+              }
+              #invoice-print-area, #invoice-print-area * {
+                visibility: visible !important;
+              }
+              #invoice-print-area {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                background: white !important;
+                color: black !important;
+                padding: 24px !important;
+              }
+              .no-print {
+                display: none !important;
+              }
+            }
+          `}</style>
+          <div id="invoice-print-area" className="bg-surface border border-stroke/50 rounded-3xl p-8 max-w-2xl w-full shadow-2xl relative overflow-y-auto max-h-[90vh] text-left">
+            {/* Header / Brand */}
+            <div className="flex justify-between items-start border-b border-stroke/30 pb-6 mb-6">
+              <div className="flex items-center gap-3">
+                {logoImage ? (
+                  <img 
+                    src={logoImage.startsWith('/') ? logoImage : `/${logoImage}`} 
+                    alt="Logo" 
+                    className="h-10 w-10 object-contain rounded-xl border border-stroke/30 p-1 bg-surface/50" 
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <div 
+                    className="h-10 w-10 rounded-xl flex items-center justify-center font-bold text-sm tracking-wider"
+                    style={{
+                      background: `linear-gradient(135deg, ${logoStartColor}, ${logoEndColor})`,
+                      color: '#fff'
+                    }}
+                  >
+                    {logoText}
+                  </div>
+                )}
+                <div>
+                  <h2 className="text-xl font-bold uppercase tracking-wider text-text-primary">Highlander Stay</h2>
+                  <p className="text-xs text-muted mt-0.5">Premium Accommodations & Transit Space</p>
+                </div>
+              </div>
+              <div className="text-right flex flex-col items-end gap-1">
+                <div className="border-2 border-emerald-500 text-emerald-500 uppercase tracking-widest font-black text-[10px] px-2 py-0.5 rounded rotate-[-6deg] shadow-sm select-none">
+                  PAID
+                </div>
+                <p className="text-[10px] text-muted mt-1.5">Invoice: #INV-{selectedInvoiceBooking.id}</p>
+              </div>
+            </div>
+
+            {/* Invoice Info Details */}
+            <div className="grid grid-cols-2 gap-6 mb-6 text-xs text-text-primary">
+              <div>
+                <h5 className="font-semibold uppercase tracking-wider text-muted mb-2 text-[10px]">Tenant Details</h5>
+                <p className="font-medium">{selectedInvoiceBooking.userName}</p>
+                <p className="text-muted mt-1">{selectedInvoiceBooking.userEmail}</p>
+                {selectedInvoiceBooking.phone && <p className="text-muted mt-0.5">{selectedInvoiceBooking.phone}</p>}
+              </div>
+              <div>
+                <h5 className="font-semibold uppercase tracking-wider text-muted mb-2 text-[10px]">Space & Schedule</h5>
+                <p className="font-medium">{selectedInvoiceBooking.propertyName}</p>
+                <p className="text-muted mt-1">
+                  Check-in: {selectedInvoiceBooking.transitStartTime ? new Date(selectedInvoiceBooking.transitStartTime).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-'}
+                </p>
+                <p className="text-muted mt-0.5">
+                  Check-out: {selectedInvoiceBooking.transitEndTime ? new Date(selectedInvoiceBooking.transitEndTime).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-'}
+                </p>
+              </div>
+            </div>
+
+            {/* Calculation Table */}
+            <div className="border border-stroke/30 rounded-2xl overflow-hidden mb-6">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-surface/50 border-b border-stroke/30 text-muted uppercase tracking-wider">
+                    <th className="p-4">Description</th>
+                    <th className="p-4 text-center">Hours</th>
+                    <th className="p-4 text-right">Rate / Hr</th>
+                    <th className="p-4 text-right">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stroke/30">
+                  <tr>
+                    <td className="p-4">
+                      <p className="font-medium text-text-primary">Transit Space Rental (Hourly)</p>
+                      <p className="text-muted text-[10px] mt-0.5">Checked-in details verified by {selectedInvoiceBooking.approvedByName || 'System'}</p>
+                    </td>
+                    <td className="p-4 text-center text-text-primary font-medium">
+                      {(() => {
+                        if (selectedInvoiceBooking.transitStartTime && selectedInvoiceBooking.transitEndTime) {
+                          const start = new Date(selectedInvoiceBooking.transitStartTime);
+                          const end = new Date(selectedInvoiceBooking.transitEndTime);
+                          const hours = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60));
+                          return Math.max(1, hours);
+                        }
+                        return 1;
+                      })()}
+                    </td>
+                    <td className="p-4 text-right text-text-primary font-medium">
+                      {formatCurrency(selectedInvoiceBooking.hourlyRate || 0)}
+                    </td>
+                    <td className="p-4 text-right text-emerald-400 font-semibold">
+                      {formatCurrency(getBookingAmount(selectedInvoiceBooking))}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Total Area */}
+            <div className="flex justify-end mb-8">
+              <div className="w-64 text-right flex flex-col gap-2">
+                <div className="flex justify-between text-xs text-muted">
+                  <span>Subtotal:</span>
+                  <span className="text-text-primary font-medium">{formatCurrency(getBookingAmount(selectedInvoiceBooking))}</span>
+                </div>
+                <div className="border-t border-stroke/30 my-1"></div>
+                <div className="flex justify-between text-sm font-semibold">
+                  <span className="text-text-primary">Total Paid:</span>
+                  <span className="text-emerald-400">{formatCurrency(getBookingAmount(selectedInvoiceBooking))}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer Notes */}
+            <div className="border-t border-stroke/30 pt-6 text-[10px] text-muted leading-relaxed mb-6">
+              <p>Thank you for staying at Highlander Stay! This is an official system-generated invoice for your transit booking.</p>
+              <p className="mt-1">For any queries, please contact us at support@highlanderstay.com.</p>
+            </div>
+
+            {/* Modal Controls (no-print) */}
+            <div className="flex justify-end gap-3 no-print">
+              <button
+                onClick={() => window.print()}
+                className="bg-emerald-500 text-bg hover:bg-emerald-400 font-semibold text-xs py-2.5 px-5 rounded-full transition-colors flex items-center gap-1.5"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                Print Invoice
+              </button>
+              <button
+                onClick={() => setSelectedInvoiceBooking(null)}
+                className="bg-surface hover:bg-surface-muted text-text-primary font-semibold text-xs py-2.5 px-5 rounded-full border border-stroke transition-colors"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
