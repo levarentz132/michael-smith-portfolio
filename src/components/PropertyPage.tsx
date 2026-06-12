@@ -177,14 +177,7 @@ export const PropertyPage: React.FC = () => {
     setTilt({ x: 0, y: 0 });
   };
 
-  // Maps URL formatting
-  const getEmbedUrl = (address: string, mapUrl?: string) => {
-    if (mapUrl && (mapUrl.includes('embed') || mapUrl.includes('google.com/maps/embed'))) {
-      return mapUrl;
-    }
-    const query = encodeURIComponent(address || 'Jakarta');
-    return `https://maps.google.com/maps?q=${query}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
-  };
+
 
   if (loading) {
     return (
@@ -387,16 +380,21 @@ export const PropertyPage: React.FC = () => {
               </h3>
               <p className="text-xs text-muted mb-4 font-light">{property.address || 'Jakarta, Indonesia'}</p>
 
-              {/* Map Iframe */}
-              <div className="w-full h-72 rounded-2xl overflow-hidden border border-stroke relative group">
-                <iframe
-                  title="Property Location Map"
-                  src={getEmbedUrl(property.address || property.location || 'Jakarta', property.mapUrl)}
-                  className="w-full h-full border-none opacity-80 group-hover:opacity-95 transition-opacity duration-300 filter invert contrast-110 grayscale"
-                  allowFullScreen
-                  loading="lazy"
-                />
-              </div>
+              {/* Map Link */}
+              <a
+                href={property.mapUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(property.address || property.location || 'Jakarta')}`}
+                target="_blank"
+                rel="noreferrer"
+                className="w-full py-8 rounded-2xl border border-stroke bg-surface/50 hover:bg-surface hover:border-white/10 text-xs font-semibold text-center text-blue-400 hover:text-blue-300 transition-all duration-300 flex flex-col items-center justify-center gap-3 group shadow-md"
+              >
+                <div className="w-12 h-12 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 group-hover:scale-105 transition-transform duration-300">
+                  <MapPin size={24} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-text-primary text-sm font-medium">Buka Peta Lokasi</span>
+                  <span className="text-muted text-[10px] uppercase tracking-wider font-light">Klik untuk melihat rute di Google Maps ↗</span>
+                </div>
+              </a>
             </div>
 
           </div>

@@ -26,6 +26,7 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick, i
   const [locationFilter, setLocationFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const activeFiltersCount = 
     (filter !== 'all' ? 1 : 0) + 
@@ -36,6 +37,7 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick, i
     setFilter('all');
     setBookingFilter('all');
     setLocationFilter('all');
+    setSearchTerm('');
   };
 
   const loadProperties = async () => {
@@ -63,7 +65,7 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick, i
       }, 150);
       return () => clearTimeout(timer);
     }
-  }, [loading, properties, filter, bookingFilter, locationFilter]);
+  }, [loading, properties, filter, bookingFilter, locationFilter, searchTerm]);
 
   const uniqueLocations = ['all', ...Array.from(new Set(properties.map(p => p.location)))];
 
@@ -75,7 +77,11 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick, i
       bookingFilter === 'transit' ? !!(prop.transit3h || prop.transit6h || prop.transit12h || prop.transit24h) : 
       bookingFilter === 'monthly' ? true : // All properties support monthly rent
       true;
-    return matchesType && matchesLocation && matchesBooking;
+    const matchesSearch = searchTerm === '' ? true :
+      prop.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      prop.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (prop.description && prop.description.toLowerCase().includes(searchTerm.toLowerCase()));
+    return matchesType && matchesLocation && matchesBooking && matchesSearch;
   });
 
 
@@ -102,6 +108,26 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick, i
             <p className="text-sm md:text-base text-muted font-light leading-relaxed">
               Temukan kamar dan apartemen premium yang indah dirancang untuk kenyamanan dan gaya hidup modern Anda.
             </p>
+            {/* Search Bar */}
+            <div className="w-full max-w-md mt-6">
+              <div className="relative group">
+                <input 
+                  type="text"
+                  placeholder="Cari ruangan atau lokasi..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-surface border border-stroke rounded-full px-5 py-3 text-xs text-text-primary placeholder:text-muted focus:outline-none focus:border-text-primary/40 focus:ring-1 focus:ring-text-primary/10 transition-all duration-300 font-sans shadow-sm"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-rose-400 font-bold text-xs"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Desktop Compact Filters Toggle & Summary */}
