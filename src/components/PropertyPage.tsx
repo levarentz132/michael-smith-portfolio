@@ -381,20 +381,30 @@ export const PropertyPage: React.FC = () => {
               <p className="text-xs text-muted mb-4 font-light">{property.address || 'Jakarta, Indonesia'}</p>
 
               {/* Map Link */}
-              <a
-                href={property.mapUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(property.address || property.location || 'Jakarta')}`}
-                target="_blank"
-                rel="noreferrer"
-                className="w-full py-8 rounded-2xl border border-stroke bg-surface/50 hover:bg-surface hover:border-white/10 text-xs font-semibold text-center text-blue-400 hover:text-blue-300 transition-all duration-300 flex flex-col items-center justify-center gap-3 group shadow-md"
-              >
-                <div className="w-12 h-12 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 group-hover:scale-105 transition-transform duration-300">
-                  <MapPin size={24} />
+              {property.mapUrl ? (
+                <div className="mt-2">
+                  <a
+                    href={property.mapUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-blue-400 hover:text-blue-300 font-semibold hover:underline break-all font-mono inline-block"
+                  >
+                    {property.mapUrl} ↗
+                  </a>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-text-primary text-sm font-medium">Buka Peta Lokasi</span>
-                  <span className="text-muted text-[10px] uppercase tracking-wider font-light">Klik untuk melihat rute di Google Maps ↗</span>
+              ) : (
+                <div className="mt-2">
+                  <span className="text-xs text-muted font-light italic mr-1">Link peta tidak tersedia, cari di Google Maps:</span>
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(property.title + ' ' + (property.address || property.location || ''))}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-blue-400 hover:text-blue-300 font-semibold hover:underline inline-block"
+                  >
+                    Cari Lokasi ↗
+                  </a>
                 </div>
-              </a>
+              )}
             </div>
 
           </div>
