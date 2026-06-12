@@ -387,21 +387,20 @@ export const PropertyPage: React.FC = () => {
                     href={property.mapUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-xs text-blue-400 hover:text-blue-300 font-semibold hover:underline break-all font-mono inline-block"
+                    className="text-xs text-blue-400 hover:text-blue-300 font-semibold hover:underline inline-flex items-center gap-1"
                   >
-                    {property.mapUrl} ↗
+                    <span>Buka Peta Lokasi ↗</span>
                   </a>
                 </div>
               ) : (
                 <div className="mt-2">
-                  <span className="text-xs text-muted font-light italic mr-1">Link peta tidak tersedia, cari di Google Maps:</span>
                   <a
                     href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(property.title + ' ' + (property.address || property.location || ''))}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-xs text-blue-400 hover:text-blue-300 font-semibold hover:underline inline-block"
+                    className="text-xs text-blue-400 hover:text-blue-300 font-semibold hover:underline inline-flex items-center gap-1"
                   >
-                    Cari Lokasi ↗
+                    <span>Cari Lokasi di Google Maps ↗</span>
                   </a>
                 </div>
               )}
