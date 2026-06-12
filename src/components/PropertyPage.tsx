@@ -373,37 +373,19 @@ export const PropertyPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Styled Map Location Section */}
-            <div className="bg-surface border border-stroke rounded-3xl p-6 md:p-8 overflow-hidden flex flex-col">
-              <h3 className="text-lg font-semibold mb-2 text-text-primary flex items-center gap-2">
-                <MapPin size={18} className="text-muted" /> Peta Lokasi
-              </h3>
-              <p className="text-xs text-muted mb-4 font-light">{property.address || 'Jakarta, Indonesia'}</p>
-
-              {/* Map Link */}
-              {property.mapUrl ? (
-                <div className="mt-2">
-                  <a
-                    href={property.mapUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs text-blue-400 hover:text-blue-300 font-semibold hover:underline inline-flex items-center gap-1"
-                  >
-                    <span>Cari Lokasi di Google Maps ↗</span>
-                  </a>
-                </div>
-              ) : (
-                <div className="mt-2">
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(property.title + ' ' + (property.address || property.location || ''))}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs text-blue-400 hover:text-blue-300 font-semibold hover:underline inline-flex items-center gap-1"
-                  >
-                    <span>Cari Lokasi di Google Maps ↗</span>
-                  </a>
-                </div>
-              )}
+            {/* Map Location Section */}
+            <div className="flex items-center gap-2 flex-wrap px-1">
+              <MapPin size={14} className="text-muted" />
+              <span className="text-xs text-muted">Peta Lokasi: <strong className="text-text-primary font-medium">{property.address || property.location || 'Jakarta, Indonesia'}</strong></span>
+              <span className="text-muted/40">•</span>
+              <a
+                href={property.mapUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(property.title + ' ' + (property.address || property.location || ''))}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs text-blue-400 hover:text-blue-300 font-semibold hover:underline inline-flex items-center gap-1"
+              >
+                <span>Cari Lokasi di Google Maps ↗</span>
+              </a>
             </div>
 
           </div>
