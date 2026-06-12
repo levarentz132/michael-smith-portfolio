@@ -389,7 +389,7 @@ export const PropertyPage: React.FC = () => {
                     rel="noreferrer"
                     className="text-xs text-blue-400 hover:text-blue-300 font-semibold hover:underline inline-flex items-center gap-1"
                   >
-                    <span>Buka Peta Lokasi ↗</span>
+                    <span>Cari Lokasi di Google Maps ↗</span>
                   </a>
                 </div>
               ) : (
