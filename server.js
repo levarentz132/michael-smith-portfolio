@@ -257,6 +257,20 @@ async function initializeDatabase() {
     console.log("Modifying bookings status column type to VARCHAR(50)...");
     await dbConnection.query("ALTER TABLE bookings MODIFY COLUMN status VARCHAR(50) DEFAULT 'pending'");
 
+    // Check if snap_token column exists in bookings table, add if missing
+    const [snapTokenCol] = await dbConnection.query("SHOW COLUMNS FROM bookings LIKE 'snap_token'");
+    if (snapTokenCol.length === 0) {
+      console.log("Adding 'snap_token' column to bookings table...");
+      await dbConnection.query("ALTER TABLE bookings ADD COLUMN snap_token VARCHAR(255) DEFAULT NULL");
+    }
+
+    // Check if payment_method column exists in bookings table, add if missing
+    const [payMethodCol] = await dbConnection.query("SHOW COLUMNS FROM bookings LIKE 'payment_method'");
+    if (payMethodCol.length === 0) {
+      console.log("Adding 'payment_method' column to bookings table...");
+      await dbConnection.query("ALTER TABLE bookings ADD COLUMN payment_method VARCHAR(50) DEFAULT NULL");
+    }
+
     await dbConnection.end();
   } catch (error) {
     console.error('Database connection / initialization failed:', error);
@@ -1089,6 +1103,9 @@ app.post('/api/bookings', async (req, res) => {
         const transaction = await snap.createTransaction(parameter);
         snapToken = transaction.token;
         snapRedirectUrl = transaction.redirect_url;
+
+        // Save snap token to bookings table
+        await pool.query('UPDATE bookings SET snap_token = ? WHERE id = ?', [snapToken, result.insertId]);
       } catch (snapError) {
         console.error('Error generating Midtrans Snap token:', snapError);
       }
@@ -1156,8 +1173,8 @@ app.post('/api/midtrans-webhook', async (req, res) => {
     if (bookings.length > 0) {
       const booking = bookings[0];
 
-      // Update booking status
-      await pool.query('UPDATE bookings SET status = ? WHERE id = ?', [dbStatus, booking.id]);
+      // Update booking status and payment method
+      await pool.query('UPDATE bookings SET status = ?, payment_method = ? WHERE id = ?', [dbStatus, notification.payment_type || null, booking.id]);
 
       // If payment is settled and booking wasn't already confirmed, record a transaction
       if (isSuccess && booking.status !== 'confirmed' && booking.status !== 'deposit_terbayar') {
