@@ -53,6 +53,8 @@ export interface Booking {
   emergencyPhone?: string | null;
   notes?: string | null;
   approvedByName?: string | null;
+  snapToken?: string | null;
+  snapRedirectUrl?: string | null;
 }
 
 export interface UserSession {

@@ -7,8 +7,17 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import multer from 'multer';
+import midtransClient from 'midtrans-client';
+import crypto from 'crypto';
 
 dotenv.config();
+
+// Initialize Midtrans Snap client
+const snap = new midtransClient.Snap({
+  isProduction: process.env.MIDTRANS_IS_PRODUCTION === 'true',
+  serverKey: process.env.MIDTRANS_SERVER_KEY || '',
+  clientKey: process.env.MIDTRANS_CLIENT_KEY || ''
+});
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1033,6 +1042,58 @@ app.post('/api/bookings', async (req, res) => {
 
     const [result] = await pool.query(insertQuery, insertParams);
 
+    // Calculate Midtrans Payment Amount
+    let paymentAmount = 0;
+    if (bookingType === 'transit') {
+      const durationHours = duration ? parseFloat(duration) : 3;
+      if (propRows.length > 0) {
+        const rateVal = durationHours === 3 ? propRows[0].transit_3h 
+                      : durationHours === 6 ? propRows[0].transit_6h 
+                      : durationHours === 12 ? propRows[0].transit_12h 
+                      : durationHours === 24 ? propRows[0].transit_24h 
+                      : null;
+        paymentAmount = rateVal || Math.ceil(durationHours * (hourlyRate || 0));
+      }
+      if (!paymentAmount || paymentAmount <= 0) {
+        paymentAmount = rentPrice;
+      }
+    } else {
+      paymentAmount = depositAmount || 50000;
+    }
+
+    let snapToken = null;
+    let snapRedirectUrl = null;
+
+    if (process.env.MIDTRANS_SERVER_KEY && process.env.MIDTRANS_SERVER_KEY !== 'SB-Mid-server-placeholder') {
+      try {
+        const parameter = {
+          transaction_details: {
+            order_id: referenceNumber,
+            gross_amount: paymentAmount
+          },
+          customer_details: {
+            first_name: userName,
+            email: userEmail,
+            phone: phone
+          },
+          item_details: [
+            {
+              id: `${bookingType}_booking_${propertyId}`,
+              price: paymentAmount,
+              quantity: 1,
+              name: `${bookingType === 'transit' ? 'Transit' : 'Deposit'} Booking - ${propertyName.substring(0, 30)}`
+            }
+          ]
+        };
+
+        const transaction = await snap.createTransaction(parameter);
+        snapToken = transaction.token;
+        snapRedirectUrl = transaction.redirect_url;
+      } catch (snapError) {
+        console.error('Error generating Midtrans Snap token:', snapError);
+      }
+    }
+
     res.status(201).json({
       id: result.insertId,
       propertyName,
@@ -1041,11 +1102,83 @@ app.post('/api/bookings', async (req, res) => {
       phone,
       moveInDate: bookingType === 'transit' ? transitDate : moveInDate,
       status: 'pending',
-      bookingType
+      bookingType,
+      referenceNumber,
+      snapToken,
+      snapRedirectUrl
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to submit booking.' });
+  }
+});
+
+// POST Midtrans Notification Webhook
+app.post('/api/midtrans-webhook', async (req, res) => {
+  try {
+    const notification = req.body;
+    const { order_id, transaction_status, status_code, gross_amount, signature_key } = notification;
+
+    // Verify signature key
+    const serverKey = process.env.MIDTRANS_SERVER_KEY || '';
+    const payload = order_id + status_code + gross_amount + serverKey;
+    const calculatedSignature = crypto.createHash('sha512').update(payload).digest('hex');
+
+    if (calculatedSignature !== signature_key) {
+      console.warn(`[Midtrans Webhook] Invalid signature key for Order ${order_id}`);
+      return res.status(403).json({ error: 'Invalid signature key' });
+    }
+
+    console.log(`[Midtrans Webhook] Received status ${transaction_status} for order ${order_id}`);
+
+    let dbStatus = 'pending';
+    let isSuccess = false;
+
+    if (transaction_status === 'capture' || transaction_status === 'settlement') {
+      dbStatus = 'confirmed'; // paid and approved
+      isSuccess = true;
+    } else if (transaction_status === 'pending') {
+      dbStatus = 'pending';
+    } else if (['deny', 'expire', 'cancel'].includes(transaction_status)) {
+      dbStatus = 'cancelled';
+    }
+
+    // Find the booking corresponding to this reference number
+    const [bookings] = await pool.query(
+      `SELECT b.*, p.name AS property_name, p.branch_id AS prop_branch_id, t.name AS tenant_name
+       FROM bookings b
+       LEFT JOIN properties p ON b.property_id = p.id
+       LEFT JOIN tenants t ON b.tenant_id = t.id
+       WHERE b.reference_number = ? LIMIT 1`,
+      [order_id]
+    );
+
+    if (bookings.length > 0) {
+      const booking = bookings[0];
+
+      // Update booking status
+      await pool.query('UPDATE bookings SET status = ? WHERE id = ?', [dbStatus, booking.id]);
+
+      // If payment is settled and booking wasn't already confirmed, record a transaction
+      if (isSuccess && booking.status !== 'confirmed' && booking.status !== 'deposit_terbayar') {
+        const branchId = booking.prop_branch_id || null;
+        const amount = parseFloat(gross_amount);
+        const description = `Midtrans Payment - Booking #${booking.id} - ${booking.property_name || 'Space'} (Tenant: ${booking.tenant_name || 'Guest'}, Ref: ${order_id})`;
+        
+        await pool.query(
+          `INSERT INTO transactions (branch_id, transaction_type, category, amount, transaction_date, description, recorded_by) 
+           VALUES (?, 'income', 'booking', ?, CURDATE(), ?, 1)`,
+          [branchId, amount, description]
+        );
+      }
+    } else {
+      console.warn(`[Midtrans Webhook] Booking not found for Order ID: ${order_id}`);
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[Midtrans Webhook Error]:', error);
+    res.status(500).json({ error: 'Webhook processing failed' });
   }
 });
 

@@ -31,6 +31,18 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
   const [whatsappNumber, setWhatsappNumber] = useState('628123456789');
 
   useEffect(() => {
+    // Load Midtrans Snap JS dynamically
+    const scriptUrl = 'https://app.sandbox.midtrans.com/snap/snap.js';
+    const isLoaded = document.querySelector(`script[src="${scriptUrl}"]`);
+    if (!isLoaded) {
+      const script = document.createElement('script');
+      script.src = scriptUrl;
+      script.setAttribute('data-client-key', 'SB-Mid-client-placeholder');
+      document.body.appendChild(script);
+    }
+  }, []);
+
+  useEffect(() => {
     const loadWa = async () => {
       try {
         const s = await fetchSettings();
@@ -185,8 +197,30 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
         payload.surveyTime = surveyTime;
       }
 
-      await createBooking(payload as any);
+      const res = await createBooking(payload as any);
       setIsSuccess(true);
+
+      // Trigger Midtrans Snap Popup if token is returned
+      if (res && res.snapToken) {
+        if ((window as any).snap) {
+          (window as any).snap.pay(res.snapToken, {
+            onSuccess: function (result: any) {
+              console.log('Payment Success:', result);
+            },
+            onPending: function (result: any) {
+              console.log('Payment Pending:', result);
+            },
+            onError: function (result: any) {
+              console.error('Payment Error:', result);
+            },
+            onClose: function () {
+              console.log('Payment modal closed');
+            }
+          });
+        } else if (res.snapRedirectUrl) {
+          window.open(res.snapRedirectUrl, '_blank');
+        }
+      }
 
       if (bookingType === 'monthly') {
         const waMessage = encodeURIComponent(
