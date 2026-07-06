@@ -260,6 +260,8 @@ export const AdminPanel: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [earningStartDate, setEarningStartDate] = useState('');
   const [earningEndDate, setEarningEndDate] = useState('');
+  const [earningRecordedBy, setEarningRecordedBy] = useState('');
+  const [earningDescription, setEarningDescription] = useState('');
   const [selectedInvoiceBooking, setSelectedInvoiceBooking] = useState<Booking | null>(null);
   
   const [loading, setLoading] = useState(() => {
@@ -1140,19 +1142,28 @@ export const AdminPanel: React.FC = () => {
     );
   });
 
-  // Filter transactions by date range
+  // Filter transactions by date range, recorded by, and description
   const filteredTransactions = transactions.filter(tx => {
-    if (!tx.transaction_date) return true;
-    const txDate = new Date(tx.transaction_date);
-    if (earningStartDate) {
-      const start = new Date(earningStartDate);
-      start.setHours(0, 0, 0, 0);
-      if (txDate < start) return false;
+    if (tx.transaction_date) {
+      const txDate = new Date(tx.transaction_date);
+      if (earningStartDate) {
+        const start = new Date(earningStartDate);
+        start.setHours(0, 0, 0, 0);
+        if (txDate < start) return false;
+      }
+      if (earningEndDate) {
+        const end = new Date(earningEndDate);
+        end.setHours(23, 59, 59, 999);
+        if (txDate > end) return false;
+      }
     }
-    if (earningEndDate) {
-      const end = new Date(earningEndDate);
-      end.setHours(23, 59, 59, 999);
-      if (txDate > end) return false;
+    if (earningRecordedBy) {
+      const recName = tx.recorded_by_name || `Admin #${tx.recorded_by}` || '';
+      if (!recName.toLowerCase().includes(earningRecordedBy.toLowerCase())) return false;
+    }
+    if (earningDescription) {
+      const descText = tx.description || 'No description provided';
+      if (!descText.toLowerCase().includes(earningDescription.toLowerCase())) return false;
     }
     return true;
   });
@@ -1852,11 +1863,33 @@ export const AdminPanel: React.FC = () => {
                               className="bg-bg border border-stroke rounded-xl px-3 py-1.5 text-xs text-text-primary focus:outline-none focus:border-text-primary/40 font-sans"
                             />
                           </div>
-                          {(earningStartDate || earningEndDate) && (
+                          <div className="flex items-center gap-2">
+                            <label className="text-[10px] text-muted uppercase tracking-wider font-semibold">Recorded By:</label>
+                            <input 
+                              type="text"
+                              placeholder="Filter recorded by..."
+                              value={earningRecordedBy}
+                              onChange={(e) => setEarningRecordedBy(e.target.value)}
+                              className="bg-bg border border-stroke rounded-xl px-3 py-1.5 text-xs text-text-primary focus:outline-none focus:border-text-primary/40 font-sans w-36"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <label className="text-[10px] text-muted uppercase tracking-wider font-semibold">Description:</label>
+                            <input 
+                              type="text"
+                              placeholder="Filter description..."
+                              value={earningDescription}
+                              onChange={(e) => setEarningDescription(e.target.value)}
+                              className="bg-bg border border-stroke rounded-xl px-3 py-1.5 text-xs text-text-primary focus:outline-none focus:border-text-primary/40 font-sans w-40"
+                            />
+                          </div>
+                          {(earningStartDate || earningEndDate || earningRecordedBy || earningDescription) && (
                             <button
                               onClick={() => {
                                 setEarningStartDate('');
                                 setEarningEndDate('');
+                                setEarningRecordedBy('');
+                                setEarningDescription('');
                               }}
                               className="text-[10px] uppercase font-bold tracking-wider text-rose-400 hover:text-rose-300 transition-colors py-1 px-2 border border-rose-500/20 bg-rose-500/5 rounded-lg"
                             >
