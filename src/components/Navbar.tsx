@@ -40,6 +40,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { label: 'Beranda', target: 'home' },
     { label: 'Ruangan', target: 'work' },
     { label: 'Fasilitas', target: 'resume' },
+    { label: 'Resort', target: 'resort' },
   ];
 
   const startColor = settings?.logo_gradient_start || '#89AACC';

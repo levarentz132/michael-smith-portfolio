@@ -953,23 +953,31 @@ app.post('/api/bookings', async (req, res) => {
         [userEmail, phone]
       );
       if (existingTenant.length > 0) {
-        return res.status(400).json({ error: 'Akun dengan email atau nomor telepon ini sudah terdaftar. Silakan masuk terlebih dahulu.' });
-      }
-
-      // Try to create a new tenant
-      try {
-        const hashedPassword = bcrypt.hashSync(phone, 10);
-        const [insertTenant] = await pool.query(
-          `INSERT INTO tenants (name, email, phone, status, password, id_card_number, id_card_photo, address, emergency_contact, emergency_phone) 
-           VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?, ?)`,
-          [userName, userEmail, phone, hashedPassword, idCardNumber || null, idCardPhoto || null, address || null, emergencyContact || null, emergencyPhone || null]
-        );
-        tenantId = insertTenant.insertId;
-      } catch (err) {
-        if (err.code === 'ER_DUP_ENTRY') {
-          return res.status(400).json({ error: 'Akun dengan email atau nomor telepon ini sudah terdaftar. Silakan masuk terlebih dahulu.' });
-        } else {
-          throw err;
+        tenantId = existingTenant[0].id;
+      } else {
+        // Try to create a new tenant
+        try {
+          const hashedPassword = bcrypt.hashSync(phone, 10);
+          const [insertTenant] = await pool.query(
+            `INSERT INTO tenants (name, email, phone, status, password, id_card_number, id_card_photo, address, emergency_contact, emergency_phone) 
+             VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?, ?)`,
+            [userName, userEmail, phone, hashedPassword, idCardNumber || null, idCardPhoto || null, address || null, emergencyContact || null, emergencyPhone || null]
+          );
+          tenantId = insertTenant.insertId;
+        } catch (err) {
+          if (err.code === 'ER_DUP_ENTRY') {
+            const [existingTenantFallback] = await pool.query(
+              'SELECT id FROM tenants WHERE email = ? OR phone = ? LIMIT 1',
+              [userEmail, phone]
+            );
+            if (existingTenantFallback.length > 0) {
+              tenantId = existingTenantFallback[0].id;
+            } else {
+              throw err;
+            }
+          } else {
+            throw err;
+          }
         }
       }
     } else {

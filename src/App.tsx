@@ -15,6 +15,7 @@ import { LoginModal } from './components/LoginModal';
 import { AdminPanel } from './components/AdminPanel';
 import { PropertyPage } from './components/PropertyPage';
 import { ArticlePage } from './components/ArticlePage';
+import { ResortPage } from './components/ResortPage';
 import { fetchSettings, slugify } from './api';
 import type { UserSession, Property, WebsiteSettings } from './api';
 import { useSEO } from './hooks/useSEO';
@@ -94,6 +95,22 @@ function App() {
       navigate('/admin');
       return;
     }
+    if (sectionId === 'resort') {
+      navigate('/resort');
+      return;
+    }
+
+    if (location.pathname !== '/') {
+      navigate('/');
+      setTimeout(() => {
+        const el = document.getElementById(sectionId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' });
+          setActiveSection(sectionId);
+        }
+      }, 150);
+      return;
+    }
 
     const el = document.getElementById(sectionId);
     if (el) {
@@ -126,6 +143,9 @@ function App() {
 
         {/* Article Details Route */}
         <Route path="/panduan/:idSlug" element={<ArticlePage />} />
+
+        {/* Resort Page Route */}
+        <Route path="/resort" element={<ResortPage />} />
 
       {/* Landing Page Route */}
       <Route path="/" element={
