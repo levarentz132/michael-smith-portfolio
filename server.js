@@ -1,5 +1,5 @@
 import express from 'express';
-import mysql from 'mysql2/promise';
+import pg from 'pg';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
@@ -48,61 +48,94 @@ app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Initialize Database Connection Check and Table Creation
+// Initialize Supabase Postgres Connection Pool
+const poolConfig = {
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'highlanderstay',
+  port: parseInt(process.env.DB_PORT || '3306'),
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
+};
+
+// Check if a connection string (DATABASE_URL) is provided
+if (process.env.DATABASE_URL) {
+  poolConfig.connectionString = process.env.DATABASE_URL;
+}
+
+const pgPool = new pg.Pool({
+  ...poolConfig,
+  ssl: poolConfig.host !== 'localhost' && poolConfig.host !== '127.0.0.1' ? {
+    rejectUnauthorized: false
+  } : undefined
+});
+
+console.log(`Connected to Postgres Database: ${poolConfig.database} on ${poolConfig.host}`);
+
+// Mock MySQL pool object using Postgres pgPool with automated query conversion
+const pool = {
+  async query(sql, params = []) {
+    let count = 1;
+    // Replace MySQL style '?' placeholder with Postgres style '$1', '$2', etc.
+    let pgSql = sql.replace(/\?/g, () => `$${count++}`);
+    
+    // Replace MySQL backticks with standard SQL double quotes
+    pgSql = pgSql.replace(/`/g, '"');
+
+    // Replace MySQL functions and keywords with Postgres standard equivalents
+    pgSql = pgSql.replace(/\bcurdate\(\)/ig, 'CURRENT_DATE');
+
+    // Automatically append RETURNING id to INSERT statements to fetch inserted ID
+    const isInsert = /^\s*insert\s+into/i.test(pgSql);
+    if (isInsert && !/returning\s+/i.test(pgSql)) {
+      pgSql += ' RETURNING id';
+    }
+
+    try {
+      const result = await pgPool.query(pgSql, params);
+      const rowsObj = result.rows;
+      
+      // Attach insertId to the returned array to mimic MySQL insert output structure
+      if (isInsert && result.rows.length > 0) {
+        rowsObj.insertId = result.rows[0].id;
+      }
+      
+      return [rowsObj, result.fields];
+    } catch (err) {
+      console.error(`Postgres execution error on query:\n${pgSql}\nError:`, err);
+      // Map common duplicate entry errors to MySQL code structure
+      if (err.code === '23505') {
+        const mysqlErr = new Error('Duplicate entry');
+        mysqlErr.code = 'ER_DUP_ENTRY';
+        throw mysqlErr;
+      }
+      throw err;
+    }
+  }
+};
+
+// Mock Connection object for single client scenarios
+const mysql = {
+  async createConnection() {
+    return {
+      async query(sql, params = []) {
+        return pool.query(sql, params);
+      },
+      async end() {
+        // no-op
+      }
+    };
+  }
+};
+
+// Seed default configurations if settings are empty
 async function initializeDatabase() {
   try {
-    const dbConnection = await mysql.createConnection({
-      host: process.env.DB_HOST || 'localhost',
-      user: process.env.DB_USER || 'root',
-      password: process.env.DB_PASSWORD || '',
-      database: process.env.DB_NAME || 'highlanderstay',
-      port: parseInt(process.env.DB_PORT || '3306'),
-    });
-    console.log('Connected to MySQL Database: highlanderstay');
-
-    // Create settings table if not exists
-    await dbConnection.query(`
-      CREATE TABLE IF NOT EXISTS settings (
-        \`id\` INT AUTO_INCREMENT PRIMARY KEY,
-        \`setting_key\` VARCHAR(100) UNIQUE NOT NULL,
-        \`setting_value\` LONGTEXT NOT NULL,
-        \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    `);
-
-    // Create admins table if not exists
-    await dbConnection.query(`
-      CREATE TABLE IF NOT EXISTS admins (
-        \`id\` INT AUTO_INCREMENT PRIMARY KEY,
-        \`username\` VARCHAR(100) UNIQUE NOT NULL,
-        \`password\` VARCHAR(255) NOT NULL,
-        \`name\` VARCHAR(255) NOT NULL,
-        \`email\` VARCHAR(255) DEFAULT NULL,
-        \`role\` ENUM('owner', 'admin', 'cashier') DEFAULT 'admin',
-        \`branch_id\` INT DEFAULT NULL,
-        \`is_active\` TINYINT DEFAULT 1,
-        \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    `);
-
-    // Create articles table if not exists
-    await dbConnection.query(`
-      CREATE TABLE IF NOT EXISTS articles (
-        \`id\` INT AUTO_INCREMENT PRIMARY KEY,
-        \`title\` VARCHAR(255) NOT NULL,
-        \`content\` LONGTEXT NOT NULL,
-        \`image\` VARCHAR(255) DEFAULT '',
-        \`read_time\` VARCHAR(50) DEFAULT '5 menit baca',
-        \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    `);
-
-    // Check if defaults exist, seed if missing
-    const [logoRows] = await dbConnection.query("SELECT COUNT(*) AS count FROM settings WHERE `setting_key` = 'logo_text'");
-    if (logoRows[0].count === 0) {
-      console.log('Seeding default settings values...');
+    const [logoRows] = await pool.query("SELECT COUNT(*) AS count FROM settings WHERE setting_key = ?", ['logo_text']);
+    if (parseInt(logoRows[0].count, 10) === 0) {
+      console.log('Seeding default settings values into Postgres...');
       const defaultSettings = [
         ['logo_text', JSON.stringify('HS')],
         ['logo_gradient_start', JSON.stringify('#89AACC')],
@@ -127,30 +160,27 @@ async function initializeDatabase() {
         ])]
       ];
       for (const [key, val] of defaultSettings) {
-        await dbConnection.query('INSERT INTO settings (`setting_key`, `setting_value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `setting_value` = ?', [key, val, val]);
+        await pool.query('INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value', [key, val]);
       }
     } else {
       // Ensure logo_image row is created if table was previously seeded
-      const [logoImgRows] = await dbConnection.query("SELECT COUNT(*) AS count FROM settings WHERE `setting_key` = 'logo_image'");
-      if (logoImgRows[0].count === 0) {
-        const val = JSON.stringify('');
-        await dbConnection.query('INSERT INTO settings (`setting_key`, `setting_value`) VALUES (?, ?)', ['logo_image', val]);
+      const [logoImgRows] = await pool.query("SELECT COUNT(*) AS count FROM settings WHERE setting_key = ?", ['logo_image']);
+      if (parseInt(logoImgRows[0].count, 10) === 0) {
+        await pool.query('INSERT INTO settings (setting_key, setting_value) VALUES (?, ?)', ['logo_image', JSON.stringify('')]);
       }
       // Ensure whatsapp_number row is created if table was previously seeded
-      const [whatsappRows] = await dbConnection.query("SELECT COUNT(*) AS count FROM settings WHERE `setting_key` = 'whatsapp_number'");
-      if (whatsappRows[0].count === 0) {
-        const val = JSON.stringify('628123456789');
-        await dbConnection.query('INSERT INTO settings (`setting_key`, `setting_value`) VALUES (?, ?)', ['whatsapp_number', val]);
+      const [whatsappRows] = await pool.query("SELECT COUNT(*) AS count FROM settings WHERE setting_key = ?", ['whatsapp_number']);
+      if (parseInt(whatsappRows[0].count, 10) === 0) {
+        await pool.query('INSERT INTO settings (setting_key, setting_value) VALUES (?, ?)', ['whatsapp_number', JSON.stringify('628123456789')]);
       }
       // Ensure banners row is created if table was previously seeded
-      const [bannersRows] = await dbConnection.query("SELECT COUNT(*) AS count FROM settings WHERE `setting_key` = 'banners'");
-      if (bannersRows[0].count === 0) {
-        const val = JSON.stringify([]);
-        await dbConnection.query('INSERT INTO settings (`setting_key`, `setting_value`) VALUES (?, ?)', ['banners', val]);
+      const [bannersRows] = await pool.query("SELECT COUNT(*) AS count FROM settings WHERE setting_key = ?", ['banners']);
+      if (parseInt(bannersRows[0].count, 10) === 0) {
+        await pool.query('INSERT INTO settings (setting_key, setting_value) VALUES (?, ?)', ['banners', JSON.stringify([])]);
       }
       // Ensure facilities_premium row is created if table was previously seeded
-      const [facPremiumRows] = await dbConnection.query("SELECT COUNT(*) AS count FROM settings WHERE `setting_key` = 'facilities_premium'");
-      if (facPremiumRows[0].count === 0) {
+      const [facPremiumRows] = await pool.query("SELECT COUNT(*) AS count FROM settings WHERE setting_key = ?", ['facilities_premium']);
+      if (parseInt(facPremiumRows[0].count, 10) === 0) {
         const val = JSON.stringify([
           { id: 1, title: "Kolam Rooftop Infinity", image: "https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?auto=format&fit=crop&w=800&q=80", rotation: -4 },
           { id: 2, title: "Lounge Bersama yang Nyaman", image: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80", rotation: 5 },
@@ -159,14 +189,14 @@ async function initializeDatabase() {
           { id: 5, title: "Dapur Bersama Lengkap", image: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80", rotation: -5 },
           { id: 6, title: "Keamanan & CCTV 24/7", image: "https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=800&q=80", rotation: 4 }
         ]);
-        await dbConnection.query('INSERT INTO settings (`setting_key`, `setting_value`) VALUES (?, ?)', ['facilities_premium', val]);
+        await pool.query('INSERT INTO settings (setting_key, setting_value) VALUES (?, ?)', ['facilities_premium', val]);
       }
     }
 
     // Seed default articles if empty
-    const [articleRows] = await dbConnection.query("SELECT COUNT(*) AS count FROM articles");
-    if (articleRows[0].count === 0) {
-      console.log('Seeding default articles...');
+    const [articleRows] = await pool.query("SELECT COUNT(*) AS count FROM articles");
+    if (parseInt(articleRows[0].count, 10) === 0) {
+      console.log('Seeding default articles into Postgres...');
       const defaultArticles = [
         [
           "Memilih Kos yang Tepat: Boarding Pribadi vs Co-living",
@@ -194,102 +224,15 @@ async function initializeDatabase() {
         ]
       ];
       for (const [title, content, image, read_time] of defaultArticles) {
-        await dbConnection.query('INSERT INTO articles (title, content, image, read_time) VALUES (?, ?, ?, ?)', [title, content, image, read_time]);
+        await pool.query('INSERT INTO articles (title, content, image, read_time) VALUES (?, ?, ?, ?)', [title, content, image, read_time]);
       }
     }
-
-    // Check if deposit column exists in properties table, add if missing
-    const [propCols] = await dbConnection.query("SHOW COLUMNS FROM properties LIKE 'deposit'");
-    if (propCols.length === 0) {
-      console.log("Adding 'deposit' column to properties table...");
-      await dbConnection.query("ALTER TABLE properties ADD COLUMN deposit INT DEFAULT 0");
-    }
-
-    // Check if transit_3h, transit_6h, transit_12h columns exist in properties table, add if missing
-    const [propCols3h] = await dbConnection.query("SHOW COLUMNS FROM properties LIKE 'transit_3h'");
-    if (propCols3h.length === 0) {
-      console.log("Adding transit package columns to properties table...");
-      await dbConnection.query("ALTER TABLE properties ADD COLUMN transit_3h INT DEFAULT NULL");
-      await dbConnection.query("ALTER TABLE properties ADD COLUMN transit_6h INT DEFAULT NULL");
-      await dbConnection.query("ALTER TABLE properties ADD COLUMN transit_12h INT DEFAULT NULL");
-      
-      const [hourlyRateCheck] = await dbConnection.query("SHOW COLUMNS FROM properties LIKE 'hourly_rate'");
-      if (hourlyRateCheck.length > 0) {
-        // Seed them based on existing hourly_rate if it exists
-        await dbConnection.query("UPDATE properties SET transit_3h = hourly_rate * 3, transit_6h = hourly_rate * 6, transit_12h = hourly_rate * 12 WHERE hourly_rate IS NOT NULL");
-      }
-    }
-
-    // Check if transit_24h column exists in properties table, add if missing
-    const [propCols24h] = await dbConnection.query("SHOW COLUMNS FROM properties LIKE 'transit_24h'");
-    if (propCols24h.length === 0) {
-      console.log("Adding transit_24h package column to properties table...");
-      await dbConnection.query("ALTER TABLE properties ADD COLUMN transit_24h INT DEFAULT NULL");
-      
-      const [hourlyRateCheck] = await dbConnection.query("SHOW COLUMNS FROM properties LIKE 'hourly_rate'");
-      if (hourlyRateCheck.length > 0) {
-        await dbConnection.query("UPDATE properties SET transit_24h = hourly_rate * 24 WHERE hourly_rate IS NOT NULL");
-      } else {
-        await dbConnection.query("UPDATE properties SET transit_24h = transit_12h * 2 WHERE transit_12h IS NOT NULL");
-      }
-    }
-
-    // Drop legacy hourly_rate and min_transit_hours columns if they still exist
-    const [hourlyRateCheck] = await dbConnection.query("SHOW COLUMNS FROM properties LIKE 'hourly_rate'");
-    if (hourlyRateCheck.length > 0) {
-      console.log("Dropping legacy 'hourly_rate' column from properties table...");
-      await dbConnection.query("ALTER TABLE properties DROP COLUMN hourly_rate");
-    }
-    const [minTransitHoursCheck] = await dbConnection.query("SHOW COLUMNS FROM properties LIKE 'min_transit_hours'");
-    if (minTransitHoursCheck.length > 0) {
-      console.log("Dropping legacy 'min_transit_hours' column from properties table...");
-      await dbConnection.query("ALTER TABLE properties DROP COLUMN min_transit_hours");
-    }
-
-    // Check if approved_by column exists in bookings table, add if missing
-    const [bookingCols] = await dbConnection.query("SHOW COLUMNS FROM bookings LIKE 'approved_by'");
-    if (bookingCols.length === 0) {
-      console.log("Adding 'approved_by' column to bookings table...");
-      await dbConnection.query("ALTER TABLE bookings ADD COLUMN approved_by INT DEFAULT NULL");
-    }
-
-    // Modify bookings status column type to VARCHAR(50) to support custom statuses
-    console.log("Modifying bookings status column type to VARCHAR(50)...");
-    await dbConnection.query("ALTER TABLE bookings MODIFY COLUMN status VARCHAR(50) DEFAULT 'pending'");
-
-    // Check if snap_token column exists in bookings table, add if missing
-    const [snapTokenCol] = await dbConnection.query("SHOW COLUMNS FROM bookings LIKE 'snap_token'");
-    if (snapTokenCol.length === 0) {
-      console.log("Adding 'snap_token' column to bookings table...");
-      await dbConnection.query("ALTER TABLE bookings ADD COLUMN snap_token VARCHAR(255) DEFAULT NULL");
-    }
-
-    // Check if payment_method column exists in bookings table, add if missing
-    const [payMethodCol] = await dbConnection.query("SHOW COLUMNS FROM bookings LIKE 'payment_method'");
-    if (payMethodCol.length === 0) {
-      console.log("Adding 'payment_method' column to bookings table...");
-      await dbConnection.query("ALTER TABLE bookings ADD COLUMN payment_method VARCHAR(50) DEFAULT NULL");
-    }
-
-    await dbConnection.end();
   } catch (error) {
-    console.error('Database connection / initialization failed:', error);
+    console.error('Supabase seeding failed:', error);
   }
 }
 
-// Create MySQL connection pool
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'highlanderstay',
-  port: parseInt(process.env.DB_PORT || '3306'),
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-});
-
-// Run Initialization
+// Run Seeding check on start
 initializeDatabase();
 
 // Helper to parse price string to integer
@@ -820,8 +763,6 @@ app.get('/api/bookings', async (req, res) => {
     const tenantId = req.query.tenantId;
     let query = `
       SELECT b.*, 
-             DATE_FORMAT(b.transit_start_time, '%Y-%m-%dT%H:%i:%s') AS transit_start_time,
-             DATE_FORMAT(b.transit_end_time, '%Y-%m-%dT%H:%i:%s') AS transit_end_time,
              p.name AS propertyName, t.name AS tenantName, t.email AS tenantEmail, t.phone AS tenantPhone,
              t.id_card_number AS tenantIdCardNumber, t.id_card_photo AS tenantIdCardPhoto,
              t.address AS tenantAddress, t.emergency_contact AS tenantEmergencyContact,
@@ -861,8 +802,8 @@ app.get('/api/bookings', async (req, res) => {
         status: frontendStatus,
         createdAt: row.created_at,
         bookingType: row.booking_type,
-        transitStartTime: row.transit_start_time || null,
-        transitEndTime: row.transit_end_time || null,
+        transitStartTime: row.transit_start_time ? formatLocalDatetime(row.transit_start_time) : null,
+        transitEndTime: row.transit_end_time ? formatLocalDatetime(row.transit_end_time) : null,
         monthlyRent: row.monthly_rent,
         hourlyRate: row.hourly_rate,
         notes: row.notes,

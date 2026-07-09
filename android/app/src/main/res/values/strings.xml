@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Highlanderstay</string>
+    <string name="title_activity_main">Highlanderstay</string>
+    <string name="package_name">com.highlanderstay.app</string>
+    <string name="custom_url_scheme">com.highlanderstay.app</string>
+</resources>
