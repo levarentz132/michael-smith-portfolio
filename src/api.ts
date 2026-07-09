@@ -5,6 +5,7 @@ export interface Property {
   type: 'kos' | 'apartment';
   price: string;
   location: string;
+  location_id?: number;
   rating: string;
   image: string;
   colSpan?: string;
@@ -22,6 +23,7 @@ export interface Property {
   rooms?: number;
   availableRooms?: number;
   status?: string;
+  room_type?: string;
   promoPrice?: number | null;
   promoLabel?: string | null;
   available?: number | boolean;
@@ -78,6 +80,7 @@ export interface Tenant {
   emergency_contact?: string | null;
   emergency_phone?: string | null;
   status: 'active' | 'inactive';
+  password?: string;
   pic_admin_id?: number | null;
   pic_admin_name?: string;
   created_at?: string;
@@ -212,11 +215,11 @@ export async function loginAdmin(username: string, password: string): Promise<Us
 }
 
 // Login Tenant
-export async function loginTenant(email: string, password: string): Promise<UserSession> {
+export async function loginTenant(phone: string, password: string): Promise<UserSession> {
   const res = await fetch('/api/login/tenant', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password })
+    body: JSON.stringify({ phone, password })
   });
   return handleResponse<UserSession>(res, 'Tenant login failed');
 }
@@ -438,4 +441,82 @@ export function slugify(text: string): string {
     .replace(/--+/g, '-')
     .replace(/^-+/, '')
     .replace(/-+$/, '');
+}
+
+// Request WhatsApp OTP code
+export async function requestOtp(phone: string): Promise<{ success: boolean; message: string }> {
+  const res = await fetch('/api/otp/request', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone })
+  });
+  return handleResponse<{ success: boolean; message: string }>(res, 'Gagal mengirim kode OTP.');
+}
+
+// Verify WhatsApp OTP code
+export async function verifyOtp(phone: string, code: string): Promise<{ success: boolean; message: string }> {
+  const res = await fetch('/api/otp/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone, code })
+  });
+  return handleResponse<{ success: boolean; message: string }>(res, 'Verifikasi OTP gagal.');
+}
+
+// Register a new tenant
+export async function registerTenant(phone: string, otpCode: string, name: string, password: string): Promise<UserSession> {
+  const res = await fetch('/api/register/tenant', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone, otpCode, name, password })
+  });
+  return handleResponse<UserSession>(res, 'Pendaftaran gagal.');
+}
+
+export interface Complaint {
+  id?: number;
+  tenant_id: number;
+  title: string;
+  description: string;
+  status: 'pending' | 'in_progress' | 'resolved';
+  created_at?: string;
+}
+
+// Fetch complaints for a tenant
+export async function fetchComplaints(tenantId: number): Promise<Complaint[]> {
+  const res = await fetch(`/api/complaints?tenantId=${tenantId}`);
+  return handleResponse<Complaint[]>(res, 'Failed to fetch complaints');
+}
+
+// Create a new complaint
+export async function createComplaint(tenantId: number, title: string, description: string): Promise<Complaint> {
+  const res = await fetch('/api/complaints', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tenantId, title, description })
+  });
+  return handleResponse<Complaint>(res, 'Failed to submit complaint');
+}
+
+export interface Location {
+  id?: number;
+  name: string;
+  slug: string;
+  created_at?: string;
+}
+
+// Fetch all locations
+export async function fetchLocations(): Promise<Location[]> {
+  const res = await fetch('/api/locations');
+  return handleResponse<Location[]>(res, 'Failed to fetch locations');
+}
+
+// Create a new location
+export async function createLocation(name: string, slug: string): Promise<Location> {
+  const res = await fetch('/api/locations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, slug })
+  });
+  return handleResponse<Location>(res, 'Failed to create location');
 }

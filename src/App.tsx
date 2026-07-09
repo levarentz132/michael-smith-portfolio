@@ -13,6 +13,7 @@ import { Footer } from './components/Footer';
 import { BookingModal } from './components/BookingModal';
 import { LoginModal } from './components/LoginModal';
 import { AdminPanel } from './components/AdminPanel';
+import { AdminDashboard } from './components/AdminDashboard';
 import { PropertyPage } from './components/PropertyPage';
 import { ArticlePage } from './components/ArticlePage';
 import { ResortPage } from './components/ResortPage';
@@ -64,6 +65,13 @@ function App() {
     };
     loadSettings();
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('login') === '1') {
+      setLoginOpen(true);
+    }
+  }, [location.search]);
 
   // Track active section on scroll
   useEffect(() => {
@@ -129,7 +137,9 @@ function App() {
   const handleLoginSuccess = (session: UserSession) => {
     localStorage.setItem('userSession', JSON.stringify(session));
     setUserSession(session);
-    navigate('/admin');
+    const params = new URLSearchParams(location.search);
+    const next = params.get('next');
+    navigate(next || '/');
   };
 
   return (
@@ -137,6 +147,9 @@ function App() {
       <Routes>
         {/* Admin Panel Route */}
         <Route path="/admin" element={<AdminPanel />} />
+
+        {/* Admin Portal Dashboard Route */}
+        <Route path="/portal-admin" element={<AdminDashboard />} />
 
         {/* Property Details Route */}
         <Route path="/property/:idSlug" element={<PropertyPage />} />

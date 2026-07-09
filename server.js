@@ -11,6 +11,7 @@ import midtransClient from 'midtrans-client';
 import crypto from 'crypto';
 
 dotenv.config();
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 // Initialize Midtrans Snap client
 const snap = new midtransClient.Snap({
@@ -61,52 +62,343 @@ const poolConfig = {
 };
 
 // Check if a connection string (DATABASE_URL) is provided
-if (process.env.DATABASE_URL) {
-  poolConfig.connectionString = process.env.DATABASE_URL;
-}
+import * as db from './db.js';
 
-const pgPool = new pg.Pool({
-  ...poolConfig,
-  ssl: poolConfig.host !== 'localhost' && poolConfig.host !== '127.0.0.1' ? {
-    rejectUnauthorized: false
-  } : undefined
-});
+console.log(`Configuring Supabase API Client...`);
 
-console.log(`Connected to Postgres Database: ${poolConfig.database} on ${poolConfig.host}`);
-
-// Mock MySQL pool object using Postgres pgPool with automated query conversion
+// Mock MySQL pool object using our db.js Supabase REST client adapter
 const pool = {
   async query(sql, params = []) {
-    let count = 1;
-    // Replace MySQL style '?' placeholder with Postgres style '$1', '$2', etc.
-    let pgSql = sql.replace(/\?/g, () => `$${count++}`);
+    const cleanSql = sql.trim().replace(/\s+/g, ' ').replace(/`/g, '"');
     
-    // Replace MySQL backticks with standard SQL double quotes
-    pgSql = pgSql.replace(/`/g, '"');
-
-    // Replace MySQL functions and keywords with Postgres standard equivalents
-    pgSql = pgSql.replace(/\bcurdate\(\)/ig, 'CURRENT_DATE');
-
-    // Automatically append RETURNING id to INSERT statements to fetch inserted ID
-    const isInsert = /^\s*insert\s+into/i.test(pgSql);
-    if (isInsert && !/returning\s+/i.test(pgSql)) {
-      pgSql += ' RETURNING id';
-    }
-
     try {
-      const result = await pgPool.query(pgSql, params);
-      const rowsObj = result.rows;
-      
-      // Attach insertId to the returned array to mimic MySQL insert output structure
-      if (isInsert && result.rows.length > 0) {
-        rowsObj.insertId = result.rows[0].id;
+      // 1. SETTINGS
+      if (/select.*from\s+settings/i.test(cleanSql)) {
+        const settings = await db.getSettings();
+        const rows = Object.entries(settings).map(([key, val]) => ({
+          setting_key: key,
+          setting_value: typeof val === 'object' ? JSON.stringify(val) : val
+        }));
+        
+        // Handle COUNT(*) queries for settings
+        if (/count\(\*\)/i.test(cleanSql)) {
+          let countVal = rows.length;
+          if (/where\s+setting_key\s*=\s*\$1/i.test(cleanSql)) {
+            countVal = rows.filter(r => r.setting_key === params[0]).length;
+          }
+          return [[{ count: countVal }], []];
+        }
+
+        // If searching for a specific key
+        if (/where\s+setting_key\s*=\s*\$1/i.test(cleanSql)) {
+          const filtered = rows.filter(r => r.setting_key === params[0]);
+          return [filtered, []];
+        }
+        return [rows, []];
       }
-      
-      return [rowsObj, result.fields];
+      if (/insert\s+into\s+settings/i.test(cleanSql)) {
+        const key = params[0];
+        const val = params[1];
+        let parsedVal = val;
+        try {
+          parsedVal = JSON.parse(val);
+        } catch {
+          // Keep raw string
+        }
+        await db.updateSettings({ [key]: parsedVal });
+        const resultObj = [];
+        resultObj.insertId = 1;
+        return [resultObj, []];
+      }
+
+      // 2. PROPERTIES
+      if (/select.*from\s+properties/i.test(cleanSql)) {
+        if (/where\s+p\.id\s*=\s*\$1/i.test(cleanSql) || /where\s+id\s*=\s*\$1/i.test(cleanSql)) {
+          const row = await db.getPropertyById(params[0]);
+          return [row ? [row] : [], []];
+        }
+        const rows = await db.getProperties();
+        return [rows, []];
+      }
+      if (/insert\s+into\s+properties/i.test(cleanSql)) {
+        const prop = {
+          name: params[0],
+          location: params[1],
+          location_id: params[2],
+          map_url: params[3] || null,
+          type: params[4] || 'campur',
+          price: params[5],
+          image: params[6] || null,
+          description: params[7] || '',
+          rooms: params[8] || 0,
+          available_rooms: params[9] || 0,
+          branch_id: params[10] || null,
+          status: params[11] || 'available',
+          deposit: params[12] || 0,
+          transit_3h: params[13] || null,
+          transit_6h: params[14] || null,
+          transit_12h: params[15] || null,
+          transit_24h: params[16] || null
+        };
+        const newProp = await db.createProperty(prop);
+        const resultObj = [newProp];
+        resultObj.insertId = newProp.id;
+        return [resultObj, []];
+      }
+      if (/update\s+properties/i.test(cleanSql)) {
+        const prop = {
+          name: params[0],
+          location: params[1],
+          location_id: params[2],
+          map_url: params[3] || null,
+          type: params[4] || 'campur',
+          price: params[5],
+          image: params[6] || null,
+          description: params[7] || '',
+          rooms: params[8] || 0,
+          available_rooms: params[9] || 0,
+          branch_id: params[10] || null,
+          status: params[11] || 'available',
+          deposit: params[12] || 0,
+          transit_3h: params[13] || null,
+          transit_6h: params[14] || null,
+          transit_12h: params[15] || null,
+          transit_24h: params[16] || null
+        };
+        const id = params[17];
+        const updated = await db.updateProperty(id, prop);
+        return [[updated], []];
+      }
+      if (/delete\s+from\s+properties/i.test(cleanSql)) {
+        const deleted = await db.deleteProperty(params[0]);
+        return [[deleted], []];
+      }
+
+      // 3. BOOKINGS
+      if (/select.*from\s+bookings/i.test(cleanSql)) {
+        let tenantId = null;
+        if (/where\s+b\.tenant_id\s*=\s*\$1/i.test(cleanSql)) {
+          tenantId = params[0];
+        }
+        const rows = await db.getBookings(tenantId);
+        return [rows, []];
+      }
+      if (/insert\s+into\s+bookings/i.test(cleanSql)) {
+        let booking = {};
+        if (params.length === 7) {
+          booking = {
+            property_id: params[0],
+            tenant_id: params[1],
+            checkin_date: params[2],
+            monthly_rent: params[3],
+            deposit_amount: params[4],
+            status: 'pending',
+            reference_number: params[5],
+            booking_type: 'monthly',
+            notes: params[6] || null
+          };
+        } else {
+          booking = {
+            property_id: params[0],
+            tenant_id: params[1],
+            transit_start_time: params[2],
+            transit_end_time: params[3],
+            duration_months: 0,
+            monthly_rent: params[4] || 0,
+            hourly_rate: params[5],
+            deposit_amount: params[6] || 0,
+            status: 'pending',
+            reference_number: params[7],
+            booking_type: 'transit',
+            notes: params[8] || null
+          };
+        }
+        const newBooking = await db.createBooking(booking);
+        const resultObj = [newBooking];
+        resultObj.insertId = newBooking.id;
+        return [resultObj, []];
+      }
+      if (/update\s+bookings/i.test(cleanSql)) {
+        if (/set\s+snap_token\s*=\s*\$1/i.test(cleanSql)) {
+          const { data } = await db.supabase.from('bookings').update({ snap_token: params[0], payment_method: params[1] }).eq('id', params[2]).select();
+          return [data, []];
+        }
+        const status = params[0];
+        const adminId = params[1];
+        const id = params[2];
+        const updated = await db.updateBookingStatus(id, status, adminId);
+        return [[updated], []];
+      }
+      if (/delete\s+from\s+bookings/i.test(cleanSql)) {
+        const deleted = await db.deleteBooking(params[0]);
+        return [[deleted], []];
+      }
+
+      // 4. TENANTS
+      if (/select.*from\s+tenants/i.test(cleanSql)) {
+        if (/where\s+id\s*=\s*\$1/i.test(cleanSql)) {
+          const row = await db.getTenantById(params[0]);
+          return [row ? [row] : [], []];
+        }
+        if (/where\s+email\s*=\s*\$1\s+or\s+phone\s*=\s*\$2/i.test(cleanSql)) {
+          const row = await db.findTenantByEmailOrPhone(params[0], params[1]);
+          return [row ? [row] : [], []];
+        }
+        if (/where\s+email\s*=\s*\$1/i.test(cleanSql)) {
+          const { data } = await db.supabase.from('tenants').select('*').eq('email', params[0]).maybeSingle();
+          return [data ? [data] : [], []];
+        }
+        if (/where\s+phone\s*=\s*\$1/i.test(cleanSql)) {
+          const { data } = await db.supabase.from('tenants').select('*').eq('phone', params[0]).maybeSingle();
+          return [data ? [data] : [], []];
+        }
+        const rows = await db.getTenants();
+        return [rows, []];
+      }
+      if (/insert\s+into\s+tenants/i.test(cleanSql)) {
+        const tenant = {
+          name: params[0],
+          email: params[1] || null,
+          phone: params[2],
+          password: params[3],
+          status: 'active'
+        };
+        const newTenant = await db.createTenant(tenant);
+        const resultObj = [newTenant];
+        resultObj.insertId = newTenant.id;
+        return [resultObj, []];
+      }
+      if (/update\s+tenants/i.test(cleanSql)) {
+        const tenant = {
+          name: params[0],
+          email: params[1] || null,
+          phone: params[2],
+          id_card_number: params[3] || null,
+          id_card_photo: params[4] || null,
+          address: params[5] || null,
+          emergency_contact: params[6] || null,
+          emergency_phone: params[7] || null,
+          status: params[8] || 'active'
+        };
+        const id = params[9];
+        const updated = await db.updateTenant(id, tenant);
+        return [[updated], []];
+      }
+
+      // 5. TRANSACTIONS
+      if (/select.*from\s+transactions/i.test(cleanSql)) {
+        const rows = await db.getTransactions();
+        return [rows, []];
+      }
+      if (/insert\s+into\s+transactions/i.test(cleanSql)) {
+        const tx = {
+          branch_id: params[0],
+          payment_id: params[1],
+          transaction_type: params[2],
+          category: params[3],
+          amount: params[4],
+          transaction_date: params[5],
+          description: params[6],
+          recorded_by: params[7]
+        };
+        const newTx = await db.createTransaction(tx);
+        const resultObj = [newTx];
+        resultObj.insertId = newTx.id;
+        return [resultObj, []];
+      }
+
+      // 6. ARTICLES
+      if (/select.*from\s+articles/i.test(cleanSql)) {
+        // Handle COUNT(*) queries for articles
+        if (/count\(\*\)/i.test(cleanSql)) {
+          const rows = await db.getArticles();
+          return [[{ count: rows.length }], []];
+        }
+        if (/where\s+id\s*=\s*\$1/i.test(cleanSql)) {
+          const row = await db.getArticleById(params[0]);
+          return [row ? [row] : [], []];
+        }
+        const rows = await db.getArticles();
+        return [rows, []];
+      }
+      if (/insert\s+into\s+articles/i.test(cleanSql)) {
+        const article = {
+          title: params[0],
+          content: params[1],
+          image: params[2] || '',
+          read_time: params[3] || '5 menit baca'
+        };
+        const newArticle = await db.createArticle(article);
+        const resultObj = [newArticle];
+        resultObj.insertId = newArticle.id;
+        return [resultObj, []];
+      }
+      if (/update\s+articles/i.test(cleanSql)) {
+        const article = {
+          title: params[0],
+          content: params[1],
+          image: params[2] || '',
+          read_time: params[3] || '5 menit baca'
+        };
+        const id = params[4];
+        const updated = await db.updateArticle(id, article);
+        return [[updated], []];
+      }
+      if (/delete\s+from\s+articles/i.test(cleanSql)) {
+        const deleted = await db.deleteArticle(params[0]);
+        return [[deleted], []];
+      }
+
+      // 7. ADMINS
+      if (/select.*from\s+admins/i.test(cleanSql)) {
+        if (/where\s+username\s*=\s*(\$1|\?)/i.test(cleanSql)) {
+          const row = await db.getAdminByUsername(params[0]);
+          return [row ? [row] : [], []];
+        }
+        const rows = await db.getAdmins();
+        return [rows, []];
+      }
+      if (/insert\s+into\s+admins/i.test(cleanSql)) {
+        const admin = {
+          username: params[0],
+          password: params[1],
+          name: params[2],
+          email: params[3] || null,
+          role: params[4] || 'admin',
+          branch_id: params[5] || null,
+          is_active: params[6] !== undefined ? !!params[6] : true
+        };
+        const newAdmin = await db.createAdmin(admin);
+        const resultObj = [newAdmin];
+        resultObj.insertId = newAdmin.id;
+        return [resultObj, []];
+      }
+      if (/update\s+admins/i.test(cleanSql)) {
+        const admin = {
+          username: params[0],
+          name: params[1],
+          email: params[2] || null,
+          role: params[3] || 'admin',
+          branch_id: params[4] || null,
+          is_active: params[5] !== undefined ? !!params[5] : true
+        };
+        if (params.length === 8) {
+          admin.password = params[6];
+        }
+        const id = params[params.length - 1];
+        const updated = await db.updateAdmin(id, admin);
+        return [[updated], []];
+      }
+      if (/delete\s+from\s+admins/i.test(cleanSql)) {
+        const deleted = await db.deleteAdmin(params[0]);
+        return [[deleted], []];
+      }
+
+      console.warn("SQL NOT INTERCEPTED, falling back to empty:", cleanSql);
+      return [[], []];
     } catch (err) {
-      console.error(`Postgres execution error on query:\n${pgSql}\nError:`, err);
-      // Map common duplicate entry errors to MySQL code structure
-      if (err.code === '23505') {
+      console.error(`Supabase Execution Error:`, err);
+      if (err.message && err.message.toLowerCase().includes('duplicate')) {
         const mysqlErr = new Error('Duplicate entry');
         mysqlErr.code = 'ER_DUP_ENTRY';
         throw mysqlErr;
@@ -1298,23 +1590,23 @@ app.post('/api/login/admin', async (req, res) => {
 // POST Tenant Login
 app.post('/api/login/tenant', async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required.' });
+    const { phone, password } = req.body;
+    if (!phone || !password) {
+      return res.status(400).json({ error: 'Phone and password are required.' });
     }
 
-    const [rows] = await pool.query('SELECT * FROM tenants WHERE email = ? LIMIT 1', [email]);
+    const [rows] = await pool.query('SELECT * FROM tenants WHERE phone = ? LIMIT 1', [phone]);
     if (rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid email or password.' });
+      return res.status(401).json({ error: 'Nomor telepon atau kata sandi salah.' });
     }
 
     const tenant = rows[0];
     if (tenant.status === 'inactive') {
-      return res.status(403).json({ error: 'This tenant account is inactive.' });
+      return res.status(403).json({ error: 'Akun penyewa ini dinonaktifkan.' });
     }
 
     if (!tenant.password) {
-      return res.status(401).json({ error: 'No password set for this account. Please submit a booking first.' });
+      return res.status(401).json({ error: 'Belum ada kata sandi yang disetel untuk akun ini.' });
     }
 
     // Convert $2y$ to $2a$ if needed
@@ -1324,7 +1616,7 @@ app.post('/api/login/tenant', async (req, res) => {
 
     const isMatch = bcrypt.compareSync(password, safeHash);
     if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid email or password.' });
+      return res.status(401).json({ error: 'Nomor telepon atau kata sandi salah.' });
     }
 
     res.json({
@@ -1337,6 +1629,163 @@ app.post('/api/login/tenant', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Authentication failed.' });
+  }
+});
+
+// POST request WhatsApp OTP (for Sign Up)
+app.post('/api/otp/request', async (req, res) => {
+  try {
+    const { phone } = req.body;
+    if (!phone) {
+      return res.status(400).json({ error: 'Phone number is required.' });
+    }
+
+    // Check if tenant already exists (sign up validation)
+    const [rows] = await pool.query('SELECT * FROM tenants WHERE phone = ? LIMIT 1', [phone]);
+    if (rows.length > 0) {
+      return res.status(400).json({ error: 'Nomor telepon sudah terdaftar. Silakan masuk.' });
+    }
+
+    // Generate random 6-digit OTP code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // Valid for 5 minutes
+
+    // Save to database
+    await db.saveOtp(phone, code, expiresAt);
+
+    // Send WhatsApp via Meta Cloud API
+    const targetPhone = phone.startsWith('0') ? '62' + phone.slice(1) : phone;
+    const metaAccessToken = process.env.META_ACCESS_TOKEN;
+    const metaPhoneNumberId = process.env.META_PHONE_NUMBER_ID;
+
+    if (metaAccessToken && metaPhoneNumberId) {
+      try {
+        const response = await fetch(`https://graph.facebook.com/v18.0/${metaPhoneNumberId}/messages`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${metaAccessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            messaging_product: "whatsapp",
+            recipient_type: "individual",
+            to: targetPhone,
+            type: "template",
+            template: {
+              name: "otp_verification",
+              language: {
+                code: "en"
+              },
+              components: [
+                {
+                  type: "body",
+                  parameters: [
+                    {
+                      type: "text",
+                      text: code
+                    }
+                  ]
+                },
+                {
+                  type: "button",
+                  sub_type: "url",
+                  index: "0",
+                  parameters: [
+                    {
+                      type: "text",
+                      text: code
+                    }
+                  ]
+                }
+              ]
+            }
+          })
+        });
+        const resData = await response.json();
+        console.log('Meta API Template send result:', resData);
+      } catch (sendErr) {
+        console.error('Failed to send WhatsApp message via Meta: ', sendErr);
+      }
+    } else {
+      console.log(`[WA OTP MOCK] Sent OTP ${code} to ${phone} (META credentials missing in .env)`);
+    }
+
+    res.json({ success: true, message: 'OTP sent successfully.' });
+  } catch (error) {
+    console.error('Failed to request OTP:', error);
+    res.status(500).json({ error: 'Gagal mengirim OTP.' });
+  }
+});
+
+// POST verify WhatsApp OTP
+app.post('/api/otp/verify', async (req, res) => {
+  try {
+    const { phone, code } = req.body;
+    if (!phone || !code) {
+      return res.status(400).json({ error: 'Phone and code are required.' });
+    }
+
+    const otpRecord = await db.getLatestOtp(phone);
+    if (!otpRecord || otpRecord.code !== code) {
+      return res.status(400).json({ error: 'Kode OTP salah.' });
+    }
+
+    const now = new Date();
+    const expiresAt = new Date(otpRecord.expires_at);
+    if (now > expiresAt) {
+      return res.status(400).json({ error: 'Kode OTP telah kedaluwarsa.' });
+    }
+
+    res.json({ success: true, message: 'OTP verified successfully.' });
+  } catch (error) {
+    console.error('Failed to verify OTP:', error);
+    res.status(500).json({ error: 'Gagal memverifikasi OTP.' });
+  }
+});
+
+// POST Register Tenant
+app.post('/api/register/tenant', async (req, res) => {
+  try {
+    const { phone, otpCode, name, password } = req.body;
+    if (!phone || !otpCode || !name || !password) {
+      return res.status(400).json({ error: 'Semua kolom harus diisi.' });
+    }
+
+    // Verify OTP again
+    const otpRecord = await db.getLatestOtp(phone);
+    if (!otpRecord || otpRecord.code !== otpCode) {
+      return res.status(400).json({ error: 'Verifikasi OTP gagal.' });
+    }
+
+    const now = new Date();
+    if (now > new Date(otpRecord.expires_at)) {
+      return res.status(400).json({ error: 'Kode OTP kedaluwarsa.' });
+    }
+
+    // Clean up OTP
+    await db.deleteOtpsForPhone(phone);
+
+    // Hash password
+    const hashedPassword = bcrypt.hashSync(password, 10);
+
+    // Create tenant in database
+    const newTenant = await db.createTenant({
+      name,
+      phone,
+      password: hashedPassword,
+      status: 'active'
+    });
+
+    res.json({
+      role: 'tenant',
+      id: newTenant.id,
+      name: newTenant.name,
+      email: newTenant.email,
+      phone: newTenant.phone
+    });
+  } catch (error) {
+    console.error('Registration failed:', error);
+    res.status(500).json({ error: 'Pendaftaran gagal.' });
   }
 });
 
@@ -1835,6 +2284,71 @@ app.put('/api/settings', async (req, res) => {
   } catch (error) {
     console.error('Error updating settings:', error);
     res.status(500).json({ error: 'Failed to update settings.' });
+  }
+});
+
+// --- COMPLAINTS ROUTES ---
+
+// GET all complaints for a tenant
+app.get('/api/complaints', async (req, res) => {
+  try {
+    const { tenantId } = req.query;
+    if (!tenantId) {
+      return res.status(400).json({ error: 'tenantId is required.' });
+    }
+    const complaints = await db.getComplaints(Number(tenantId));
+    res.json(complaints);
+  } catch (error) {
+    console.error('Error fetching complaints:', error);
+    res.status(500).json({ error: 'Failed to fetch complaints.' });
+  }
+});
+
+// POST create a new complaint
+app.post('/api/complaints', async (req, res) => {
+  try {
+    const { tenantId, title, description } = req.body;
+    if (!tenantId || !title || !description) {
+      return res.status(400).json({ error: 'All fields are required.' });
+    }
+    const complaint = await db.createComplaint({
+      tenant_id: Number(tenantId),
+      title,
+      description,
+      status: 'pending'
+    });
+    res.json(complaint);
+  } catch (error) {
+    console.error('Error creating complaint:', error);
+    res.status(500).json({ error: 'Failed to submit complaint.' });
+  }
+});
+
+// --- LOCATIONS ROUTES ---
+
+// GET all locations
+app.get('/api/locations', async (req, res) => {
+  try {
+    const locations = await db.getLocations();
+    res.json(locations);
+  } catch (error) {
+    console.error('Error fetching locations:', error);
+    res.status(500).json({ error: 'Failed to fetch locations.' });
+  }
+});
+
+// POST create a new location
+app.post('/api/locations', async (req, res) => {
+  try {
+    const { name, slug } = req.body;
+    if (!name || !slug) {
+      return res.status(400).json({ error: 'Name and slug are required.' });
+    }
+    const location = await db.createLocation({ name, slug });
+    res.json(location);
+  } catch (error) {
+    console.error('Error creating location:', error);
+    res.status(500).json({ error: 'Failed to create location.' });
   }
 });
 

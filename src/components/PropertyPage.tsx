@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeft, MapPin, Star, Shield, Wifi, 
@@ -15,6 +15,7 @@ export const PropertyPage: React.FC = () => {
   const { idSlug } = useParams<{ idSlug: string }>();
   const id = idSlug ? parseInt(idSlug.split('-')[0]) : undefined;
   const navigate = useNavigate();
+  const location = useLocation();
   
   const [property, setProperty] = useState<Property | null>(null);
   const [settings, setSettings] = useState<WebsiteSettings | null>(null);
@@ -109,6 +110,14 @@ export const PropertyPage: React.FC = () => {
     };
     loadSettingsData();
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('book') === '1' && userSession && property) {
+      setBookingOpen(true);
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.search, location.pathname, navigate, userSession, property]);
 
   // Prevent body scroll and handle Escape key when lightbox state changes
   useEffect(() => {
@@ -206,7 +215,14 @@ export const PropertyPage: React.FC = () => {
   }
 
   const supportsTransit = !!(property.transit3h || property.transit6h || property.transit12h || property.transit24h);
-  const isAvailable = property.status !== 'booked' && (property.availableRooms ?? 1) > 0;
+  const isAvailable = property.status !== 'booked' && property.status !== 'inactive';
+  const handleBookRoom = () => {
+    if (!userSession) {
+      navigate(`/?login=1&next=${encodeURIComponent(`${window.location.pathname}?book=1`)}`);
+      return;
+    }
+    setBookingOpen(true);
+  };
 
   return (
     <div className="min-h-screen bg-bg text-text-primary selection:bg-text-primary selection:text-bg overflow-x-hidden">
@@ -321,14 +337,6 @@ export const PropertyPage: React.FC = () => {
                   <span className="text-[10px] text-muted uppercase tracking-wider mb-1">Total Kamar</span>
                   <span className="text-base font-semibold text-text-primary flex items-center gap-1.5">
                     <DoorOpen size={16} className="text-muted" /> {property.rooms || '20+'}
-                  </span>
-                </div>
-                <div className="flex flex-col text-left">
-                  <span className="text-[10px] text-muted uppercase tracking-wider mb-1">Status Ketersediaan</span>
-                  <span className="text-base font-semibold text-text-primary">
-                    {property.availableRooms !== undefined 
-                      ? `${property.availableRooms} Tersedia` 
-                      : 'Sedikit kosong'}
                   </span>
                 </div>
                 <div className="flex flex-col text-left">
@@ -531,7 +539,7 @@ export const PropertyPage: React.FC = () => {
                 {/* Booking Call to Action */}
                 <button
                   disabled={!isAvailable}
-                  onClick={() => setBookingOpen(true)}
+                  onClick={handleBookRoom}
                   className={`w-full py-4 px-6 rounded-full font-semibold text-xs md:text-sm uppercase tracking-wider flex items-center justify-center gap-2 select-none transition-all duration-300 ${
                     isAvailable 
                       ? 'bg-text-primary text-bg hover:scale-[1.03] active:scale-[0.98] shadow-lg shadow-text-primary/10' 
@@ -540,7 +548,7 @@ export const PropertyPage: React.FC = () => {
                 >
                   {isAvailable ? (
                     <>
-                      Pesan Ruang <ChevronRight size={16} />
+                      Pesan Kamar <ChevronRight size={16} />
                     </>
                   ) : (
                     'Saat Ini Tidak Tersedia'
