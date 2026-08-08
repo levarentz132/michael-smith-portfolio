@@ -16,6 +16,7 @@ import { AdminPanel } from './components/AdminPanel';
 import { PropertyPage } from './components/PropertyPage';
 import { ArticlePage } from './components/ArticlePage';
 import { ResortPage } from './components/ResortPage';
+import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
 import { fetchSettings, slugify } from './api';
 import type { UserSession, Property, WebsiteSettings } from './api';
 import { useSEO } from './hooks/useSEO';
@@ -146,6 +147,9 @@ function App() {
 
         {/* Resort Page Route */}
         <Route path="/resort" element={<ResortPage />} />
+
+        {/* Privacy Policy Route for Meta/Facebook */}
+        <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
 
       {/* Landing Page Route */}
       <Route path="/" element={

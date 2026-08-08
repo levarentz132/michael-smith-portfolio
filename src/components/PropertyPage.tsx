@@ -9,6 +9,7 @@ import {
 import { fetchPropertyById, fetchSettings, type Property, type UserSession, type WebsiteSettings } from '../api';
 import { BookingModal } from './BookingModal';
 import { Navbar } from './Navbar';
+import { LoginModal } from './LoginModal';
 import { useSEO } from '../hooks/useSEO';
 
 export const PropertyPage: React.FC = () => {
@@ -44,6 +45,22 @@ export const PropertyPage: React.FC = () => {
 
   // Booking Modal State
   const [bookingOpen, setBookingOpen] = useState(false);
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
+
+  const handleBookClick = () => {
+    if (!userSession) {
+      setLoginModalOpen(true);
+    } else {
+      setBookingOpen(true);
+    }
+  };
+
+  const handleLoginSuccess = (session: UserSession) => {
+    localStorage.setItem('userSession', JSON.stringify(session));
+    setUserSession(session);
+    setLoginModalOpen(false);
+    setBookingOpen(true);
+  };
 
   // Lightbox Modal State for inspecting photo
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
@@ -324,11 +341,9 @@ export const PropertyPage: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex flex-col text-left">
-                  <span className="text-[10px] text-muted uppercase tracking-wider mb-1">Status Ketersediaan</span>
+                  <span className="text-[10px] text-muted uppercase tracking-wider mb-1">Tipe Kamar</span>
                   <span className="text-base font-semibold text-text-primary">
-                    {property.availableRooms !== undefined 
-                      ? `${property.availableRooms} Tersedia` 
-                      : 'Sedikit kosong'}
+                    {property.type ? (property.type.charAt(0).toUpperCase() + property.type.slice(1)) : 'Premium'}
                   </span>
                 </div>
                 <div className="flex flex-col text-left">
@@ -531,7 +546,7 @@ export const PropertyPage: React.FC = () => {
                 {/* Booking Call to Action */}
                 <button
                   disabled={!isAvailable}
-                  onClick={() => setBookingOpen(true)}
+                  onClick={handleBookClick}
                   className={`w-full py-4 px-6 rounded-full font-semibold text-xs md:text-sm uppercase tracking-wider flex items-center justify-center gap-2 select-none transition-all duration-300 ${
                     isAvailable 
                       ? 'bg-text-primary text-bg hover:scale-[1.03] active:scale-[0.98] shadow-lg shadow-text-primary/10' 
@@ -577,6 +592,12 @@ export const PropertyPage: React.FC = () => {
         isOpen={bookingOpen}
         property={property}
         onClose={() => setBookingOpen(false)}
+      />
+
+      <LoginModal 
+        isOpen={loginModalOpen}
+        onClose={() => setLoginModalOpen(false)}
+        onLoginSuccess={handleLoginSuccess}
       />
 
       {/* Lightbox Modal for Inspecting Photo */}

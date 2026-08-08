@@ -2,7 +2,7 @@ export interface Property {
   id?: number;
   title: string;
   category: string;
-  type: 'kos' | 'apartment';
+  type: 'kos' | 'apartment' | 'resort' | 'villa';
   price: string;
   location: string;
   rating: string;

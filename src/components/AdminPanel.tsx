@@ -277,7 +277,7 @@ export const AdminPanel: React.FC = () => {
   // Property Form Inputs
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('');
-  const [type, setType] = useState<'kos' | 'apartment'>('kos');
+  const [type, setType] = useState<'kos' | 'apartment' | 'resort' | 'villa'>('kos');
   const [price, setPrice] = useState('');
   const [location, setLocation] = useState('');
   const [rating, setRating] = useState('4.8 ★');
@@ -338,7 +338,6 @@ export const AdminPanel: React.FC = () => {
   const [available, setAvailable] = useState(true);
   const [description, setDescription] = useState('');
   const [rooms, setRooms] = useState('0');
-  const [availableRooms, setAvailableRooms] = useState('0');
   const [branchId, setBranchId] = useState('');
   const [status, setStatus] = useState('available');
 
@@ -660,7 +659,6 @@ export const AdminPanel: React.FC = () => {
     setAvailable(true);
     setDescription('');
     setRooms('0');
-    setAvailableRooms('0');
     setBranchId('');
     setStatus('available');
     setIsFormOpen(true);
@@ -687,7 +685,6 @@ export const AdminPanel: React.FC = () => {
     setAvailable(prop.available === undefined ? true : !!prop.available);
     setDescription(prop.description || '');
     setRooms(prop.rooms !== undefined ? String(prop.rooms) : '0');
-    setAvailableRooms(prop.availableRooms !== undefined ? String(prop.availableRooms) : '0');
     setBranchId(prop.branchId !== undefined && prop.branchId !== null ? String(prop.branchId) : '');
     setStatus(prop.status || 'available');
     setIsFormOpen(true);
@@ -736,7 +733,7 @@ export const AdminPanel: React.FC = () => {
       available: available ? 1 : 0,
       description: description || undefined,
       rooms: rooms !== '' ? parseInt(rooms, 10) : 0,
-      availableRooms: availableRooms !== '' ? parseInt(availableRooms, 10) : 0,
+      availableRooms: rooms !== '' ? parseInt(rooms, 10) : 0,
       branchId: branchId !== '' ? parseInt(branchId, 10) : null,
       status: status,
       colSpan: editingProperty?.colSpan || 'md:col-span-5',
@@ -1677,7 +1674,7 @@ export const AdminPanel: React.FC = () => {
                               <span className={`px-2 py-0.5 rounded-full border ${prop.status === 'full' ? 'bg-rose-500/15 border-rose-500/20 text-rose-400' : 'bg-emerald-500/15 border-emerald-500/20 text-emerald-400'}`}>
                                 {prop.status === 'full' ? 'FULL' : 'AVAILABLE'}
                               </span>
-                              <span>Rooms: {prop.availableRooms}/{prop.rooms}</span>
+                              <span>Rooms: {prop.rooms} Rooms</span>
                             </div>
                           </div>
 
@@ -2873,23 +2870,13 @@ export const AdminPanel: React.FC = () => {
               </div>
 
               {/* Rooms & availability */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs text-muted uppercase tracking-wider">Total Rooms</label>
                   <input 
                     type="number"
                     value={rooms}
                     onChange={(e) => setRooms(e.target.value)}
-                    className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-muted uppercase tracking-wider">Available Rooms</label>
-                  <input 
-                    type="number"
-                    value={availableRooms}
-                    onChange={(e) => setAvailableRooms(e.target.value)}
                     className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none"
                   />
                 </div>

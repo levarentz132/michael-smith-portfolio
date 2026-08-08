@@ -5,9 +5,11 @@ interface SEOProps {
   description?: string;
   keywords?: string;
   noindex?: boolean;
+  canonicalUrl?: string;
+  structuredData?: object;
 }
 
-export function useSEO({ title, description, keywords, noindex }: SEOProps) {
+export function useSEO({ title, description, keywords, noindex, canonicalUrl, structuredData }: SEOProps) {
   useEffect(() => {
     // Update Title
     document.title = title;
@@ -53,6 +55,26 @@ export function useSEO({ title, description, keywords, noindex }: SEOProps) {
     const ogDesc = document.querySelector('meta[property="og:description"]');
     if (ogDesc && description) ogDesc.setAttribute('content', description);
 
+    let ogUrl = document.querySelector('meta[property="og:url"]');
+    if (canonicalUrl) {
+      if (!ogUrl) {
+        ogUrl = document.createElement('meta');
+        ogUrl.setAttribute('property', 'og:url');
+        document.head.appendChild(ogUrl);
+      }
+      ogUrl.setAttribute('content', canonicalUrl);
+    }
+
+    let canonical = document.querySelector('link[rel="canonical"]');
+    if (canonicalUrl) {
+      if (!canonical) {
+        canonical = document.createElement('link');
+        canonical.setAttribute('rel', 'canonical');
+        document.head.appendChild(canonical);
+      }
+      canonical.setAttribute('href', canonicalUrl);
+    }
+
     // Update Twitter Tags
     const twitterTitle = document.querySelector('meta[property="twitter:title"]');
     if (twitterTitle) twitterTitle.setAttribute('content', title);
@@ -60,5 +82,24 @@ export function useSEO({ title, description, keywords, noindex }: SEOProps) {
     const twitterDesc = document.querySelector('meta[property="twitter:description"]');
     if (twitterDesc && description) twitterDesc.setAttribute('content', description);
 
-  }, [title, description, keywords, noindex]);
+    // Inject JSON-LD structured data
+    let scriptJsonLd = document.getElementById('jsonld-seo') as HTMLScriptElement;
+    if (structuredData) {
+      if (!scriptJsonLd) {
+        scriptJsonLd = document.createElement('script');
+        scriptJsonLd.id = 'jsonld-seo';
+        scriptJsonLd.type = 'application/ld+json';
+        document.head.appendChild(scriptJsonLd);
+      }
+      scriptJsonLd.textContent = JSON.stringify(structuredData);
+    } else if (scriptJsonLd) {
+      scriptJsonLd.remove();
+    }
+
+    return () => {
+      const existing = document.getElementById('jsonld-seo');
+      if (existing) existing.remove();
+    };
+
+  }, [title, description, keywords, noindex, canonicalUrl, JSON.stringify(structuredData)]);
 }

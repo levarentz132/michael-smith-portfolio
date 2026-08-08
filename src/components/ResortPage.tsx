@@ -5,7 +5,7 @@ import {
   MapPin, Star, Compass, Coffee, 
   Sparkles, Phone, Clock
 } from 'lucide-react';
-import { fetchSettings, type UserSession, type WebsiteSettings } from '../api';
+import { fetchSettings, fetchProperties, type Property, type UserSession, type WebsiteSettings } from '../api';
 import { Navbar } from './Navbar';
 import { Footer } from './Footer';
 import { useSEO } from '../hooks/useSEO';
@@ -16,9 +16,36 @@ export const ResortPage: React.FC = () => {
   
   // SEO optimization
   useSEO({
-    title: 'Highlander Resort | Luxury Co-Living & Vacation Escape',
-    description: 'Jelajahi keindahan tersembunyi Highlander Resort. Vila kolam pribadi mewah di tengah pemandangan pegunungan berkabut yang menakjubkan.',
-    keywords: 'resort mewah, vila bogor, vacation, highland resort, liburan keluarga, private pool villa'
+    title: 'Resort Highlander, Bogor - Booking Online & Traveloka Rating',
+    description: 'Booking Resort Highlander online, berlokasi di Bogor. Dapatkan harga terbaik, diskon s.d 50%, gratis pembatalan, dan flexible payment.',
+    keywords: 'resort highlander, hotel bogor, resort ciapus, traveloka hotel bogor, liburan keluarga bogor, private villa bogor',
+    structuredData: {
+      "@context": "https://schema.org",
+      "@type": "Hotel",
+      "name": "Resort Highlander",
+      "description": "Booking Resort Highlander online, berlokasi di Bogor. Harga ter up-to-date dan diskon s.d 50%. Gratis Pembatalan, Flexible Payment.",
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": 7.3,
+        "reviewCount": 100,
+        "bestRating": 10,
+        "worstRating": 1
+      },
+      "image": "https://ik.imagekit.io/tvlk/apr-asset/dgXfoyh24ryQLRcGq00cIdKHRmotrWLNlvG-TxlcLxGkiDwaUSggleJNPRgIHCX6/hotel/asset/10034492-d82a62602d2db977dafc08636aa764a9.jpeg?tr=q-80,c-at_max,w-1280,h-720&_src=imagekit",
+      "url": "https://www.traveloka.com/id-id/hotel/indonesia/resort-highlander-3000010034492",
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Jalan Raya curug nangka, Kp Sinar Wangi RT/05 RW/06 Desa Sukajaya Kecamatan Taman Sukajaya Bogor, Jawa Barat",
+        "addressCountry": "Indonesia",
+        "addressRegion": "Jawa Barat",
+        "streetAddress": "Jalan Raya curug nangka, Kp Sinar Wangi RT/05 RW/06 Desa Sukajaya Kecamatan Taman Sukajaya Bogor, Jawa Barat, Ciapus, Bogor, Jawa Barat, Indonesia, 16610",
+        "postalCode": "16610"
+      },
+      "starRating": {
+        "@type": "Rating",
+        "ratingValue": "1.0"
+      }
+    }
   });
 
   const [userSession, setUserSession] = useState<UserSession | null>(() => {
@@ -33,17 +60,26 @@ export const ResortPage: React.FC = () => {
     return null;
   });
 
+  const [resortProperties, setResortProperties] = useState<Property[]>([]);
+
   useEffect(() => {
     window.scrollTo(0, 0);
-    const loadSettings = async () => {
+    const loadData = async () => {
       try {
-        const data = await fetchSettings();
-        setSettings(data);
+        const settingsData = await fetchSettings();
+        setSettings(settingsData);
+        
+        const propsData = await fetchProperties();
+        const filtered = propsData.filter(p => 
+          p.type === 'resort' || 
+          p.title.toLowerCase().includes('resort')
+        );
+        setResortProperties(filtered);
       } catch (err) {
         console.error(err);
       }
     };
-    loadSettings();
+    loadData();
   }, []);
 
   const handleLogout = () => {
@@ -192,7 +228,7 @@ export const ResortPage: React.FC = () => {
               <Star className="w-5 h-5 text-amber-500" />
               <div className="text-left">
                 <span className="text-[9px] text-muted uppercase tracking-wider block">Rating Resensi</span>
-                <span className="text-xs text-text-primary font-semibold">4.9/5 Luxury Sanctuary</span>
+                <span className="text-xs text-text-primary font-semibold">7.3/10 Traveloka Rating (Bintang 1)</span>
               </div>
             </div>
           </div>
@@ -260,7 +296,18 @@ export const ResortPage: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {villas.map((villa, idx) => (
+            {[
+              ...resortProperties.map(p => ({
+                name: p.title,
+                price: typeof p.rawPrice === 'number' ? `Rp ${p.rawPrice.toLocaleString('id-ID')}` : p.price,
+                description: p.description || 'Resort eksklusif bintang 1 dengan kolam renang dan fasilitas lengkap.',
+                size: "95 sqm",
+                occupancy: `${p.rooms || 9} Kamar`,
+                image: p.image || '/resort_hero.png',
+                features: ["Wi-Fi", "Kolam Renang", "Parkir Pribadi", "Bogor"]
+              })),
+              ...villas
+            ].map((villa, idx) => (
               <motion.div 
                 key={idx}
                 whileHover={{ y: -8 }}
