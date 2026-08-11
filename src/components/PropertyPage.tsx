@@ -448,14 +448,16 @@ export const PropertyPage: React.FC = () => {
                         <span className="text-[8px] text-emerald-400 font-bold uppercase tracking-wider">{property.promoLabel}</span>
                       </div>
                     )}
-                    <span className="text-[9px] text-muted uppercase tracking-widest font-semibold mb-1">Tarif Bulanan</span>
+                    <span className="text-[9px] text-muted uppercase tracking-widest font-semibold mb-1">
+                      {property.type === 'resort' || property.type === 'villa' ? 'Tarif Per Malam' : 'Tarif Bulanan'}
+                    </span>
                     {property.promoPrice ? (
                       <div className="flex flex-col gap-1 items-start">
                         <span className="text-sm animate-strike text-text-primary/40 font-medium">
-                          Rp. {Number(property.rawPrice).toLocaleString('id-ID')} / bulan
+                          Rp. {Number(property.rawPrice).toLocaleString('id-ID')} / {property.type === 'resort' || property.type === 'villa' ? 'malam' : 'bulan'}
                         </span>
                         <span className="text-2xl md:text-3xl font-display font-medium text-emerald-400 leading-none">
-                          Rp. {Number(property.promoPrice).toLocaleString('id-ID')} <span className="text-xs text-muted font-normal">/ bulan</span>
+                          Rp. {Number(property.promoPrice).toLocaleString('id-ID')} <span className="text-xs text-muted font-normal">/ {property.type === 'resort' || property.type === 'villa' ? 'malam' : 'bulan'}</span>
                         </span>
                       </div>
                     ) : (
@@ -463,7 +465,9 @@ export const PropertyPage: React.FC = () => {
                         {property.price}
                       </span>
                     )}
-                    <span className="text-[10px] text-muted font-light mt-1">Termasuk biaya pemeliharaan gedung</span>
+                    <span className="text-[10px] text-muted font-light mt-1">
+                      {property.type === 'resort' || property.type === 'villa' ? 'Harga untuk satu malam menginap' : 'Termasuk biaya pemeliharaan gedung'}
+                    </span>
                   </div>
 
                   {/* Transit (Package) Pricing */}

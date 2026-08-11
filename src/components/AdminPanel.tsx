@@ -54,7 +54,7 @@ export const AdminPanel: React.FC = () => {
   const isAdminRole = (role?: string) => role === 'admin' || role === 'owner' || role === 'cashier';
 
   const [tenantInfo, setTenantInfo] = useState<TenantInfo | null>(null);
-  const [activeTab, setActiveTab] = useState<'bookings' | 'monthly_bookings' | 'properties' | 'tenants' | 'earnings' | 'settings' | 'articles' | 'users'>('bookings');
+  const [activeTab, setActiveTab] = useState<'bookings' | 'monthly_bookings' | 'properties' | 'tenants' | 'earnings' | 'resort' | 'settings' | 'articles' | 'users'>('bookings');
 
   // Settings tab states
   const [logoText, setLogoText] = useState('HS');
@@ -66,6 +66,28 @@ export const AdminPanel: React.FC = () => {
   const [promoText, setPromoText] = useState('');
   const [whatsappNumber, setWhatsappNumber] = useState('628123456789');
   const [facilitiesPremium, setFacilitiesPremium] = useState<Array<{ id: number; title: string; image: string; rotation?: number }>>([]);
+  const [resortPage, setResortPage] = useState({
+    heroEyebrow: 'The Peak of Luxury Vacation',
+    heroTitle: 'Highlander Resort',
+    heroDescription: 'Pelarian tersembunyi yang menyatukan arsitektur modern premium dengan ketenangan hutan tropis dan panorama pegunungan berkabut yang menakjubkan.',
+    heroImage: '/resort_hero.png',
+    locationLabel: 'Bukit Sentul, West Java',
+    elevationLabel: '1,200 mdpl (Sejuk & Bebas Polusi)',
+    ratingLabel: '7.3/10 Traveloka Rating (Bintang 1)',
+    featureEyebrow: 'Unrivaled Experience',
+    featureTitle: 'Hunian Jiwa yang Dirancang dengan Keanggunan Alami.',
+    featureDescription: 'Highlander Resort bukan sekadar tempat menginap, melainkan ruang peristirahatan eksklusif di mana kenyamanan bintang lima menyatu harmonis dengan pemandangan alam perawan.',
+    featureImage: '/resort_hero.png',
+    featureCardTitle: 'Organic Valley Infinity Pool',
+    featureCardDescription: 'Berenang di air pegunungan yang jernih dengan sensasi menyatu langsung bersama lautan awan pagi hari.',
+    collectionEyebrow: 'Luxury Collection',
+    collectionTitle: 'Vila & Sanctuary Pilihan',
+    collectionDescription: 'Setiap vila menawarkan tata ruang luas, pemandangan pegunungan yang tidak terhalang, kolam renang pribadi, dan fasilitas eksklusif yang dirancang secara detail.',
+    ctaEyebrow: 'Exclusive Privilege',
+    ctaTitle: 'Mulai Petualangan Mewah Anda',
+    ctaDescription: 'Hubungi pramutamu kami hari ini untuk penawaran khusus liburan Anda atau diskon VIP pemesanan langsung.'
+  });
+  const [resortPropertyIds, setResortPropertyIds] = useState<number[]>([]);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
@@ -217,6 +239,23 @@ export const AdminPanel: React.FC = () => {
     } catch (err) {
       console.error(err);
       alert('Failed to save settings.');
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  const handleSaveResort = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingSettings(true);
+    try {
+      await updateSettings({
+        resort_page: resortPage,
+        resort_property_ids: resortPropertyIds
+      });
+      alert('Resort page updated successfully!');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to save resort page.');
     } finally {
       setIsSavingSettings(false);
     }
@@ -407,6 +446,8 @@ export const AdminPanel: React.FC = () => {
           setPromoText(websiteSettings.promo_text || '');
           setWhatsappNumber(websiteSettings.whatsapp_number || '628123456789');
           setFacilitiesPremium(websiteSettings.facilities_premium || []);
+          setResortPage(prev => ({ ...prev, ...(websiteSettings.resort_page || {}) }));
+          setResortPropertyIds(websiteSettings.resort_property_ids || []);
         }
       }
     } catch (err) {
@@ -1303,6 +1344,16 @@ export const AdminPanel: React.FC = () => {
                     </button>
                     {session?.role !== 'cashier' && (
                       <button
+                        onClick={() => setActiveTab('resort')}
+                        className={`text-xs font-semibold uppercase tracking-wider rounded-full px-5 py-2.5 transition-all duration-300 ${
+                          activeTab === 'resort' ? 'text-bg bg-text-primary' : 'text-muted hover:text-text-primary'
+                        }`}
+                      >
+                        Resort
+                      </button>
+                    )}
+                    {session?.role !== 'cashier' && (
+                      <button
                         onClick={() => setActiveTab('settings')}
                         className={`text-xs font-semibold uppercase tracking-wider rounded-full px-5 py-2.5 transition-all duration-300 ${
                           activeTab === 'settings' ? 'text-bg bg-text-primary' : 'text-muted hover:text-text-primary'
@@ -1650,7 +1701,7 @@ export const AdminPanel: React.FC = () => {
                                     Rp. {Number(prop.rawPrice).toLocaleString('id-ID')}
                                   </span>
                                   <span className="text-emerald-400">
-                                    Rp. {Number(prop.promoPrice).toLocaleString('id-ID')} / month
+                                    Rp. {Number(prop.promoPrice).toLocaleString('id-ID')} / {prop.type === 'resort' || prop.type === 'villa' ? 'night' : 'month'}
                                   </span>
                                 </div>
                               ) : (
@@ -2299,6 +2350,237 @@ export const AdminPanel: React.FC = () => {
                   </div>
                 )}
 
+                {activeTab === 'resort' && (
+                  <div className="bg-surface/30 border border-stroke/50 rounded-3xl p-6 md:p-8 text-left backdrop-blur-md shadow-lg">
+                    <h3 className="text-lg font-semibold mb-2 text-text-primary">Resort Page</h3>
+                    <p className="text-xs text-muted mb-8 leading-relaxed">
+                      Kelola konten halaman Resort dan pilih property listing yang tampil untuk pengunjung.
+                    </p>
+                    <form onSubmit={handleSaveResort} className="flex flex-col gap-8">
+                      {/* Resort Page Settings */}
+                      <div>
+                        <h4 className="text-sm font-semibold uppercase tracking-wider text-text-primary mb-4 font-sans">Resort Page Settings</h4>
+                        <p className="text-xs text-muted mb-6 leading-relaxed font-body">
+                          Kelola konten halaman Resort dan pilih property listing mana yang tampil di bagian villa/sanctuary.
+                        </p>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-xs text-muted uppercase tracking-wider">Hero Eyebrow</label>
+                            <input
+                              type="text"
+                              value={resortPage.heroEyebrow}
+                              onChange={(e) => setResortPage(prev => ({ ...prev, heroEyebrow: e.target.value }))}
+                              className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-xs text-muted uppercase tracking-wider">Hero Title</label>
+                            <input
+                              type="text"
+                              value={resortPage.heroTitle}
+                              onChange={(e) => setResortPage(prev => ({ ...prev, heroTitle: e.target.value }))}
+                              className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1.5 md:col-span-2">
+                            <label className="text-xs text-muted uppercase tracking-wider">Hero Description</label>
+                            <textarea
+                              rows={3}
+                              value={resortPage.heroDescription}
+                              onChange={(e) => setResortPage(prev => ({ ...prev, heroDescription: e.target.value }))}
+                              className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none resize-none"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1.5 md:col-span-2">
+                            <label className="text-xs text-muted uppercase tracking-wider">Hero Image URL</label>
+                            <input
+                              type="text"
+                              value={resortPage.heroImage}
+                              onChange={(e) => setResortPage(prev => ({ ...prev, heroImage: e.target.value }))}
+                              placeholder="/resort_hero.png"
+                              className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none"
+                            />
+                          </div>
+
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-xs text-muted uppercase tracking-wider">Location Label</label>
+                            <input
+                              type="text"
+                              value={resortPage.locationLabel}
+                              onChange={(e) => setResortPage(prev => ({ ...prev, locationLabel: e.target.value }))}
+                              className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-xs text-muted uppercase tracking-wider">Elevation Label</label>
+                            <input
+                              type="text"
+                              value={resortPage.elevationLabel}
+                              onChange={(e) => setResortPage(prev => ({ ...prev, elevationLabel: e.target.value }))}
+                              className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1.5 md:col-span-2">
+                            <label className="text-xs text-muted uppercase tracking-wider">Rating Label</label>
+                            <input
+                              type="text"
+                              value={resortPage.ratingLabel}
+                              onChange={(e) => setResortPage(prev => ({ ...prev, ratingLabel: e.target.value }))}
+                              className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 border-t border-stroke/30 pt-6">
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-xs text-muted uppercase tracking-wider">Feature Eyebrow</label>
+                            <input
+                              type="text"
+                              value={resortPage.featureEyebrow}
+                              onChange={(e) => setResortPage(prev => ({ ...prev, featureEyebrow: e.target.value }))}
+                              className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-xs text-muted uppercase tracking-wider">Feature Title</label>
+                            <input
+                              type="text"
+                              value={resortPage.featureTitle}
+                              onChange={(e) => setResortPage(prev => ({ ...prev, featureTitle: e.target.value }))}
+                              className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1.5 md:col-span-2">
+                            <label className="text-xs text-muted uppercase tracking-wider">Feature Description</label>
+                            <textarea
+                              rows={3}
+                              value={resortPage.featureDescription}
+                              onChange={(e) => setResortPage(prev => ({ ...prev, featureDescription: e.target.value }))}
+                              className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none resize-none"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-xs text-muted uppercase tracking-wider">Feature Image URL</label>
+                            <input
+                              type="text"
+                              value={resortPage.featureImage}
+                              onChange={(e) => setResortPage(prev => ({ ...prev, featureImage: e.target.value }))}
+                              className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-xs text-muted uppercase tracking-wider">Feature Card Title</label>
+                            <input
+                              type="text"
+                              value={resortPage.featureCardTitle}
+                              onChange={(e) => setResortPage(prev => ({ ...prev, featureCardTitle: e.target.value }))}
+                              className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1.5 md:col-span-2">
+                            <label className="text-xs text-muted uppercase tracking-wider">Feature Card Description</label>
+                            <input
+                              type="text"
+                              value={resortPage.featureCardDescription}
+                              onChange={(e) => setResortPage(prev => ({ ...prev, featureCardDescription: e.target.value }))}
+                              className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 border-t border-stroke/30 pt-6">
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-xs text-muted uppercase tracking-wider">Collection Eyebrow</label>
+                            <input type="text" value={resortPage.collectionEyebrow} onChange={(e) => setResortPage(prev => ({ ...prev, collectionEyebrow: e.target.value }))} className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none" />
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-xs text-muted uppercase tracking-wider">Collection Title</label>
+                            <input type="text" value={resortPage.collectionTitle} onChange={(e) => setResortPage(prev => ({ ...prev, collectionTitle: e.target.value }))} className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none" />
+                          </div>
+                          <div className="flex flex-col gap-1.5 md:col-span-2">
+                            <label className="text-xs text-muted uppercase tracking-wider">Collection Description</label>
+                            <textarea rows={2} value={resortPage.collectionDescription} onChange={(e) => setResortPage(prev => ({ ...prev, collectionDescription: e.target.value }))} className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none resize-none" />
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-xs text-muted uppercase tracking-wider">CTA Eyebrow</label>
+                            <input type="text" value={resortPage.ctaEyebrow} onChange={(e) => setResortPage(prev => ({ ...prev, ctaEyebrow: e.target.value }))} className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none" />
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-xs text-muted uppercase tracking-wider">CTA Title</label>
+                            <input type="text" value={resortPage.ctaTitle} onChange={(e) => setResortPage(prev => ({ ...prev, ctaTitle: e.target.value }))} className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none" />
+                          </div>
+                          <div className="flex flex-col gap-1.5 md:col-span-2">
+                            <label className="text-xs text-muted uppercase tracking-wider">CTA Description</label>
+                            <textarea rows={2} value={resortPage.ctaDescription} onChange={(e) => setResortPage(prev => ({ ...prev, ctaDescription: e.target.value }))} className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none resize-none" />
+                          </div>
+                        </div>
+
+                        <div className="border-t border-stroke/30 pt-6">
+                          <div className="flex items-center justify-between gap-4 mb-4">
+                            <div>
+                              <h5 className="text-xs text-text-primary uppercase tracking-wider font-semibold">Resort Properties Listing</h5>
+                              <p className="text-[10px] text-muted mt-1">Select the property cards shown on the Resort page. If none selected, resort/villa properties are shown automatically.</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setResortPropertyIds([])}
+                              className="text-[10px] px-3 py-1.5 rounded-lg border border-stroke text-muted hover:text-text-primary hover:bg-bg"
+                            >
+                              Clear Selection
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-1">
+                            {properties.map((prop) => {
+                              const selected = !!prop.id && resortPropertyIds.includes(prop.id);
+                              return (
+                                <label key={prop.id} className={`flex items-center gap-3 rounded-2xl border p-3 cursor-pointer transition-colors ${selected ? 'border-amber-500/50 bg-amber-500/10' : 'border-stroke bg-bg/40 hover:bg-bg'}`}>
+                                  <input
+                                    type="checkbox"
+                                    checked={selected}
+                                    onChange={(e) => {
+                                      if (!prop.id) return;
+                                      setResortPropertyIds(prev => e.target.checked
+                                        ? Array.from(new Set([...prev, prop.id!]))
+                                        : prev.filter(id => id !== prop.id)
+                                      );
+                                    }}
+                                    className="w-4 h-4 accent-amber-500"
+                                  />
+                                  <img src={prop.image} alt={prop.title} className="w-14 h-14 rounded-xl object-cover border border-stroke" />
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-semibold text-text-primary truncate">{prop.title}</p>
+                                    <p className="text-[10px] text-muted uppercase tracking-wider">{prop.type} / {prop.location}</p>
+                                  </div>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Resort submit button */}
+                      <button
+                        type="submit"
+                        disabled={isSavingSettings}
+                        className="w-full relative group rounded-full text-xs font-semibold uppercase tracking-wider py-4 bg-text-primary text-bg hover:bg-bg hover:text-text-primary transition-all duration-300 border border-transparent mt-4 flex items-center justify-center gap-2"
+                      >
+                        {isSavingSettings ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" /> Saving resort...
+                          </>
+                        ) : (
+                          <>
+                            <span className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 p-[1px] accent-gradient" style={{ margin: '-1px' }} />
+                            Save Resort Page
+                          </>
+                        )}
+                      </button>
+                    </form>
+                  </div>
+                )}
+
                 {/* ARTICLES TAB */}
                 {activeTab === 'articles' && (
                   <div className="bg-surface/30 border border-stroke/50 rounded-3xl overflow-hidden shadow-xl text-left">
@@ -2687,11 +2969,13 @@ export const AdminPanel: React.FC = () => {
                   <label className="text-xs text-muted uppercase tracking-wider">Space Type</label>
                   <select
                     value={type}
-                    onChange={(e) => setType(e.target.value as 'kos' | 'apartment')}
+                    onChange={(e) => setType(e.target.value as 'kos' | 'apartment' | 'resort' | 'villa')}
                     className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors"
                   >
                     <option value="kos">Boarding Room (Kos)</option>
                     <option value="apartment">Apartment</option>
+                    <option value="resort">Resort</option>
+                    <option value="villa">Villa</option>
                   </select>
                 </div>
 
@@ -2710,11 +2994,13 @@ export const AdminPanel: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-muted uppercase tracking-wider">Monthly Rent Label (Price)</label>
+                  <label className="text-xs text-muted uppercase tracking-wider">
+                    {type === 'resort' || type === 'villa' ? 'Nightly Rate (Price)' : 'Monthly Rent (Price)'}
+                  </label>
                   <input 
                     type="text"
                     required
-                    placeholder="e.g. Rp. 3.000.000 / month"
+                    placeholder={type === 'resort' || type === 'villa' ? 'e.g. Rp. 743.802 / night' : 'e.g. Rp. 3.000.000 / month'}
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
                     className="w-full bg-bg border border-stroke rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors"

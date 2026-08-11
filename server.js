@@ -311,6 +311,27 @@ function parsePrice(priceStr) {
   return isNaN(parsed) ? 1500000 : parsed;
 }
 
+function getPropertyType(row) {
+  const storedType = String(row.type || '').toLowerCase();
+  if (['kos', 'apartment', 'resort', 'villa'].includes(storedType)) {
+    return storedType;
+  }
+
+  const propertyName = String(row.name || '').toLowerCase();
+  return propertyName.includes('apartment') || propertyName.includes('apartemen')
+    ? 'apartment'
+    : 'kos';
+}
+
+function formatPropertyPrice(row) {
+  const propertyType = getPropertyType(row);
+  const priceValue = Number(row.price);
+  const fallbackPrice = propertyType === 'resort' || propertyType === 'villa' ? 371901 : 1500000;
+  const amount = Number.isFinite(priceValue) && priceValue > 0 ? priceValue : fallbackPrice;
+  const unit = propertyType === 'resort' || propertyType === 'villa' ? 'night' : 'month';
+  return `Rp. ${amount.toLocaleString('id-ID')} / ${unit}`;
+}
+
 // Helper to preserve local database time without timezone shifts
 function formatLocalDatetime(dateVal) {
   if (!dateVal) return null;
@@ -350,8 +371,8 @@ app.get('/api/properties', async (req, res) => {
 
     // Map DB rows to Frontend Property structure
     const mapped = rows.map((row, index) => {
-      const isApartment = row.name.toLowerCase().includes('apartment') || row.name.toLowerCase().includes('apartemen');
-      const frontendType = isApartment ? 'apartment' : 'kos';
+      const frontendType = getPropertyType(row);
+      const isApartment = frontendType === 'apartment';
 
       let category = 'Premium Boarding Room';
       if (isApartment) {
@@ -361,13 +382,7 @@ app.get('/api/properties', async (req, res) => {
         category = `Premium Boarding Room (${typeCapitalized})`;
       }
 
-      let formattedPrice = 'Rp. 1.500.000 / month';
-      if (row.price) {
-        const priceVal = parseInt(row.price, 10);
-        if (!isNaN(priceVal)) {
-          formattedPrice = `Rp. ${priceVal.toLocaleString('id-ID')} / month`;
-        }
-      }
+      const formattedPrice = formatPropertyPrice(row);
 
       let imageUrl = row.image;
       if (!imageUrl) {
@@ -437,8 +452,8 @@ app.get('/api/properties/:id', async (req, res) => {
     }
 
     const row = rows[0];
-    const isApartment = row.name.toLowerCase().includes('apartment') || row.name.toLowerCase().includes('apartemen');
-    const frontendType = isApartment ? 'apartment' : 'kos';
+    const frontendType = getPropertyType(row);
+    const isApartment = frontendType === 'apartment';
 
     let category = 'Premium Boarding Room';
     if (isApartment) {
@@ -448,13 +463,7 @@ app.get('/api/properties/:id', async (req, res) => {
       category = `Premium Boarding Room (${typeCapitalized})`;
     }
 
-    let formattedPrice = 'Rp. 1.500.000 / month';
-    if (row.price) {
-      const priceVal = parseInt(row.price, 10);
-      if (!isNaN(priceVal)) {
-        formattedPrice = `Rp. ${priceVal.toLocaleString('id-ID')} / month`;
-      }
-    }
+    const formattedPrice = formatPropertyPrice(row);
 
     let imageUrl = row.image;
     if (!imageUrl) {
@@ -586,8 +595,8 @@ app.post('/api/properties', async (req, res) => {
     }
 
     const row = insertedRows[0];
-    const isApartment = row.name.toLowerCase().includes('apartment') || row.name.toLowerCase().includes('apartemen');
-    const frontendType = isApartment ? 'apartment' : 'kos';
+    const frontendType = getPropertyType(row);
+    const isApartment = frontendType === 'apartment';
 
     let categoryStr = 'Premium Boarding Room';
     if (isApartment) {
@@ -597,13 +606,7 @@ app.post('/api/properties', async (req, res) => {
       categoryStr = `Premium Boarding Room (${typeCapitalized})`;
     }
 
-    let formattedPrice = 'Rp. 1.500.000 / month';
-    if (row.price) {
-      const priceVal = parseInt(row.price, 10);
-      if (!isNaN(priceVal)) {
-        formattedPrice = `Rp. ${priceVal.toLocaleString('id-ID')} / month`;
-      }
-    }
+    const formattedPrice = formatPropertyPrice(row);
 
     let imageUrl = row.image;
     if (!imageUrl) {
@@ -738,8 +741,8 @@ app.put('/api/properties/:id', async (req, res) => {
     }
 
     const row = updatedRows[0];
-    const isApartment = row.name.toLowerCase().includes('apartment') || row.name.toLowerCase().includes('apartemen');
-    const frontendType = isApartment ? 'apartment' : 'kos';
+    const frontendType = getPropertyType(row);
+    const isApartment = frontendType === 'apartment';
 
     let categoryStr = 'Premium Boarding Room';
     if (isApartment) {
@@ -749,13 +752,7 @@ app.put('/api/properties/:id', async (req, res) => {
       categoryStr = `Premium Boarding Room (${typeCapitalized})`;
     }
 
-    let formattedPrice = 'Rp. 1.500.000 / month';
-    if (row.price) {
-      const priceVal = parseInt(row.price, 10);
-      if (!isNaN(priceVal)) {
-        formattedPrice = `Rp. ${priceVal.toLocaleString('id-ID')} / month`;
-      }
-    }
+    const formattedPrice = formatPropertyPrice(row);
 
     let imageUrl = row.image;
     if (!imageUrl) {
@@ -1899,11 +1896,43 @@ app.put('/api/settings', async (req, res) => {
 
 // Serve static files from the React app in production
 if (process.env.NODE_ENV === 'production') {
+  app.get(['/resort', '/resort/'], (req, res) => {
+    const indexPath = path.join(__dirname, 'dist', 'index.html');
+    const resortSchema = {
+      '@context': 'https://schema.org',
+      '@type': ['Hotel', 'Resort'],
+      '@id': 'https://highlanderstay.com/resort#resort',
+      name: 'Highlander Resort',
+      alternateName: ['Resort Highlander', 'Highlanderstay Resort'],
+      url: 'https://highlanderstay.com/resort',
+      image: 'https://highlanderstay.com/resort/building-main.jpeg',
+      address: {
+        '@type': 'PostalAddress',
+        streetAddress: 'Jalan Raya Curug Nangka, Kp. Sinar Wangi RT 05/RW 06, Desa Sukajaya',
+        addressLocality: 'Ciapus, Bogor',
+        addressRegion: 'Jawa Barat',
+        postalCode: '16610',
+        addressCountry: 'ID'
+      }
+    };
+
+    let html = fs.readFileSync(indexPath, 'utf8');
+    html = html
+      .replace(/<title>.*?<\/title>/, '<title>Highlander Resort Bogor | Highlanderstay Resort Ciapus</title>')
+      .replace(/<meta name="description"[^>]*>/, '<meta name="description" content="Pesan Highlander Resort di Ciapus, Bogor melalui Highlanderstay. Pilihan vila keluarga, kolam renang, dan lokasi dekat Curug Nangka." />')
+      .replace(/<meta property="og:title"[^>]*>/, '<meta property="og:title" content="Highlander Resort Bogor | Highlanderstay Resort Ciapus" />')
+      .replace(/<meta property="og:description"[^>]*>/, '<meta property="og:description" content="Vila keluarga dan kamar Resort Highlander di Ciapus, Bogor, dekat Curug Nangka." />')
+      .replace(/<meta property="og:image"[^>]*>/, '<meta property="og:image" content="https://highlanderstay.com/resort/building-main.jpeg" />')
+      .replace('</head>', `<link rel="canonical" href="https://highlanderstay.com/resort" />\n    <meta property="og:url" content="https://highlanderstay.com/resort" />\n    <script id="jsonld-seo" type="application/ld+json">${JSON.stringify(resortSchema)}</script>\n  </head>`);
+
+    res.type('html').send(html);
+  });
+
   // Serve static files from dist directory
   app.use(express.static(path.join(__dirname, 'dist')));
 
   // Handle React routing, return all requests to React app
-  app.get('*', (req, res) => {
+  app.get('/{*splat}', (req, res) => {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
   });
 }

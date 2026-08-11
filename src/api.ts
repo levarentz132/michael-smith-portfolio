@@ -297,6 +297,28 @@ export async function createTransaction(transaction: Omit<Transaction, 'id'>): P
 }
 
 // Settings Interface
+export interface ResortPageSettings {
+  heroEyebrow?: string;
+  heroTitle?: string;
+  heroDescription?: string;
+  heroImage?: string;
+  locationLabel?: string;
+  elevationLabel?: string;
+  ratingLabel?: string;
+  featureEyebrow?: string;
+  featureTitle?: string;
+  featureDescription?: string;
+  featureImage?: string;
+  featureCardTitle?: string;
+  featureCardDescription?: string;
+  collectionEyebrow?: string;
+  collectionTitle?: string;
+  collectionDescription?: string;
+  ctaEyebrow?: string;
+  ctaTitle?: string;
+  ctaDescription?: string;
+}
+
 export interface WebsiteSettings {
   logo_text: string;
   logo_gradient_start: string;
@@ -312,6 +334,8 @@ export interface WebsiteSettings {
   whatsapp_number?: string;
   banners?: string[];
   facilities_premium?: Array<{ id: number; title: string; image: string; rotation?: number }>;
+  resort_page?: ResortPageSettings;
+  resort_property_ids?: number[];
 }
 
 // Fetch Website Settings

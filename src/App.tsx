@@ -50,7 +50,9 @@ function App() {
   useSEO({
     title: 'Highlanderstay | Kamar Kos & Apartemen Premium di Jakarta',
     description: 'Temukan rumah kos dan apartemen modern premium untuk disewa. Ruang tinggal indah yang dirancang untuk kenyamanan dan gaya hidup modern.',
-    keywords: 'co-living, rumah kos, kos, sewa apartemen, Jakarta, kamar mewah, hunian sementara, hunian mahasiswa'
+    keywords: 'co-living, rumah kos, kos, sewa apartemen, Jakarta, kamar mewah, hunian sementara, hunian mahasiswa',
+    canonicalUrl: 'https://highlanderstay.com/',
+    enabled: location.pathname === '/'
   });
 
   // Load branding settings

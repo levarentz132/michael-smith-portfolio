@@ -6,11 +6,15 @@ interface SEOProps {
   keywords?: string;
   noindex?: boolean;
   canonicalUrl?: string;
+  imageUrl?: string;
   structuredData?: object;
+  enabled?: boolean;
 }
 
-export function useSEO({ title, description, keywords, noindex, canonicalUrl, structuredData }: SEOProps) {
+export function useSEO({ title, description, keywords, noindex, canonicalUrl, imageUrl, structuredData, enabled = true }: SEOProps) {
   useEffect(() => {
+    if (!enabled) return;
+
     // Update Title
     document.title = title;
 
@@ -75,6 +79,24 @@ export function useSEO({ title, description, keywords, noindex, canonicalUrl, st
       canonical.setAttribute('href', canonicalUrl);
     }
 
+    if (imageUrl) {
+      let ogImage = document.querySelector('meta[property="og:image"]');
+      if (!ogImage) {
+        ogImage = document.createElement('meta');
+        ogImage.setAttribute('property', 'og:image');
+        document.head.appendChild(ogImage);
+      }
+      ogImage.setAttribute('content', imageUrl);
+
+      let twitterImage = document.querySelector('meta[property="twitter:image"]');
+      if (!twitterImage) {
+        twitterImage = document.createElement('meta');
+        twitterImage.setAttribute('property', 'twitter:image');
+        document.head.appendChild(twitterImage);
+      }
+      twitterImage.setAttribute('content', imageUrl);
+    }
+
     // Update Twitter Tags
     const twitterTitle = document.querySelector('meta[property="twitter:title"]');
     if (twitterTitle) twitterTitle.setAttribute('content', title);
@@ -101,5 +123,5 @@ export function useSEO({ title, description, keywords, noindex, canonicalUrl, st
       if (existing) existing.remove();
     };
 
-  }, [title, description, keywords, noindex, canonicalUrl, JSON.stringify(structuredData)]);
+  }, [title, description, keywords, noindex, canonicalUrl, imageUrl, enabled, JSON.stringify(structuredData)]);
 }
