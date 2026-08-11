@@ -21,7 +21,7 @@ export const ResortPage: React.FC = () => {
     description: 'Pesan Highlander Resort di Ciapus, Bogor melalui Highlanderstay. Pilihan vila keluarga, kamar nyaman, kolam renang, dan lokasi dekat Curug Nangka.',
     keywords: 'Highlander Resort, Highlanderstay Resort, Resort Highlander Bogor, Highlander Resort Ciapus, resort dekat Curug Nangka, villa keluarga Bogor',
     canonicalUrl: 'https://highlanderstay.com/resort',
-    imageUrl: 'https://highlanderstay.com/resort/building-main.jpeg',
+    imageUrl: 'https://highlanderstay.com/resort-assets/building-main.jpeg',
     structuredData: {
       "@context": "https://schema.org",
       "@graph": [
@@ -34,10 +34,10 @@ export const ResortPage: React.FC = () => {
           "url": "https://highlanderstay.com/resort",
           "mainEntityOfPage": "https://highlanderstay.com/resort",
           "image": [
-            "https://highlanderstay.com/resort/building-main.jpeg",
-            "https://highlanderstay.com/resort/lobby.jpeg",
-            "https://highlanderstay.com/resort/bedroom.jpeg",
-            "https://highlanderstay.com/resort/pool.jpeg"
+            "https://highlanderstay.com/resort-assets/building-main.jpeg",
+            "https://highlanderstay.com/resort-assets/lobby.jpeg",
+            "https://highlanderstay.com/resort-assets/bedroom.jpeg",
+            "https://highlanderstay.com/resort-assets/pool.jpeg"
           ],
           "sameAs": ["https://www.traveloka.com/id-id/hotel/indonesia/resort-highlander-3000010034492"],
           "numberOfRooms": 9,
@@ -96,14 +96,14 @@ export const ResortPage: React.FC = () => {
     heroEyebrow: 'Resort Alam di Kaki Gunung Salak',
     heroTitle: 'Resort Highlander',
     heroDescription: 'Tempat beristirahat yang tenang di kawasan Ciapus, Bogor, dekat Curug Nangka dengan udara sejuk, pemandangan hijau, dan ruang luas untuk liburan bersama keluarga.',
-    heroImage: '/resort/building-main.jpeg',
+    heroImage: '/resort-assets/building-main.jpeg',
     locationLabel: 'Ciapus, Bogor, Jawa Barat',
     elevationLabel: 'Sekitar 15 km dari pusat Bogor',
     ratingLabel: '7.3/10 Traveloka Rating (Bintang 1)',
     featureEyebrow: 'Liburan di Ciapus',
     featureTitle: 'Suasana tenang, udara sejuk, dan dekat dengan alam.',
     featureDescription: 'Resort Highlander berada di Jalan Raya Curug Nangka, Kampung Sinar Wangi, Sukajaya. Properti ini memiliki 9 kamar, kolam renang outdoor, taman, area bermain anak, area parkir, dan ruang fungsional.',
-    featureImage: '/resort/pool.jpeg',
+    featureImage: '/resort-assets/pool.jpeg',
     featureCardTitle: 'Kolam Renang Outdoor',
     featureCardDescription: 'Nikmati waktu santai bersama keluarga dengan suasana hijau kawasan Gunung Salak.',
     collectionEyebrow: 'Pilihan Menginap',
@@ -160,7 +160,7 @@ export const ResortPage: React.FC = () => {
       description: "Vila luas dengan lima kamar tidur untuk liburan keluarga besar atau rombongan di kawasan sejuk Resort Highlander.",
       size: "5 Kamar Tidur",
       occupancy: "10 Tamu",
-      image: "/resort/building-main.jpeg",
+      image: "/resort-assets/building-main.jpeg",
       features: ["5 Tempat Tidur Queen", "Vila Privat", "Area Keluarga", "Akses Fasilitas Resort"]
     },
     {
@@ -169,7 +169,7 @@ export const ResortPage: React.FC = () => {
       description: "Vila keluarga dengan dua kamar tidur, cocok untuk keluarga kecil yang ingin menikmati suasana alam Bogor.",
       size: "2 Kamar Tidur",
       occupancy: "4 Tamu",
-      image: "/resort/building-2.jpeg",
+      image: "/resort-assets/building-2.jpeg",
       features: ["2 Tempat Tidur Queen", "Vila Keluarga", "Teras", "Akses Fasilitas Resort"]
     },
     {
@@ -178,7 +178,7 @@ export const ResortPage: React.FC = () => {
       description: "Pilihan ekonomis untuk menikmati suasana alam Resort Highlander dengan fasilitas dasar yang nyaman.",
       size: "Kamar Resort",
       occupancy: "Cek Kapasitas",
-      image: "/resort/bedroom.jpeg",
+      image: "/resort-assets/bedroom.jpeg",
       features: ["Pancuran", "TV", "Air Panas", "Area Hijau"]
     },
     {
@@ -187,7 +187,7 @@ export const ResortPage: React.FC = () => {
       description: "Vila nyaman untuk keluarga atau grup kecil dengan akses ke fasilitas resort dan lingkungan yang sejuk.",
       size: "Vila",
       occupancy: "Cek Kapasitas",
-      image: "/resort/building-2.jpeg",
+      image: "/resort-assets/building-2.jpeg",
       features: ["Kolam Renang", "Parkir", "Taman", "Layanan Kamar"]
     },
     {
@@ -196,19 +196,19 @@ export const ResortPage: React.FC = () => {
       description: "Vila dengan pemandangan pegunungan sekitar untuk pengalaman menginap yang lebih dekat dengan alam.",
       size: "Vila View",
       occupancy: "Cek Kapasitas",
-      image: "/resort/building-3.jpeg",
+      image: "/resort-assets/building-3.jpeg",
       features: ["Mountain View", "Teras", "TV", "Sarapan Tersedia"]
     }
   ];
 
   const resortPhotos = [
-    { src: '/resort/building-main.jpeg', label: 'Bangunan utama' },
-    { src: '/resort/lobby.jpeg', label: 'Lobi' },
-    { src: '/resort/bedroom.jpeg', label: 'Kamar tidur' },
-    { src: '/resort/pool.jpeg', label: 'Kolam renang' },
-    { src: '/resort/building-2.jpeg', label: 'Area bangunan' },
-    { src: '/resort/building-3.jpeg', label: 'Bangunan resort' },
-    { src: '/resort/function-room.jpeg', label: 'Ruang fungsional' }
+    { src: '/resort-assets/building-main.jpeg', label: 'Bangunan utama' },
+    { src: '/resort-assets/lobby.jpeg', label: 'Lobi' },
+    { src: '/resort-assets/bedroom.jpeg', label: 'Kamar tidur' },
+    { src: '/resort-assets/pool.jpeg', label: 'Kolam renang' },
+    { src: '/resort-assets/building-2.jpeg', label: 'Area bangunan' },
+    { src: '/resort-assets/building-3.jpeg', label: 'Bangunan resort' },
+    { src: '/resort-assets/function-room.jpeg', label: 'Ruang fungsional' }
   ];
 
   const managedResortListings = resortProperties.map(p => ({
@@ -219,7 +219,7 @@ export const ResortPage: React.FC = () => {
     description: p.description || 'Akomodasi Resort Highlander dengan akses ke fasilitas resort.',
     size: p.type === 'villa' ? 'Vila' : 'Kamar Resort',
     occupancy: `${p.rooms || 1} Kamar`,
-    image: p.image || '/resort/building-main.jpeg',
+    image: p.image || '/resort-assets/building-main.jpeg',
     features: ['Wi-Fi', 'Kolam Renang', 'Parkir', 'Ciapus, Bogor']
   }));
 

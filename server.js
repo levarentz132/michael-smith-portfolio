@@ -332,6 +332,32 @@ function formatPropertyPrice(row) {
   return `Rp. ${amount.toLocaleString('id-ID')} / ${unit}`;
 }
 
+function slugifyForUrl(value) {
+  return String(value || '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w-]+/g, '')
+    .replace(/--+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function escapeXml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function toSitemapDate(value) {
+  const date = value ? new Date(value) : new Date();
+  return Number.isNaN(date.getTime())
+    ? new Date().toISOString().slice(0, 10)
+    : date.toISOString().slice(0, 10);
+}
+
 // Helper to preserve local database time without timezone shifts
 function formatLocalDatetime(dateVal) {
   if (!dateVal) return null;
@@ -1894,6 +1920,70 @@ app.put('/api/settings', async (req, res) => {
   }
 });
 
+// Dynamic sitemap: automatically follows property and article records.
+app.get('/sitemap.xml', async (req, res) => {
+  try {
+    const siteUrl = 'https://highlanderstay.com';
+    const [properties, articles] = await Promise.all([
+      pool.query('SELECT id, name, image FROM properties ORDER BY id ASC').then(([rows]) => rows),
+      pool.query('SELECT id, title, image, updated_at FROM articles ORDER BY id ASC').then(([rows]) => rows)
+    ]);
+
+    const staticEntries = [
+      { loc: `${siteUrl}/`, priority: '1.0', changefreq: 'weekly' },
+      { loc: `${siteUrl}/resort`, priority: '0.9', changefreq: 'weekly', image: `${siteUrl}/resort-assets/building-main.jpeg`, imageTitle: 'Highlander Resort Bogor' },
+      { loc: `${siteUrl}/privacy-policy`, priority: '0.2', changefreq: 'yearly' }
+    ];
+
+    const propertyEntries = properties.map(property => ({
+      loc: `${siteUrl}/property/${property.id}-${slugifyForUrl(property.name)}`,
+      lastmod: toSitemapDate(property.updated_at),
+      priority: '0.8',
+      changefreq: 'weekly',
+      image: property.image
+        ? (String(property.image).startsWith('http') ? property.image : `${siteUrl}/${String(property.image).replace(/^\//, '')}`)
+        : null,
+      imageTitle: property.name
+    }));
+
+    const articleEntries = articles.map(article => ({
+      loc: `${siteUrl}/panduan/${article.id}-${slugifyForUrl(article.title)}`,
+      lastmod: toSitemapDate(article.updated_at),
+      priority: '0.6',
+      changefreq: 'monthly',
+      image: article.image || null,
+      imageTitle: article.title
+    }));
+
+    const today = new Date().toISOString().slice(0, 10);
+    const urls = [...staticEntries, ...propertyEntries, ...articleEntries]
+      .map(entry => `  <url>
+    <loc>${escapeXml(entry.loc)}</loc>
+    <lastmod>${escapeXml(entry.lastmod || today)}</lastmod>
+    <changefreq>${entry.changefreq}</changefreq>
+    <priority>${entry.priority}</priority>${entry.image ? `
+    <image:image>
+      <image:loc>${escapeXml(entry.image)}</image:loc>
+      <image:title>${escapeXml(entry.imageTitle || '')}</image:title>
+    </image:image>` : ''}
+  </url>`)
+      .join('\n');
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+${urls}
+</urlset>`;
+
+    res.set('Content-Type', 'application/xml; charset=utf-8');
+    res.set('Cache-Control', 'public, max-age=3600');
+    res.send(xml);
+  } catch (error) {
+    console.error('Error generating sitemap:', error);
+    res.status(500).type('text').send('Failed to generate sitemap.');
+  }
+});
+
 // Serve static files from the React app in production
 if (process.env.NODE_ENV === 'production') {
   app.get(['/resort', '/resort/'], (req, res) => {
@@ -1905,7 +1995,7 @@ if (process.env.NODE_ENV === 'production') {
       name: 'Highlander Resort',
       alternateName: ['Resort Highlander', 'Highlanderstay Resort'],
       url: 'https://highlanderstay.com/resort',
-      image: 'https://highlanderstay.com/resort/building-main.jpeg',
+      image: 'https://highlanderstay.com/resort-assets/building-main.jpeg',
       address: {
         '@type': 'PostalAddress',
         streetAddress: 'Jalan Raya Curug Nangka, Kp. Sinar Wangi RT 05/RW 06, Desa Sukajaya',
@@ -1922,7 +2012,7 @@ if (process.env.NODE_ENV === 'production') {
       .replace(/<meta name="description"[^>]*>/, '<meta name="description" content="Pesan Highlander Resort di Ciapus, Bogor melalui Highlanderstay. Pilihan vila keluarga, kolam renang, dan lokasi dekat Curug Nangka." />')
       .replace(/<meta property="og:title"[^>]*>/, '<meta property="og:title" content="Highlander Resort Bogor | Highlanderstay Resort Ciapus" />')
       .replace(/<meta property="og:description"[^>]*>/, '<meta property="og:description" content="Vila keluarga dan kamar Resort Highlander di Ciapus, Bogor, dekat Curug Nangka." />')
-      .replace(/<meta property="og:image"[^>]*>/, '<meta property="og:image" content="https://highlanderstay.com/resort/building-main.jpeg" />')
+      .replace(/<meta property="og:image"[^>]*>/, '<meta property="og:image" content="https://highlanderstay.com/resort-assets/building-main.jpeg" />')
       .replace('</head>', `<link rel="canonical" href="https://highlanderstay.com/resort" />\n    <meta property="og:url" content="https://highlanderstay.com/resort" />\n    <script id="jsonld-seo" type="application/ld+json">${JSON.stringify(resortSchema)}</script>\n  </head>`);
 
     res.type('html').send(html);

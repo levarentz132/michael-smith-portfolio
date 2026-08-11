@@ -13,12 +13,8 @@
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
     <image:image>
-      <image:loc>https://highlanderstay.com/resort/building-main.jpeg</image:loc>
+      <image:loc>https://highlanderstay.com/resort-assets/building-main.jpeg</image:loc>
       <image:title>Highlander Resort Bogor</image:title>
-    </image:image>
-    <image:image>
-      <image:loc>https://highlanderstay.com/resort/bedroom.jpeg</image:loc>
-      <image:title>Kamar Highlander Resort</image:title>
     </image:image>
   </url>
   <url>
@@ -26,5 +22,205 @@
     <lastmod>2026-08-11</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.2</priority>
+  </url>
+  <url>
+    <loc>https://highlanderstay.com/property/1-highlanderstay-kost-tanjung-duren-alpukat</loc>
+    <lastmod>2026-08-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://highlanderstay.com/uploads/properties/prop_1779420077991-889622602.png</image:loc>
+      <image:title>Highlanderstay Kost Tanjung Duren, Alpukat </image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://highlanderstay.com/property/2-highlanderstay-kost-tanjung-duren-647</loc>
+    <lastmod>2026-08-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://highlanderstay.com/uploads/properties/prop_1779423266475-951261637.png</image:loc>
+      <image:title>HighlanderStay Kost Tanjung Duren 647</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://highlanderstay.com/property/3-highlanderstay-kost-pesing-lama-ac-wifi-jakarta-barat</loc>
+    <lastmod>2026-08-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://highlanderstay.com/uploads/properties/prop_1779423281539-103783970.png</image:loc>
+      <image:title>HighlanderStay Kost Pesing Lama | AC WiFi Jakarta Barat</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://highlanderstay.com/property/4-highlanderstay-kos-kemayoran-rajawali-apartemen</loc>
+    <lastmod>2026-08-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://highlanderstay.com/uploads/properties/prop_1779423289920-496688913.png</image:loc>
+      <image:title>HighlanderStay Kos Kemayoran Rajawali apartemen</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://highlanderstay.com/property/5-highlanderstay-kost-cengkareng-pedongkelan</loc>
+    <lastmod>2026-08-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://highlanderstay.com/uploads/properties/prop_1779423302986-730518922.png</image:loc>
+      <image:title>HighlanderStay Kost Cengkareng Pedongkelan</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://highlanderstay.com/property/6-highlanderstay-guesthouse-647-tanjung-duren</loc>
+    <lastmod>2026-08-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://highlanderstay.com/uploads/properties/prop_1779423314311-702461656.png</image:loc>
+      <image:title>HighlanderStay GuestHouse 647 Tanjung Duren</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://highlanderstay.com/property/7-highlanderstay-kost-kedoya-green-garden</loc>
+    <lastmod>2026-08-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://highlanderstay.com/uploads/properties/prop_1779423326436-370550076.png</image:loc>
+      <image:title>HighlanderStay Kost Kedoya Green Garden</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://highlanderstay.com/property/8-highlanderstay-kost-pesing-baru</loc>
+    <lastmod>2026-08-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://highlanderstay.com/uploads/properties/prop_1779423336996-565817415.png</image:loc>
+      <image:title>HighlanderStay Kost Pesing Baru</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://highlanderstay.com/property/9-highlanderstay-kos-cengkareng-sumur-bor</loc>
+    <lastmod>2026-08-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://highlanderstay.com/uploads/properties/prop_1779423361821-83964569.png</image:loc>
+      <image:title>HighlanderStay Kos Cengkareng Sumur Bor </image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://highlanderstay.com/property/10-highlanderstay-kos-mangga-greenville</loc>
+    <lastmod>2026-08-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://highlanderstay.com/uploads/properties/prop_1779423392446-492100593.png</image:loc>
+      <image:title>HighlanderStay Kos Mangga Greenville</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://highlanderstay.com/property/11-highlanderstay-kos-palembang-pak-jo</loc>
+    <lastmod>2026-08-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://highlanderstay.com/uploads/properties/prop_1779423401793-525550119.png</image:loc>
+      <image:title>HighlanderStay Kos Palembang Pak jo</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://highlanderstay.com/property/12-highlanderstay-kost-tanjung-duren-795</loc>
+    <lastmod>2026-08-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://highlanderstay.com/uploads/properties/prop_1779423412187-431820701.png</image:loc>
+      <image:title>HighlanderStay Kost Tanjung Duren 795</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://highlanderstay.com/property/13-highlanderstay-kost-jelambar</loc>
+    <lastmod>2026-08-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://highlanderstay.com/uploads/properties/prop_1779423421056-459369614.png</image:loc>
+      <image:title>HighlanderStay Kost Jelambar </image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://highlanderstay.com/property/14-highlanderstay-kost-bandara-taman-mahkota</loc>
+    <lastmod>2026-08-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://highlanderstay.com/uploads/properties/prop_1779423432131-84079868.png</image:loc>
+      <image:title>HighlanderStay Kost Bandara Taman Mahkota</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://highlanderstay.com/property/15-highlanderstay-apartment-centro</loc>
+    <lastmod>2026-08-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://highlanderstay.com/uploads/properties/prop_1779423438687-419521695.png</image:loc>
+      <image:title>Highlanderstay Apartment Centro</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://highlanderstay.com/property/16-highlanderstay-apartemen-green-parkview</loc>
+    <lastmod>2026-08-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://highlanderstay.com/uploads/properties/prop_1779423502137-894949747.png</image:loc>
+      <image:title>HighlanderStay Apartemen Green Parkview</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://highlanderstay.com/panduan/4-mendekorasi-ruang-sewa-tanpa-merusak-dinding</loc>
+    <lastmod>2026-05-23</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1561070791-26c113006238?auto=format&amp;fit=crop&amp;w=1200&amp;q=80</image:loc>
+      <image:title>Mendekorasi Ruang Sewa Tanpa Merusak Dinding</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://highlanderstay.com/panduan/3-etiket-co-living-aturan-bersama-yang-penting</loc>
+    <lastmod>2026-05-23</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1516116211223-5c359a36298a?auto=format&amp;fit=crop&amp;w=1200&amp;q=80</image:loc>
+      <image:title>Etiket Co-living &amp; Aturan Bersama yang Penting</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://highlanderstay.com/panduan/2-tips-tata-letak-kamar-minimalis-untuk-apartemen-studio</loc>
+    <lastmod>2026-05-23</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&amp;fit=crop&amp;w=1200&amp;q=80</image:loc>
+      <image:title>Tips Tata Letak Kamar Minimalis untuk Apartemen Studio</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://highlanderstay.com/panduan/1-memilih-kos-yang-tepat-boarding-pribadi-vs-co-living</loc>
+    <lastmod>2026-05-23</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&amp;fit=crop&amp;w=1200&amp;q=80</image:loc>
+      <image:title>Memilih Kos yang Tepat: Boarding Pribadi vs Co-living</image:title>
+    </image:image>
   </url>
 </urlset>

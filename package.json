@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "sitemap": "node scripts/generate-sitemap.mjs",
+    "clean:resort-route": "node scripts/clean-resort-route.mjs",
+    "build": "npm run clean:resort-route && npm run sitemap && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "inspect": "node inspect_db.js",
