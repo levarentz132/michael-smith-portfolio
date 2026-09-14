@@ -12,12 +12,12 @@ import { Stats } from './components/Stats';
 import { Footer } from './components/Footer';
 import { BookingModal } from './components/BookingModal';
 import { LoginModal } from './components/LoginModal';
-import { AdminPanel } from './components/AdminPanel';
+import { TenantProfileModal } from './components/TenantProfileModal';
 import { PropertyPage } from './components/PropertyPage';
 import { ArticlePage } from './components/ArticlePage';
 import { ResortPage } from './components/ResortPage';
 import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
-import { fetchSettings, slugify } from './api';
+import { fetchSettings, slugify, logoutTenant } from './api';
 import type { UserSession, Property, WebsiteSettings } from './api';
 import { useSEO } from './hooks/useSEO';
 
@@ -29,6 +29,7 @@ function App() {
   const [showPrefPopup, setShowPrefPopup] = useState(false);
   const [bookingPref, setBookingPref] = useState<'all' | 'monthly' | 'transit'>('all');
   const [loginOpen, setLoginOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [settings, setSettings] = useState<WebsiteSettings | null>(null);
   const [userSession, setUserSession] = useState<UserSession | null>(() => {
     const savedSession = localStorage.getItem('userSession');
@@ -44,7 +45,7 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const showFloatingWhatsApp = location.pathname !== '/admin';
+  const showFloatingWhatsApp = true;
 
   // SEO optimization for Home Page
   useSEO({
@@ -94,10 +95,6 @@ function App() {
   }, [isLoading]);
 
   const handleNavClick = (sectionId: string) => {
-    if (sectionId === 'admin') {
-      navigate('/admin');
-      return;
-    }
     if (sectionId === 'resort') {
       navigate('/resort');
       return;
@@ -123,24 +120,33 @@ function App() {
   };
 
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        await logoutTenant(token);
+      }
+    } catch (e) {
+      console.warn('Logout API error:', e);
+    }
     localStorage.removeItem('userSession');
+    localStorage.removeItem('authToken');
     setUserSession(null);
-    navigate('/');
+    setProfileOpen(false);
   };
 
   const handleLoginSuccess = (session: UserSession) => {
     localStorage.setItem('userSession', JSON.stringify(session));
+    if (session.token) {
+      localStorage.setItem('authToken', session.token);
+    }
     setUserSession(session);
-    navigate('/admin');
+    setLoginOpen(false);
   };
 
   return (
     <>
       <Routes>
-        {/* Admin Panel Route */}
-        <Route path="/admin" element={<AdminPanel />} />
-
         {/* Property Details Route */}
         <Route path="/property/:idSlug" element={<PropertyPage />} />
 
@@ -268,6 +274,7 @@ function App() {
                 session={userSession}
                 onLogout={handleLogout}
                 onLoginClick={() => setLoginOpen(true)}
+                onProfileClick={() => setProfileOpen(true)}
                 settings={settings}
               />
 
@@ -311,11 +318,20 @@ function App() {
                 }} 
               />
 
-              {/* Login Modal */}
+              {/* Login / Register / OTP Modal */}
               <LoginModal
                 isOpen={loginOpen}
                 onClose={() => setLoginOpen(false)}
                 onLoginSuccess={handleLoginSuccess}
+              />
+
+              {/* Tenant Profile & Phone Verification Modal */}
+              <TenantProfileModal
+                isOpen={profileOpen}
+                onClose={() => setProfileOpen(false)}
+                session={userSession}
+                onLogout={handleLogout}
+                onSessionUpdate={(updated) => setUserSession(updated)}
               />
             </motion.div>
           )}

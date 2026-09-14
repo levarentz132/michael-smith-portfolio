@@ -7,12 +7,14 @@ interface BookingModalProps {
   isOpen: boolean;
   onClose: () => void;
   property: Property | null;
+  initialRoomName?: string;
 }
 
-export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, property }) => {
+export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, property, initialRoomName }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [selectedRoom, setSelectedRoom] = useState(initialRoomName || '');
   const [bookingType, setBookingType] = useState<'monthly' | 'transit'>('monthly');
   const [date, setDate] = useState(''); // Target Move-in Date or Transit Date
   const [transitStartTime, setTransitStartTime] = useState('');
@@ -66,6 +68,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
         setTransitDuration(property?.minTransitHours || 3);
         setSurveyDate('');
         setSurveyTime('');
+        setSelectedRoom(initialRoomName || '');
 
         // Load session
         const savedSession = localStorage.getItem('userSession');
@@ -188,6 +191,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
         payload.tenantId = session.id;
       }
 
+      if (selectedRoom) {
+        payload.notes = `Kamar Pilihan: ${selectedRoom}`;
+      }
+
       if (bookingType === 'transit') {
         payload.transitDate = date;
         payload.transitStartTime = transitStartTime;
@@ -227,13 +234,15 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
           `Halo Admin Highlanderstay, saya baru saja mengajukan sewa Bulanan.\n\n` +
           `Detail Pemesanan:\n` +
           `- Properti: ${propertyName}\n` +
+          (selectedRoom ? `- Pilihan Kamar: ${selectedRoom}\n` : '') +
           `- Nama: ${name}\n` +
           `- Email: ${email}\n` +
           `- Telepon: ${phone}\n` +
           `- Rencana Masuk: ${date}\n` +
           `- Rencana Survei: ${surveyDate} pukul ${surveyTime}`
         );
-        const waUrl = `https://wa.me/${whatsappNumber}?text=${waMessage}`;
+        const targetWa = (property?.phone || whatsappNumber).replace(/[^\d]/g, '');
+        const waUrl = `https://wa.me/${targetWa}?text=${waMessage}`;
         window.open(waUrl, '_blank');
       }
       setTimeout(() => {
@@ -415,6 +424,41 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                 {/* Conditional Fields based on bookingType */}
                 {bookingType === 'monthly' ? (
                   <>
+                    {/* Available Room Picker (if property has room details) */}
+                    {((property?.availableRoomsList && property.availableRoomsList.length > 0) || (property?.availableRoomDetails && property.availableRoomDetails.length > 0)) && (
+                      <div className="flex flex-col gap-2">
+                        <div className="flex justify-between items-center">
+                          <label className="text-xs text-muted uppercase tracking-wider font-medium">Pilihan Kamar Siap Huni</label>
+                          {selectedRoom && (
+                            <span className="text-[10px] text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-md">
+                              Terpilih: {selectedRoom}
+                            </span>
+                          )}
+                        </div>
+                        <select
+                          value={selectedRoom}
+                          onChange={(e) => setSelectedRoom(e.target.value)}
+                          className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors duration-200"
+                        >
+                          <option value="">-- Pilih Kamar (Acak / Bebas) --</option>
+                          {(property.availableRoomDetails && property.availableRoomDetails.length > 0
+                            ? property.availableRoomDetails.map((r: any) => ({
+                                value: `Kamar ${r.name}`,
+                                label: `Kamar ${r.name}${r.floor ? ` (Lantai ${r.floor})` : ''}${r.monthly_rate ? ` - Rp ${Number(r.monthly_rate).toLocaleString('id-ID')}/bln` : ''}`
+                              }))
+                            : (property.availableRoomsList || []).map((r: string) => ({
+                                value: `Kamar ${r}`,
+                                label: `Kamar ${r}`
+                              }))
+                          ).map((opt, i) => (
+                            <option key={i} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
                     {/* Target Move-in Date */}
                     <div className="flex flex-col gap-2">
                       <label className="text-xs text-muted uppercase tracking-wider font-medium">Tanggal Masuk Rencana *</label>

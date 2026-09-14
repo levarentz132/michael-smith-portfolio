@@ -92,11 +92,7 @@ export const ArticlePage: React.FC = () => {
       <Navbar 
         activeSection="" 
         onNavClick={(sec) => {
-          if (sec === 'admin') {
-            navigate('/admin');
-          } else {
-            navigate(`/#${sec}`);
-          }
+          navigate(`/#${sec}`);
         }} 
         session={userSession}
         onLogout={handleLogout}

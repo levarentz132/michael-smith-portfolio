@@ -14,10 +14,12 @@ import { useSEO } from '../hooks/useSEO';
 
 export const PropertyPage: React.FC = () => {
   const { idSlug } = useParams<{ idSlug: string }>();
-  const id = idSlug ? parseInt(idSlug.split('-')[0]) : undefined;
+  const lookupKey = idSlug || '';
   const navigate = useNavigate();
   
   const [property, setProperty] = useState<Property | null>(null);
+  const [activeImage, setActiveImage] = useState<string>('');
+  const [selectedRoomName, setSelectedRoomName] = useState<string>('');
   const [settings, setSettings] = useState<WebsiteSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,11 +82,12 @@ export const PropertyPage: React.FC = () => {
     return null;
   });
 
-  const loadPropertyDetails = async (propId: number) => {
+  const loadPropertyDetails = async (propKey: string | number) => {
     try {
       setLoading(true);
-      const data = await fetchPropertyById(propId);
+      const data = await fetchPropertyById(propKey);
       setProperty(data);
+      setActiveImage(data.image);
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : 'Failed to retrieve property details.');
@@ -98,9 +101,9 @@ export const PropertyPage: React.FC = () => {
     window.scrollTo(0, 0);
 
     let timer: ReturnType<typeof setTimeout>;
-    if (id) {
+    if (lookupKey) {
       timer = setTimeout(() => {
-        loadPropertyDetails(id);
+        loadPropertyDetails(lookupKey);
       }, 0);
     }
 
@@ -113,7 +116,7 @@ export const PropertyPage: React.FC = () => {
       if (timer) clearTimeout(timer);
       window.removeEventListener('scroll', handleScroll);
     };
-  }, [id]);
+  }, [lookupKey]);
 
   useEffect(() => {
     const loadSettingsData = async () => {
@@ -297,16 +300,27 @@ export const PropertyPage: React.FC = () => {
             
             {/* Property Image Showcase */}
             <div className="bg-surface border border-stroke rounded-3xl p-3 md:p-4 overflow-hidden flex flex-col shadow-lg">
-              <div className="flex items-center gap-2 mb-3 px-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse" />
-                <span className="text-[10px] text-muted uppercase tracking-widest font-semibold text-text-primary">Galeri Showcase</span>
+              <div className="flex items-center justify-between mb-3 px-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse" />
+                  <span className="text-[10px] text-muted uppercase tracking-widest font-semibold text-text-primary">Galeri Showcase</span>
+                </div>
+                {property.availabilityStatus && (
+                  <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                    property.availableRooms && property.availableRooms > 0
+                      ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+                      : 'bg-rose-500/15 border-rose-500/30 text-rose-400'
+                  }`}>
+                    {property.availabilityStatus}
+                  </span>
+                )}
               </div>
               <div 
                 onClick={() => setIsLightboxOpen(true)}
                 className="w-full aspect-[16/10] md:aspect-video rounded-2xl overflow-hidden bg-bg relative group border border-stroke/50 cursor-zoom-in"
               >
                 <img 
-                  src={property.image} 
+                  src={activeImage || property.image} 
                   alt={property.title} 
                   className="w-full h-full object-contain bg-black/60 transition-transform duration-700 ease-out group-hover:scale-[1.02]"
                   onError={(e) => {
@@ -320,8 +334,113 @@ export const PropertyPage: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Gallery Thumbnails Strip if multiple images */}
+              {property.imageUrls && property.imageUrls.length > 1 && (
+                <div className="flex gap-2 overflow-x-auto pb-1 mt-3 px-1">
+                  {property.imageUrls.map((img, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setActiveImage(img)}
+                      className={`relative w-20 h-14 rounded-xl overflow-hidden shrink-0 border-2 transition-all ${
+                        (activeImage || property.image) === img
+                          ? 'border-text-primary scale-105 shadow-md'
+                          : 'border-stroke/50 opacity-60 hover:opacity-100'
+                      }`}
+                    >
+                      <img src={img} alt={`Foto ${idx + 1}`} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <span className="text-[10px] text-muted mt-3 text-center italic font-light">Tampilan penuh tidak dipotong dari {property.title} (Klik untuk inspeksi)</span>
             </div>
+
+            {/* Available Rooms Section from API */}
+            {((property.availableRoomDetails && property.availableRoomDetails.length > 0) || (property.availableRoomsList && property.availableRoomsList.length > 0)) && (
+              <div className="bg-surface border border-stroke rounded-3xl p-6 md:p-8 flex flex-col gap-6 shadow-md">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-stroke/50 pb-4">
+                  <div>
+                    <span className="text-[10px] text-muted uppercase tracking-widest font-semibold block">Data Real-Time API</span>
+                    <h3 className="text-xl font-semibold text-text-primary mt-0.5 flex items-center gap-2">
+                      <DoorOpen size={20} className="text-emerald-400" /> Kamar Siap Huni
+                    </h3>
+                  </div>
+                  <span className="bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-bold px-3.5 py-1.5 rounded-full flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    {property.availabilityStatus || `${property.availableRooms} Kamar Ready`}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+                  {(property.availableRoomDetails && property.availableRoomDetails.length > 0
+                    ? property.availableRoomDetails
+                    : (property.availableRoomsList || []).map((r, i) => ({ id: i, name: r, monthly_rate: property.rawPrice }))
+                  ).map((room: any) => (
+                    <div
+                      key={room.id || room.name}
+                      className="bg-bg/60 border border-stroke/60 hover:border-text-primary/50 rounded-2xl p-4 flex flex-col justify-between gap-3 transition-all duration-300 group"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="text-sm font-bold text-text-primary block">Kamar {room.name}</span>
+                          {room.floor && (
+                            <span className="text-[9px] text-muted font-medium">Lantai {room.floor}</span>
+                          )}
+                        </div>
+                        <span className="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-md font-semibold">
+                          Ready
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col text-xs text-muted gap-1 pt-2 border-t border-stroke/30">
+                        {room.size_sqm ? <span>Ukuran: <strong className="text-text-primary font-medium">{room.size_sqm} m²</strong></span> : null}
+                        {room.capacity ? <span>Kapasitas: <strong className="text-text-primary font-medium">{room.capacity} orang</strong></span> : null}
+                        {room.monthly_rate ? (
+                          <div className="mt-1">
+                            <span className="text-[9px] text-muted uppercase tracking-wider block">Tarif Sewa</span>
+                            <span className="text-emerald-400 font-bold text-sm">
+                              Rp {Number(room.monthly_rate).toLocaleString('id-ID')} <span className="text-[10px] text-muted font-normal">/ bln</span>
+                            </span>
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedRoomName(`Kamar ${room.name}`);
+                          handleBookClick();
+                        }}
+                        className="w-full mt-1 py-2 px-3 rounded-xl bg-text-primary text-bg font-bold text-[11px] hover:opacity-90 active:scale-[0.98] transition-all"
+                      >
+                        Pilih Kamar Ini
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Video Tour Section (if property has video_url) */}
+            {property.videoUrl && (
+              <div className="bg-surface border border-stroke rounded-3xl p-6 md:p-8 flex flex-col gap-4 shadow-md">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block animate-pulse" />
+                  <h3 className="text-lg font-semibold text-text-primary">Video Tour Properti</h3>
+                </div>
+                <div className="w-full aspect-video rounded-2xl overflow-hidden bg-black border border-stroke/50 shadow-inner">
+                  <video
+                    src={property.videoUrl}
+                    controls
+                    playsInline
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Description & Overview */}
             <div className="bg-surface border border-stroke rounded-3xl p-6 md:p-8">
@@ -568,11 +687,11 @@ export const PropertyPage: React.FC = () => {
 
                 {/* WhatsApp Inquiry Button */}
                 <a
-                  href={`https://wa.me/${settings?.whatsapp_number || '628123456789'}?text=${encodeURIComponent(
-                    `Halo Admin, saya tertarik dengan properti "${property.title}" (${property.location}). Apakah masih tersedia untuk pemesanan?`
+                  href={`https://wa.me/${(property.phone || settings?.whatsapp_number || '628123456789').replace(/[^\d]/g, '')}?text=${encodeURIComponent(
+                    `Halo Pengelola, saya tertarik dengan properti "${property.title}" (${property.location}). Apakah masih tersedia untuk pemesanan?`
                   )}`}
                   target="_blank"
-                  rel="noopener noreferrer"
+                  rel="noreferrer"
                   className="w-full py-4 px-6 rounded-full font-semibold text-xs md:text-sm uppercase tracking-wider flex items-center justify-center gap-2.5 mt-3 select-none transition-all duration-300 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25 active:scale-[0.98] shadow-lg shadow-emerald-500/5"
                 >
                   <svg 
@@ -595,7 +714,11 @@ export const PropertyPage: React.FC = () => {
       <BookingModal 
         isOpen={bookingOpen}
         property={property}
-        onClose={() => setBookingOpen(false)}
+        initialRoomName={selectedRoomName}
+        onClose={() => {
+          setBookingOpen(false);
+          setSelectedRoomName('');
+        }}
       />
 
       <LoginModal 
@@ -620,9 +743,9 @@ export const PropertyPage: React.FC = () => {
           >
             {/* Close Button */}
             <motion.button
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
               transition={{ delay: 0.1 }}
               onClick={(e) => {
                 e.stopPropagation();
@@ -663,7 +786,7 @@ export const PropertyPage: React.FC = () => {
                 }}
               >
                 <img
-                  src={property.image}
+                  src={activeImage || property.image}
                   alt={property.title}
                   style={{
                     transformOrigin: isZoomed ? `${zoomPos.x}% ${zoomPos.y}%` : 'center',

@@ -290,7 +290,14 @@ const pool = mysql.createPool({
 });
 
 // Run Initialization
-initializeDatabase();
+(async () => {
+  await initializeDatabase();
+  try {
+    await fetchPropertiesFromApi(true);
+  } catch (err) {
+    console.warn('[Startup Properties] Could not fetch properties from API:', err.message);
+  }
+})();
 
 // Helper to parse price string to integer
 function parsePrice(priceStr) {
@@ -384,152 +391,203 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
   }
 });
 
-// 1. Properties Routes
+// 1. Properties Routes (100% External Available Rooms API - Direct & Live, Zero Local DB)
 
-// GET all properties joined with locations
-app.get('/api/properties', async (req, res) => {
+const EXTERNAL_AVAILABLE_ROOMS_API = 'https://dashboard.highlanderstay.com/api/v1/available-rooms';
+let propertiesCache = null;
+let propertiesCacheTimestamp = 0;
+const CACHE_TTL_MS = 60 * 1000; // 60s in-memory cache
+
+const FALLBACK_PROPERTY_IMAGES = {
+  apartemen: 'uploads/properties/prop_1779423502137-894949747.png',
+  kiosk: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80',
+  lahan: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1200&q=80',
+  rumah: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
+  defaultKos: 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=1200&q=80',
+  defaultApartment: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80'
+};
+
+function parseMinPriceFromApi(item) {
+  if (item.available_room_details && item.available_room_details.length > 0) {
+    const validRates = item.available_room_details
+      .map(r => r.monthly_rate)
+      .filter(r => typeof r === 'number' && r > 0);
+    if (validRates.length > 0) return Math.min(...validRates);
+  }
+  if (item.price_range) {
+    const m = item.price_range.match(/rp\s*([\d\.]+)/i);
+    if (m) {
+      const parsed = parseInt(m[1].replace(/\./g, ''), 10);
+      if (!isNaN(parsed) && parsed > 0) return parsed;
+    }
+  }
+  return 1500000;
+}
+
+function resolveApiPropertyImage(item) {
+  if (item.image_url) {
+    return item.image_url.replace(/^http:\/\//, 'https://');
+  }
+  if (item.image_urls && item.image_urls.length > 0 && item.image_urls[0]) {
+    return item.image_urls[0].replace(/^http:\/\//, 'https://');
+  }
+  const key = String(item.canonical_slug || item.slug || '').toLowerCase();
+  if (FALLBACK_PROPERTY_IMAGES[key]) {
+    return FALLBACK_PROPERTY_IMAGES[key];
+  }
+  return key.includes('apartemen') || key.includes('apartment')
+    ? FALLBACK_PROPERTY_IMAGES.defaultApartment
+    : FALLBACK_PROPERTY_IMAGES.defaultKos;
+}
+
+// Fetch properties exclusively from external API without any local database
+async function fetchPropertiesFromApi(forceRefresh = false) {
+  if (!forceRefresh && propertiesCache && (Date.now() - propertiesCacheTimestamp < CACHE_TTL_MS)) {
+    return propertiesCache;
+  }
+
   try {
-    const [rows] = await pool.query(`
-      SELECT p.*, l.name AS location_name, l.slug AS location_slug
-      FROM properties p
-      LEFT JOIN locations l ON p.location_id = l.id
-    `);
+    const apiRes = await fetch(EXTERNAL_AVAILABLE_ROOMS_API, {
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(8000)
+    });
 
-    // Map DB rows to Frontend Property structure
-    const mapped = rows.map((row, index) => {
-      const frontendType = getPropertyType(row);
-      const isApartment = frontendType === 'apartment';
+    if (!apiRes.ok) {
+      throw new Error(`External API responded with status ${apiRes.status}`);
+    }
+
+    const apiJson = await apiRes.json();
+    const apiItems = Array.isArray(apiJson.data) ? apiJson.data : [];
+
+    const mappedProperties = apiItems.map((item, index) => {
+      const minPrice = parseMinPriceFromApi(item);
+      const isApartment = (item.canonical_slug === 'apartemen' || item.slug?.includes('apartemen') || item.name?.toLowerCase().includes('apartemen'));
+      const frontendType = isApartment ? 'apartment' : 'kos';
 
       let category = 'Premium Boarding Room';
       if (isApartment) {
         category = 'Luxury Apartment';
-      } else if (row.type) {
-        const typeCapitalized = row.type.charAt(0).toUpperCase() + row.type.slice(1);
-        category = `Premium Boarding Room (${typeCapitalized})`;
+      } else if (item.canonical_slug === 'kiosk') {
+        category = 'Kios Komersial';
+      } else if (item.canonical_slug === 'lahan') {
+        category = 'Lahan Properti';
+      } else if (item.canonical_slug === 'rumah') {
+        category = 'Rumah Sewa';
       }
 
-      const formattedPrice = formatPropertyPrice(row);
+      const imageUrl = resolveApiPropertyImage(item);
+      const imageUrls = Array.isArray(item.image_urls) && item.image_urls.length > 0
+        ? item.image_urls.map(u => String(u).replace(/^http:\/\//, 'https://'))
+        : (imageUrl ? [imageUrl] : []);
 
-      let imageUrl = row.image;
-      if (!imageUrl) {
-        imageUrl = isApartment 
-          ? 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80'
-          : 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=1200&q=80';
-      } else if (imageUrl.startsWith('uploads/')) {
-        imageUrl = `/${imageUrl}`;
-      }
+      const videoUrl = item.video_url ? String(item.video_url).replace(/^http:\/\//, 'https://') : null;
+      const availableRoomsList = Array.isArray(item.available_rooms) ? item.available_rooms : [];
+      const availableRoomsCount = availableRoomsList.length;
+      const availableRoomDetails = Array.isArray(item.available_room_details) ? item.available_room_details : [];
+
+      const availabilityStatus = item.availability_status || (availableRoomsCount > 0 ? `Ready ${availableRoomsCount} kamar` : 'Kamar full');
+      const isAvailable = availableRoomsCount > 0 && availabilityStatus.toLowerCase() !== 'kamar full';
+      const formattedPrice = item.price_range || `Rp. ${minPrice.toLocaleString('id-ID')} / month`;
 
       const colSpan = index % 3 === 0 ? 'md:col-span-7' : 'md:col-span-5';
       const aspectRatio = index % 3 === 0 ? 'aspect-[4/3] md:aspect-[1.5/1]' : 'aspect-[4/3] md:aspect-[1.1/1]';
 
       return {
-        id: row.id,
-        title: row.name,
+        id: index + 1,
+        title: item.name,
+        slug: item.slug || slugifyForUrl(item.name),
+        canonicalSlug: item.canonical_slug || null,
+        canonicalId: item.canonical_id || null,
         category: category,
         type: frontendType,
         price: formattedPrice,
-        rawPrice: row.price,
-        location: row.location_name || 'Jakarta',
-        address: row.location,
-        rating: row.id % 2 === 0 ? '4.9 ★' : '4.8 ★',
+        priceRange: item.price_range || null,
+        rawPrice: minPrice,
+        location: item.kecamatan || 'Jakarta',
+        kecamatan: item.kecamatan || null,
+        address: item.kecamatan || 'Jakarta',
+        phone: item.phone || null,
+        addressUrl: item.address_url || null,
+        rating: (index % 2 === 0 ? '4.9 ★' : '4.8 ★'),
         image: imageUrl,
+        imageUrls: imageUrls,
+        videoUrl: videoUrl,
         colSpan: colSpan,
         aspectRatio: aspectRatio,
         hourlyRate: null,
         minTransitHours: 3,
-        transit3h: row.transit_3h,
-        transit6h: row.transit_6h,
-        transit12h: row.transit_12h,
-        transit24h: row.transit_24h,
-        mapUrl: row.map_url,
-        promoPrice: row.promo_price,
-        promoLabel: row.promo_label,
-        available: row.available,
-        description: row.description || '',
-        rooms: row.rooms || 0,
-        availableRooms: row.available_rooms || 0,
-        branchId: row.branch_id,
-        status: row.status || 'available',
-        deposit: row.deposit || 0
+        transit3h: 0,
+        transit6h: 0,
+        transit12h: 0,
+        transit24h: 0,
+        mapUrl: item.address_url || null,
+        promoPrice: null,
+        promoLabel: null,
+        available: isAvailable,
+        description: item.description || '',
+        rooms: availableRoomsCount > 0 ? availableRoomsCount + 10 : 20,
+        availableRooms: availableRoomsCount,
+        availableRoomsList: availableRoomsList,
+        availableRoomDetails: availableRoomDetails,
+        availabilityStatus: availabilityStatus,
+        branchId: null,
+        status: isAvailable ? 'available' : 'booked',
+        deposit: 0
       };
     });
 
-    res.json(mapped);
+    propertiesCache = mappedProperties;
+    propertiesCacheTimestamp = Date.now();
+    console.log(`[API Properties] Loaded ${mappedProperties.length} properties directly from external API (zero DB queries).`);
+    return propertiesCache;
+  } catch (err) {
+    console.error('[API Properties] Failed to fetch external available-rooms API:', err.message);
+    if (propertiesCache) return propertiesCache;
+    return [];
+  }
+}
+
+// GET all properties
+app.get('/api/properties', async (req, res) => {
+  try {
+    const refresh = req.query.refresh === 'true';
+    const properties = await fetchPropertiesFromApi(refresh);
+    res.json(properties);
   } catch (error) {
-    console.error(error);
+    console.error('Error in GET /api/properties:', error);
     res.status(500).json({ error: 'Failed to fetch properties.' });
   }
 });
 
-// GET a specific property by ID
+// GET a specific property by ID or slug
 app.get('/api/properties/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const [rows] = await pool.query(`
-      SELECT p.*, l.name AS location_name, l.slug AS location_slug
-      FROM properties p
-      LEFT JOIN locations l ON p.location_id = l.id
-      WHERE p.id = ?
-      LIMIT 1
-    `, [id]);
+    const properties = await fetchPropertiesFromApi(false);
 
-    if (rows.length === 0) {
-      return res.status(404).json({ error: 'Property not found.' });
-    }
+    // Try finding by exact numeric id, slug, canonical_slug, canonical_id, or prefix like "15-apartemen"
+    const lookupKey = String(id).toLowerCase().trim();
+    const prefixId = lookupKey.includes('-') ? lookupKey.split('-')[0] : null;
+    const suffixSlug = lookupKey.includes('-') ? lookupKey.split('-').slice(1).join('-') : null;
 
-    const row = rows[0];
-    const frontendType = getPropertyType(row);
-    const isApartment = frontendType === 'apartment';
-
-    let category = 'Premium Boarding Room';
-    if (isApartment) {
-      category = 'Luxury Apartment';
-    } else if (row.type) {
-      const typeCapitalized = row.type.charAt(0).toUpperCase() + row.type.slice(1);
-      category = `Premium Boarding Room (${typeCapitalized})`;
-    }
-
-    const formattedPrice = formatPropertyPrice(row);
-
-    let imageUrl = row.image;
-    if (!imageUrl) {
-      imageUrl = isApartment 
-        ? 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80'
-        : 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=1200&q=80';
-    } else if (imageUrl.startsWith('uploads/')) {
-      imageUrl = `/${imageUrl}`;
-    }
-
-    res.json({
-      id: row.id,
-      title: row.name,
-      category: category,
-      type: frontendType,
-      price: formattedPrice,
-      rawPrice: row.price,
-      location: row.location_name || 'Jakarta',
-      address: row.location,
-      rating: row.id % 2 === 0 ? '4.9 ★' : '4.8 ★',
-      image: imageUrl,
-      hourlyRate: null,
-      minTransitHours: 3,
-      transit3h: row.transit_3h,
-      transit6h: row.transit_6h,
-      transit12h: row.transit_12h,
-      transit24h: row.transit_24h,
-      mapUrl: row.map_url,
-      promoPrice: row.promo_price,
-      promoLabel: row.promo_label,
-      available: row.available,
-      description: row.description || '',
-      rooms: row.rooms || 0,
-      availableRooms: row.available_rooms || 0,
-      branchId: row.branch_id,
-      status: row.status || 'available',
-      deposit: row.deposit || 0
+    const found = properties.find(p => {
+      if (String(p.id) === lookupKey) return true;
+      if (prefixId && String(p.id) === prefixId) return true;
+      if (p.slug && p.slug.toLowerCase() === lookupKey) return true;
+      if (suffixSlug && p.slug && p.slug.toLowerCase() === suffixSlug) return true;
+      if (p.canonicalSlug && p.canonicalSlug.toLowerCase() === lookupKey) return true;
+      if (suffixSlug && p.canonicalSlug && p.canonicalSlug.toLowerCase() === suffixSlug) return true;
+      if (p.canonicalId && p.canonicalId.toLowerCase() === lookupKey) return true;
+      return false;
     });
+
+    if (found) {
+      return res.json(found);
+    }
+
+    return res.status(404).json({ error: 'Property not found.' });
   } catch (error) {
-    console.error(error);
+    console.error('Error in GET /api/properties/:id:', error);
     res.status(500).json({ error: 'Failed to fetch property details.' });
   }
 });
@@ -1330,6 +1388,54 @@ app.delete('/api/bookings/:id', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to delete booking.' });
+  }
+});
+
+// Forwarding proxy to Highlanderstay / OpenKos Auth API
+const getAuthTargetUrl = (subPath) => {
+  const customUrl = process.env.OPENKOS_AUTH_URL || 'https://dashboard.highlanderstay.com/api/v1/auth';
+  return `${customUrl.replace(/\/$/, '')}/${subPath}`;
+};
+
+app.use('/api/v1/auth', async (req, res) => {
+  const targetSubPath = req.url.replace(/^\//, '');
+  const targetUrl = getAuthTargetUrl(targetSubPath);
+  
+  try {
+    const headers = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    };
+    if (req.headers.authorization) {
+      headers['Authorization'] = req.headers.authorization;
+    }
+    const fetchOptions = {
+      method: req.method,
+      headers
+    };
+    if (req.method !== 'GET' && req.method !== 'HEAD' && req.body && Object.keys(req.body).length > 0) {
+      fetchOptions.body = JSON.stringify(req.body);
+    }
+    
+    let apiRes;
+    try {
+      apiRes = await fetch(targetUrl, fetchOptions);
+    } catch (primaryErr) {
+      // Fallback to local OpenKos if remote has network issue
+      const fallbackUrl = `http://localhost:8080/api/v1/auth/${targetSubPath}`;
+      apiRes = await fetch(fallbackUrl, fetchOptions);
+    }
+
+    const data = await apiRes.text();
+    res.status(apiRes.status);
+    try {
+      res.json(JSON.parse(data));
+    } catch {
+      res.send(data);
+    }
+  } catch (err) {
+    console.error('[Auth Proxy Error]', err);
+    res.status(502).json({ error: 'Auth API service unreachable: ' + err.message });
   }
 });
 

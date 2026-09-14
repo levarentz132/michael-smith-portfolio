@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { UserSession, WebsiteSettings } from '../api';
-import { Menu, X, LogIn, LogOut, User, LayoutDashboard } from 'lucide-react';
+import { Menu, X, LogIn, LogOut, User } from 'lucide-react';
 
 interface NavbarProps {
   activeSection: string;
@@ -9,6 +9,7 @@ interface NavbarProps {
   session: UserSession | null;
   onLogout: () => void;
   onLoginClick: () => void;
+  onProfileClick?: () => void;
   settings?: WebsiteSettings | null;
 }
 
@@ -18,6 +19,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   session, 
   onLogout, 
   onLoginClick,
+  onProfileClick,
   settings
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -168,16 +170,20 @@ export const Navbar: React.FC<NavbarProps> = ({
           {session ? (
             <div className="flex items-center gap-2">
               <button
-                onClick={() => onNavClick('admin')}
+                onClick={() => onProfileClick ? onProfileClick() : onLoginClick()}
                 className="text-xs sm:text-sm font-medium rounded-full px-4 py-2 bg-stroke/40 hover:bg-stroke/70 text-text-primary transition-colors flex items-center gap-1.5 animate-fade-in"
+                title="Profil Akun Penyewa"
               >
-                <LayoutDashboard size={13} />
-                {session.role === 'admin' ? 'Panel Admin' : 'Portal Saya'}
+                <User size={13} className="text-emerald-400" />
+                <span className="truncate max-w-[120px]">{session.name ? session.name.split(' ')[0] : 'Penyewa'}</span>
+                {session.phone_verified && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" title="WhatsApp Terverifikasi" />
+                )}
               </button>
               <button
                 onClick={onLogout}
                 className="text-xs sm:text-sm font-medium rounded-full px-4 py-2 hover:bg-rose-500/10 text-rose-400 transition-colors flex items-center gap-1"
-                title="Sign Out"
+                title="Keluar Akun"
               >
                 <LogOut size={13} />
                 Keluar
@@ -186,10 +192,10 @@ export const Navbar: React.FC<NavbarProps> = ({
           ) : (
             <button
               onClick={onLoginClick}
-              className="text-xs sm:text-sm font-medium rounded-full px-4 py-2 bg-text-primary text-bg hover:bg-text-primary/95 transition-colors flex items-center gap-1.5"
+              className="text-xs sm:text-sm font-medium rounded-full px-4 py-2 bg-text-primary text-bg hover:bg-text-primary/95 transition-colors flex items-center gap-1.5 font-semibold"
             >
               <LogIn size={13} />
-              Masuk
+              Masuk / Daftar
             </button>
           )}
         </div>
@@ -198,17 +204,20 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex sm:hidden items-center gap-2">
           {session ? (
             <button
-              onClick={() => onNavClick('admin')}
-              className="p-2 rounded-full border border-white/10 bg-stroke/30 text-text-primary"
-              title="Dashboard"
+              onClick={() => onProfileClick ? onProfileClick() : onLoginClick()}
+              className="p-2 rounded-full border border-white/10 bg-stroke/30 text-text-primary relative"
+              title="Profil Penyewa"
             >
-              <LayoutDashboard size={16} />
+              <User size={16} className="text-emerald-400" />
+              {session.phone_verified && (
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-400 border border-bg" />
+              )}
             </button>
           ) : (
             <button
               onClick={onLoginClick}
               className="p-2 rounded-full border border-white/10 bg-text-primary text-bg"
-              title="Masuk"
+              title="Masuk / Daftar"
             >
               <LogIn size={16} />
             </button>
@@ -263,22 +272,29 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
 
             <div className="flex flex-col gap-2">
-              <span className="text-[10px] text-muted uppercase tracking-wider font-semibold">Akun</span>
+              <span className="text-[10px] text-muted uppercase tracking-wider font-semibold">Akun Penyewa</span>
               {session ? (
                 <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2 px-3 py-1.5 text-xs text-text-primary font-medium bg-stroke/20 rounded-xl">
-                    <User size={12} className="text-muted" />
-                    <span className="truncate">{session.name} ({session.role})</span>
+                  <div className="flex items-center justify-between px-3 py-2 text-xs text-text-primary font-medium bg-stroke/20 rounded-xl">
+                    <div className="flex items-center gap-2 truncate">
+                      <User size={13} className="text-emerald-400 shrink-0" />
+                      <span className="truncate">{session.name}</span>
+                    </div>
+                    {session.phone_verified && (
+                      <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full font-bold shrink-0">
+                        Terverifikasi
+                      </span>
+                    )}
                   </div>
                   <button
                     onClick={() => {
-                      onNavClick('admin');
+                      if (onProfileClick) onProfileClick();
                       setIsMobileMenuOpen(false);
                     }}
                     className="w-full text-left text-sm py-2 px-3 rounded-xl bg-stroke/40 hover:bg-stroke/70 text-text-primary transition-colors flex items-center gap-2"
                   >
-                    <LayoutDashboard size={14} />
-                    {session.role === 'admin' ? 'Panel Admin' : 'Portal Penyewa Saya'}
+                    <User size={14} className="text-emerald-400" />
+                    Profil & Verifikasi WhatsApp
                   </button>
                   <button
                     onClick={() => {
@@ -288,7 +304,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     className="w-full text-left text-sm py-2 px-3 rounded-xl hover:bg-rose-500/10 text-rose-400 transition-colors flex items-center gap-2"
                   >
                     <LogOut size={14} />
-                    Keluar
+                    Keluar Akun
                   </button>
                 </div>
               ) : (
@@ -300,7 +316,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   className="w-full text-center text-sm py-2.5 rounded-xl bg-text-primary text-bg hover:bg-text-primary/95 transition-colors font-medium flex items-center justify-center gap-2"
                 >
                   <LogIn size={14} />
-                  Masuk
+                  Masuk / Daftar Akun
                 </button>
               )}
             </div>

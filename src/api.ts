@@ -1,12 +1,33 @@
+export interface AvailableRoomDetail {
+  id: number;
+  name: string;
+  slug: string;
+  floor?: string | null;
+  capacity?: number;
+  size_sqm?: number | null;
+  monthly_rate?: number | null;
+  image_url?: string | null;
+  video_url?: string | null;
+}
+
 export interface Property {
   id?: number;
   title: string;
+  slug?: string;
+  canonicalSlug?: string;
+  canonicalId?: string;
   category: string;
-  type: 'kos' | 'apartment' | 'resort' | 'villa';
+  type: 'kos' | 'apartment' | 'resort' | 'villa' | 'kiosk' | 'commercial' | 'house' | 'land';
   price: string;
+  priceRange?: string;
   location: string;
+  kecamatan?: string | null;
   rating: string;
   image: string;
+  imageUrls?: string[];
+  videoUrl?: string | null;
+  phone?: string | null;
+  addressUrl?: string | null;
   colSpan?: string;
   aspectRatio?: string;
   hourlyRate?: number | null;
@@ -21,6 +42,9 @@ export interface Property {
   description?: string;
   rooms?: number;
   availableRooms?: number;
+  availableRoomsList?: string[];
+  availableRoomDetails?: AvailableRoomDetail[];
+  availabilityStatus?: string;
   status?: string;
   promoPrice?: number | null;
   promoLabel?: string | null;
@@ -57,14 +81,139 @@ export interface Booking {
   snapRedirectUrl?: string | null;
 }
 
+export interface TenantProfile {
+  id?: number;
+  name?: string;
+  phone?: string;
+  id_card_number?: string | null;
+}
+
+export interface AuthUser {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  phone_verified: boolean;
+  phone_verified_at: string | null;
+  is_active: boolean;
+  roles?: string[];
+  has_tenant_profile?: boolean;
+  tenant?: TenantProfile | null;
+}
+
 export interface UserSession {
-  role: 'admin' | 'tenant' | 'cashier' | 'owner';
+  role: 'tenant';
   id: number;
   name: string;
   email?: string;
-  username?: string;
   phone?: string;
+  token?: string;
+  phone_verified?: boolean;
+  phone_verified_at?: string | null;
+  is_active?: boolean;
+  has_tenant_profile?: boolean;
+  tenant?: TenantProfile | null;
   branchId?: number | null;
+  username?: string;
+}
+
+export interface RegisterPayload {
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
+  password_confirmation: string;
+  otp_channel?: 'whatsapp' | 'email';
+  device_name?: string;
+}
+
+export interface RegisterResponse {
+  message: string;
+  registration_token: string;
+  otp_sent: boolean;
+  otp_channel: string;
+  target: string;
+}
+
+export interface SendOtpPayload {
+  registration_token?: string;
+  login?: string;
+  channel?: 'whatsapp' | 'email';
+}
+
+export interface SendOtpResponse {
+  message: string;
+  channel: string;
+  target: string;
+  sent: boolean;
+}
+
+export interface VerifyOtpPayload {
+  registration_token?: string;
+  login?: string;
+  code: string;
+  device_name?: string;
+}
+
+export interface VerifyOtpResponse {
+  message: string;
+  verified: boolean;
+  token: string;
+  channel?: string;
+  phone_verified?: boolean;
+  email_verified?: boolean;
+  user: AuthUser;
+}
+
+export interface LoginPayload {
+  login: string;
+  password: string;
+  device_name?: string;
+}
+
+export interface LoginResponse {
+  message: string;
+  token: string;
+  user: AuthUser;
+}
+
+export interface CheckStatusPayload {
+  login: string;
+}
+
+export interface CheckStatusResponse {
+  status: 'registered' | 'pending_registration' | 'unregistered' | string;
+  registered: boolean;
+  pending_registration: boolean;
+  registration_token?: string;
+  message?: string;
+  id?: number;
+  name?: string;
+  email?: string;
+  phone?: string;
+  is_active?: boolean;
+  user?: {
+    name: string;
+    email: string;
+    phone: string;
+  };
+  verifications?: {
+    whatsapp?: {
+      available: boolean;
+      target: string;
+      verified: boolean;
+      verified_at: string | null;
+      status: string;
+    };
+    email?: {
+      available: boolean;
+      target: string;
+      verified: boolean;
+      verified_at: string | null;
+      status: string;
+    };
+  };
+  is_fully_verified?: boolean;
 }
 
 export interface Tenant {
@@ -116,16 +265,103 @@ async function handleResponse<T>(res: Response, fallbackError: string): Promise<
   }
 }
 
-// Fetch all properties
+// Fetch all properties (calls backend proxy, with fallback to direct dashboard API)
 export async function fetchProperties(): Promise<Property[]> {
-  const res = await fetch('/api/properties');
-  return handleResponse<Property[]>(res, 'Failed to fetch properties');
+  try {
+    const res = await fetch('/api/properties');
+    if (res.ok) {
+      return await res.json() as Property[];
+    }
+  } catch (err) {
+    console.warn('Failed to fetch /api/properties, trying direct API:', err);
+  }
+
+  // Fallback: fetch directly from dashboard API if backend is unreachable
+  try {
+    const directRes = await fetch('https://dashboard.highlanderstay.com/api/v1/available-rooms');
+    if (directRes.ok) {
+      const json = await directRes.json();
+      if (Array.isArray(json.data)) {
+        return json.data.map((item: any, idx: number) => {
+          const isApt = item.canonical_slug === 'apartemen' || item.slug?.includes('apartemen');
+          const cleanImg = item.image_url ? item.image_url.replace(/^http:\/\//, 'https://') : (isApt ? 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80' : 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=1200&q=80');
+          const cleanImgs = Array.isArray(item.image_urls) ? item.image_urls.map((u: string) => u.replace(/^http:\/\//, 'https://')) : [cleanImg];
+          const roomsCount = item.available_rooms?.length || 0;
+          const status = item.availability_status || (roomsCount > 0 ? `Ready ${roomsCount} kamar` : 'Kamar full');
+
+          return {
+            id: idx + 1,
+            title: item.name,
+            slug: item.slug,
+            canonicalSlug: item.canonical_slug,
+            canonicalId: item.canonical_id,
+            category: isApt ? 'Luxury Apartment' : 'Premium Boarding Room',
+            type: isApt ? 'apartment' : 'kos',
+            price: item.price_range || 'Rp 1.500.000 / bulan',
+            priceRange: item.price_range,
+            rawPrice: 1500000,
+            location: item.kecamatan || 'Jakarta',
+            kecamatan: item.kecamatan,
+            address: item.kecamatan || 'Jakarta',
+            phone: item.phone,
+            addressUrl: item.address_url,
+            rating: (idx % 2 === 0 ? '4.9 ★' : '4.8 ★'),
+            image: cleanImg,
+            imageUrls: cleanImgs,
+            videoUrl: item.video_url?.replace(/^http:\/\//, 'https://'),
+            colSpan: idx % 3 === 0 ? 'md:col-span-7' : 'md:col-span-5',
+            aspectRatio: idx % 3 === 0 ? 'aspect-[4/3] md:aspect-[1.5/1]' : 'aspect-[4/3] md:aspect-[1.1/1]',
+            available: roomsCount > 0 && status.toLowerCase() !== 'kamar full',
+            description: item.description || '',
+            rooms: roomsCount > 0 ? roomsCount + 10 : 20,
+            availableRooms: roomsCount,
+            availableRoomsList: item.available_rooms || [],
+            availableRoomDetails: item.available_room_details || [],
+            availabilityStatus: status,
+            status: roomsCount > 0 ? 'available' : 'booked',
+            deposit: 0
+          } as Property;
+        });
+      }
+    }
+  } catch (directErr) {
+    console.error('Direct API fallback also failed:', directErr);
+  }
+
+  throw new Error('Failed to fetch properties from server and API.');
 }
 
-// Fetch a single property by ID
-export async function fetchPropertyById(id: number): Promise<Property> {
-  const res = await fetch(`/api/properties/${id}`);
-  return handleResponse<Property>(res, `Failed to fetch details for property #${id}`);
+// Fetch a single property by ID or slug
+export async function fetchPropertyById(id: number | string): Promise<Property> {
+  try {
+    const res = await fetch(`/api/properties/${id}`);
+    if (res.ok) {
+      return await res.json() as Property;
+    }
+  } catch (err) {
+    console.warn(`Failed to fetch /api/properties/${id}, trying list lookup:`, err);
+  }
+
+  // Fallback: find from all properties list
+  const all = await fetchProperties();
+  const lookupKey = String(id).toLowerCase().trim();
+  const prefixId = lookupKey.includes('-') ? lookupKey.split('-')[0] : null;
+  const suffixSlug = lookupKey.includes('-') ? lookupKey.split('-').slice(1).join('-') : null;
+
+  const found = all.find(p => {
+    if (String(p.id) === lookupKey) return true;
+    if (prefixId && String(p.id) === prefixId) return true;
+    if (p.slug && p.slug.toLowerCase() === lookupKey) return true;
+    if (suffixSlug && p.slug && p.slug.toLowerCase() === suffixSlug) return true;
+    if (p.canonicalSlug && p.canonicalSlug.toLowerCase() === lookupKey) return true;
+    if (suffixSlug && p.canonicalSlug && p.canonicalSlug.toLowerCase() === suffixSlug) return true;
+    if (p.canonicalId && p.canonicalId.toLowerCase() === lookupKey) return true;
+    return false;
+  });
+
+  if (found) return found;
+
+  throw new Error(`Failed to fetch details for property #${id}`);
 }
 
 // Create a new property
@@ -201,24 +437,203 @@ export async function deleteBooking(id: number): Promise<{ id: number }> {
   return handleResponse<{ id: number }>(res, 'Failed to delete booking');
 }
 
-// Login Admin
-export async function loginAdmin(username: string, password: string): Promise<UserSession> {
-  const res = await fetch('/api/login/admin', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password })
-  });
-  return handleResponse<UserSession>(res, 'Admin login failed');
+export const AUTH_API_PROXY = '/api/v1/auth';
+export const AUTH_API_BASE = (import.meta as any).env?.VITE_AUTH_API_URL || '/api/v1/auth';
+
+async function callAuthApi<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const directUrl = `${AUTH_API_BASE}${normalizedPath}`;
+  const proxyUrl = `${AUTH_API_PROXY}${normalizedPath}`;
+
+  const defaultHeaders: Record<string, string> = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json'
+  };
+
+  const mergedHeaders = {
+    ...defaultHeaders,
+    ...(options.headers as Record<string, string> || {})
+  };
+
+  const reqOptions: RequestInit = {
+    ...options,
+    headers: mergedHeaders
+  };
+
+  // Try directUrl first
+  try {
+    const res = await fetch(directUrl, reqOptions);
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok) {
+      const errorMsg = data?.message || 
+        (data?.errors ? Object.values(data.errors).flat().join(', ') : null) ||
+        `Request failed with status ${res.status}`;
+      throw new Error(errorMsg);
+    }
+
+    return data as T;
+  } catch (err: any) {
+    if (err?.message && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError') && !err.message.includes('fetch failed')) {
+      throw err;
+    }
+
+    if (directUrl === proxyUrl) {
+      throw err;
+    }
+
+    // Try proxy fallback
+    try {
+      const res = await fetch(proxyUrl, reqOptions);
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        const errorMsg = data?.message || 
+          (data?.errors ? Object.values(data.errors).flat().join(', ') : null) ||
+          `Request failed with status ${res.status}`;
+        throw new Error(errorMsg);
+      }
+
+      return data as T;
+    } catch (proxyErr: any) {
+      throw new Error(err?.message || proxyErr?.message || 'Gagal terhubung ke server autentikasi.');
+    }
+  }
 }
 
-// Login Tenant
-export async function loginTenant(email: string, password: string): Promise<UserSession> {
-  const res = await fetch('/api/login/tenant', {
+// 1. Register a new tenant account (Staged Anti-Spam Registration)
+export async function registerTenant(payload: RegisterPayload): Promise<RegisterResponse> {
+  return await callAuthApi<RegisterResponse>('/register', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password })
+    body: JSON.stringify({
+      ...payload,
+      otp_channel: payload.otp_channel || 'whatsapp',
+      device_name: payload.device_name || 'highlanderstay-web'
+    })
   });
-  return handleResponse<UserSession>(res, 'Tenant login failed');
+}
+
+// 2. Send / Resend OTP via WhatsApp or Email
+export async function sendPhoneOtp(payload: SendOtpPayload, token?: string): Promise<SendOtpResponse> {
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return await callAuthApi<SendOtpResponse>('/otp/send', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      channel: 'whatsapp',
+      ...payload
+    })
+  });
+}
+
+// 3. Verify OTP code (either with registration_token or with login/token)
+export async function verifyPhoneOtp(payload: VerifyOtpPayload, token?: string): Promise<{ session: UserSession; response: VerifyOtpResponse }> {
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  const data = await callAuthApi<VerifyOtpResponse>('/otp/verify', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      device_name: 'highlanderstay-web',
+      ...payload
+    })
+  });
+
+  const session: UserSession = {
+    role: 'tenant',
+    id: data.user.id,
+    name: data.user.name,
+    email: data.user.email,
+    phone: data.user.phone,
+    token: data.token,
+    phone_verified: Boolean(data.phone_verified ?? data.user.phone_verified),
+    phone_verified_at: data.user.phone_verified_at || new Date().toISOString(),
+    is_active: Boolean(data.user.is_active),
+    has_tenant_profile: Boolean(data.user.has_tenant_profile),
+    tenant: data.user.tenant || null
+  };
+
+  return {
+    session,
+    response: data
+  };
+}
+
+// 4. Login tenant (accepts email OR phone number)
+export async function loginTenant(payload: LoginPayload): Promise<{ session: UserSession; message: string; token: string }> {
+  const data = await callAuthApi<LoginResponse>('/login', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...payload,
+      device_name: payload.device_name || 'highlanderstay-web'
+    })
+  });
+
+  const session: UserSession = {
+    role: 'tenant',
+    id: data.user.id,
+    name: data.user.name,
+    email: data.user.email,
+    phone: data.user.phone,
+    token: data.token,
+    phone_verified: Boolean(data.user.phone_verified),
+    phone_verified_at: (data.user as any).phone_verified_at || null,
+    is_active: Boolean(data.user.is_active),
+    has_tenant_profile: Boolean((data.user as any).has_tenant_profile),
+    tenant: (data.user as any).tenant || null
+  };
+
+  return {
+    session,
+    message: data.message || 'Login berhasil.',
+    token: data.token
+  };
+}
+
+// 5. Fetch current logged in user profile
+export async function fetchCurrentUser(token: string): Promise<AuthUser> {
+  const data = await callAuthApi<{ user: AuthUser }>('/me', {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+  return data.user;
+}
+
+// 6. Delete account permanently
+export async function deleteMyAccount(token: string): Promise<{ message: string }> {
+  return await callAuthApi<{ message: string }>('/me', {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+// 7. Logout tenant
+export async function logoutTenant(token: string): Promise<{ message: string }> {
+  return await callAuthApi<{ message: string }>('/logout', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+// 8. Check registration and verification status (dual-channel status)
+export async function checkAuthStatus(login: string): Promise<CheckStatusResponse> {
+  return await callAuthApi<CheckStatusResponse>('/check-status', {
+    method: 'POST',
+    body: JSON.stringify({
+      login: login.trim()
+    })
+  });
 }
 
 // Fetch bookings for a specific tenant
@@ -403,53 +818,6 @@ export async function deleteArticle(id: number): Promise<{ success: boolean; mes
     method: 'DELETE'
   });
   return handleResponse<{ success: boolean; message: string; id: number }>(res, 'Failed to delete article');
-}
-
-// Admin User Interface
-export interface AdminUser {
-  id?: number;
-  username: string;
-  password?: string;
-  name: string;
-  email?: string | null;
-  role: 'owner' | 'admin' | 'cashier';
-  branch_id?: number | null;
-  is_active?: number | boolean;
-  created_at?: string;
-}
-
-// Fetch all admin users
-export async function fetchAdminUsers(): Promise<AdminUser[]> {
-  const res = await fetch('/api/admins');
-  return handleResponse<AdminUser[]>(res, 'Failed to fetch admin users');
-}
-
-// Create a new admin user
-export async function createAdminUser(admin: Omit<AdminUser, 'id'>): Promise<AdminUser> {
-  const res = await fetch('/api/admins', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(admin)
-  });
-  return handleResponse<AdminUser>(res, 'Failed to create admin user');
-}
-
-// Update an admin user
-export async function updateAdminUser(id: number, admin: Partial<AdminUser>): Promise<AdminUser> {
-  const res = await fetch(`/api/admins/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(admin)
-  });
-  return handleResponse<AdminUser>(res, 'Failed to update admin user');
-}
-
-// Delete an admin user
-export async function deleteAdminUser(id: number): Promise<{ success: boolean; id: number }> {
-  const res = await fetch(`/api/admins/${id}`, {
-    method: 'DELETE'
-  });
-  return handleResponse<{ success: boolean; id: number }>(res, 'Failed to delete admin user');
 }
 
 export function slugify(text: string): string {
