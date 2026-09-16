@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { LoadingScreen } from './components/LoadingScreen';
@@ -11,6 +11,7 @@ import { Explorations } from './components/Explorations';
 import { Stats } from './components/Stats';
 import { Footer } from './components/Footer';
 import { BookingModal } from './components/BookingModal';
+import { BookingCartModal } from './components/BookingCartModal';
 import { LoginModal } from './components/LoginModal';
 import { TenantProfileModal } from './components/TenantProfileModal';
 import { PaymentReturnModal } from './components/PaymentReturnModal';
@@ -18,7 +19,7 @@ import { PropertyPage } from './components/PropertyPage';
 import { ArticlePage } from './components/ArticlePage';
 import { ResortPage } from './components/ResortPage';
 import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
-import { fetchSettings, slugify, logoutTenant } from './api';
+import { fetchSettings, slugify, logoutTenant, fetchCart, getOrCreateCartToken } from './api';
 import type { UserSession, Property, WebsiteSettings } from './api';
 import { useSEO } from './hooks/useSEO';
 
@@ -26,6 +27,8 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeSection, setActiveSection] = useState('home');
   const [bookingOpen, setBookingOpen] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [showPrefPopup, setShowPrefPopup] = useState(false);
   const [bookingPref, setBookingPref] = useState<'all' | 'monthly' | 'transit'>('all');
@@ -71,6 +74,23 @@ function App() {
     };
     loadSettings();
   }, []);
+
+  // Sync Cart Count
+  const refreshCartCount = useCallback(async () => {
+    try {
+      const token = getOrCreateCartToken();
+      const res = await fetchCart(token);
+      setCartCount(res.cart?.count || 0);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshCartCount();
+    window.addEventListener('focus', refreshCartCount);
+    return () => window.removeEventListener('focus', refreshCartCount);
+  }, [refreshCartCount]);
 
   // DOKU Callback / Return URL detection (/portal/billing, ?status=finish, ?invoice_id=...)
   useEffect(() => {
@@ -318,6 +338,8 @@ function App() {
                 onLogout={handleLogout}
                 onLoginClick={() => setLoginOpen(true)}
                 onProfileClick={() => setProfileOpen(true)}
+                onCartClick={() => setCartOpen(true)}
+                cartCount={cartCount}
                 settings={settings}
               />
 
@@ -358,7 +380,20 @@ function App() {
                 onClose={() => {
                   setBookingOpen(false);
                   setSelectedProperty(null);
+                  refreshCartCount();
                 }} 
+              />
+
+              {/* Standalone Booking Cart Modal */}
+              <BookingCartModal
+                isOpen={cartOpen}
+                onClose={() => {
+                  setCartOpen(false);
+                  refreshCartCount();
+                }}
+                onSelectRooms={() => {
+                  handleNavClick('work');
+                }}
               />
 
               {/* Login / Register / OTP Modal */}

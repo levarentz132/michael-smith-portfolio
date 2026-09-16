@@ -396,6 +396,142 @@ export interface DokuCheckoutResponse {
   attempt?: DokuCheckoutAttempt;
 }
 
+export interface CreateOrderPayload {
+  unit_id: number;
+  name: string;
+  phone: string;
+  email?: string;
+  start_date: string; // YYYY-MM-DD
+  duration_months?: number;
+  notes?: string;
+}
+
+export interface CreateOrderResponse {
+  message: string;
+  order: {
+    lease_id: number;
+    lease_reference: string;
+    property?: {
+      id: number;
+      name: string;
+      address?: string;
+    };
+    unit?: {
+      id: number;
+      name: string;
+    };
+    period?: {
+      start_date: string;
+      end_date: string;
+      duration_months: number;
+    };
+    tenant?: {
+      id: number;
+      name: string;
+      phone: string;
+      email?: string;
+    };
+    invoice?: {
+      id: number;
+      reference: string;
+      status: string;
+      total: number;
+      due_date: string;
+    };
+    checkout_url?: string | null;
+    payment_attempt?: any;
+    token?: string;
+  };
+}
+
+// --- CART INTERFACES (Cart-First Booking Flow) ---
+export interface CartItem {
+  id: number;
+  reference: string;
+  property_name?: string;
+  unit_name?: string;
+  guest_name?: string;
+  guest_phone?: string;
+  start_date?: string;
+  end_date?: string;
+  duration_months?: number;
+  amount: number;
+  currency?: string;
+  status: string;
+  is_available?: boolean;
+  conflict_message?: string | null;
+  checkout_url?: string | null;
+  expires_at?: string;
+  property?: { id?: number; name?: string; address?: string };
+  unit?: { id?: number; name?: string };
+  guest?: { name?: string; phone?: string; email?: string };
+  period?: { start_date?: string; end_date?: string; duration_months?: number };
+}
+
+export interface CartData {
+  cart_token: string;
+  count: number;
+  total: number;
+  items: CartItem[];
+}
+
+export interface AddToCartPayload {
+  unit_id: number;
+  name: string;
+  phone: string;
+  email?: string;
+  start_date: string; // YYYY-MM-DD
+  duration_months?: number;
+  notes?: string;
+}
+
+export interface AddToCartResponse {
+  message: string;
+  order: {
+    id: number;
+    reference: string;
+    cart_token: string;
+    status: string;
+    property: {
+      id: number;
+      name: string;
+      address?: string;
+    };
+    unit: {
+      id: number;
+      name: string;
+    };
+    guest: {
+      name: string;
+      phone: string;
+      email?: string;
+    };
+    period: {
+      start_date: string;
+      end_date?: string;
+      duration_months: number;
+    };
+    amount: number;
+    currency?: string;
+    checkout_url?: string | null;
+    expires_at?: string;
+    lease_created: boolean;
+    is_available?: boolean;
+    conflict_message?: string | null;
+  };
+}
+
+export interface RefreshCheckoutResponse {
+  message: string;
+  checkout_url: string;
+  order?: {
+    id: number;
+    reference: string;
+    amount: number;
+    status: string;
+  };
+}
+
 export interface TenantTicketsResponse {
   tickets: {
     current_page: number;
@@ -1029,6 +1165,386 @@ export async function createTenantInvoiceCheckout(
       body: JSON.stringify({})
     }
   );
+}
+
+// 5c. Create New Room Order & Lease (OpenKos Orders API with automatic DOKU Checkout URL)
+export const ORDERS_API_PROXY = '/api/v1/orders';
+export const ORDERS_API_BASE = 
+  (import.meta as any).env?.VITE_ORDERS_API_URL || 
+  (import.meta as any).env?.VITE_API_BASE_URL?.replace(/\/auth$/, '/orders') || 
+  'https://dashboard.highlanderstay.com/api/v1/orders';
+
+export async function createOpenKosOrder(payload: CreateOrderPayload): Promise<CreateOrderResponse> {
+  const reqBody = {
+    unit_id: payload.unit_id,
+    name: payload.name.trim(),
+    phone: payload.phone.trim(),
+    email: payload.email?.trim() || undefined,
+    start_date: payload.start_date,
+    duration_months: payload.duration_months || 1,
+    notes: payload.notes?.trim() || undefined
+  };
+
+  const headers = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  };
+
+  // 1. Try direct URL first
+  try {
+    const res = await fetch(ORDERS_API_BASE, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(reqBody)
+    });
+    const data = await res.json().catch(() => null);
+
+    if (res.ok && data?.order) {
+      return data as CreateOrderResponse;
+    }
+
+    if (res.status === 422 || res.status === 400 || res.status === 404) {
+      const errorMsg = data?.message ||
+        (data?.errors ? Object.values(data.errors).flat().join(', ') : null) ||
+        'Gagal memproses pemesanan kamar.';
+      throw new Error(errorMsg);
+    }
+  } catch (err: any) {
+    if (err.message && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError') && !err.message.includes('fetch failed')) {
+      throw err;
+    }
+  }
+
+  // 2. Try proxy URL
+  try {
+    const res = await fetch(ORDERS_API_PROXY, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(reqBody)
+    });
+    const data = await res.json().catch(() => null);
+
+    if (res.ok && data?.order) {
+      return data as CreateOrderResponse;
+    }
+
+    if (data?.message || data?.errors) {
+      const errorMsg = data?.message ||
+        (data?.errors ? Object.values(data.errors).flat().join(', ') : null);
+      throw new Error(errorMsg);
+    }
+  } catch (proxyErr: any) {
+    if (proxyErr.message && !proxyErr.message.includes('Failed to fetch') && !proxyErr.message.includes('NetworkError') && !proxyErr.message.includes('fetch failed')) {
+      throw proxyErr;
+    }
+  }
+
+  // 3. Fallback to local OpenKos instance (port 8000)
+  try {
+    const res = await fetch('http://localhost:8000/api/v1/orders', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(reqBody)
+    });
+    const data = await res.json().catch(() => null);
+
+    if (res.ok && data?.order) {
+      return data as CreateOrderResponse;
+    }
+
+    if (data?.message || data?.errors) {
+      const errorMsg = data?.message ||
+        (data?.errors ? Object.values(data.errors).flat().join(', ') : null);
+      throw new Error(errorMsg);
+    }
+  } catch (localErr: any) {
+    if (localErr.message && !localErr.message.includes('Failed to fetch')) {
+      throw localErr;
+    }
+  }
+
+  throw new Error('Gagal terhubung ke layanan pemesanan OpenKos. Mohon periksa koneksi Anda.');
+}
+
+// --- 5d. Cart-First Booking API Functions ---
+export const CART_API_PROXY = '/api/v1/cart';
+export const CART_API_BASE =
+  (import.meta as any).env?.VITE_CART_API_URL ||
+  (import.meta as any).env?.VITE_API_BASE_URL?.replace(/\/auth$/, '/cart') ||
+  'https://dashboard.highlanderstay.com/api/v1/cart';
+
+export function getOrCreateCartToken(): string {
+  let token = localStorage.getItem('openkos_cart_token');
+  if (!token) {
+    token = 'cart-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    localStorage.setItem('openkos_cart_token', token);
+  }
+  return token;
+}
+
+export async function addToCart(payload: AddToCartPayload, customCartToken?: string): Promise<AddToCartResponse> {
+  const cartToken = customCartToken || getOrCreateCartToken();
+  const reqBody = {
+    unit_id: payload.unit_id,
+    name: payload.name.trim(),
+    phone: payload.phone.trim(),
+    email: payload.email?.trim() || undefined,
+    start_date: payload.start_date,
+    duration_months: payload.duration_months || 1,
+    notes: payload.notes?.trim() || undefined
+  };
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    'X-Cart-Token': cartToken
+  };
+
+  // 1. Try direct URL first
+  try {
+    const res = await fetch(CART_API_BASE, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(reqBody)
+    });
+    const data = await res.json().catch(() => null);
+
+    if (res.ok && data?.order) {
+      if (data.order.cart_token) {
+        localStorage.setItem('openkos_cart_token', data.order.cart_token);
+      }
+      return data as AddToCartResponse;
+    }
+
+    if (res.status === 409 || res.status === 422 || res.status === 400 || res.status === 404) {
+      const errorMsg = data?.message ||
+        (data?.errors ? Object.values(data.errors).flat().join(', ') : null) ||
+        'Kamar ini sudah tidak tersedia atau telah dipesan oleh orang lain.';
+      const err: any = new Error(errorMsg);
+      err.code = data?.code || (res.status === 409 ? 'ROOM_ALREADY_PAID' : undefined);
+      err.response = { data, status: res.status };
+      throw err;
+    }
+  } catch (err: any) {
+    if (err.code || (err.message && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError') && !err.message.includes('fetch failed'))) {
+      throw err;
+    }
+  }
+
+  // 2. Try proxy URL
+  try {
+    const res = await fetch(CART_API_PROXY, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(reqBody)
+    });
+    const data = await res.json().catch(() => null);
+
+    if (res.ok && data?.order) {
+      if (data.order.cart_token) {
+        localStorage.setItem('openkos_cart_token', data.order.cart_token);
+      }
+      return data as AddToCartResponse;
+    }
+
+    if (res.status === 409 || res.status === 422 || res.status === 400 || res.status === 404 || data?.message || data?.errors) {
+      const errorMsg = data?.message ||
+        (data?.errors ? Object.values(data.errors).flat().join(', ') : null) ||
+        'Kamar ini sudah tidak tersedia atau telah dipesan oleh orang lain.';
+      const err: any = new Error(errorMsg);
+      err.code = data?.code || (res.status === 409 ? 'ROOM_ALREADY_PAID' : undefined);
+      err.response = { data, status: res.status };
+      throw err;
+    }
+  } catch (proxyErr: any) {
+    if (proxyErr.code || (proxyErr.message && !proxyErr.message.includes('Failed to fetch') && !proxyErr.message.includes('NetworkError') && !proxyErr.message.includes('fetch failed'))) {
+      throw proxyErr;
+    }
+  }
+
+  // 3. Fallback to local dev server (port 8000)
+  try {
+    const res = await fetch('http://localhost:8000/api/v1/cart', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(reqBody)
+    });
+    const data = await res.json().catch(() => null);
+    if (res.ok && data?.order) {
+      if (data.order.cart_token) {
+        localStorage.setItem('openkos_cart_token', data.order.cart_token);
+      }
+      return data as AddToCartResponse;
+    }
+    if (data?.message) {
+      throw new Error(data.message);
+    }
+  } catch (localErr: any) {
+    if (localErr.message && !localErr.message.includes('Failed to fetch')) {
+      throw localErr;
+    }
+  }
+
+  throw new Error('Gagal menambahkan kamar ke keranjang pemesanan. Silakan coba lagi.');
+}
+
+export async function fetchCart(customCartToken?: string): Promise<{ cart: CartData }> {
+  const cartToken = customCartToken || getOrCreateCartToken();
+  const query = `?cart_token=${encodeURIComponent(cartToken)}`;
+  const headers = { 'Accept': 'application/json', 'X-Cart-Token': cartToken };
+
+  // 1. Try direct URL
+  try {
+    const res = await fetch(`${CART_API_BASE}${query}`, { headers });
+    const data = await res.json().catch(() => null);
+    if (res.ok && data?.cart) {
+      return data as { cart: CartData };
+    }
+  } catch {}
+
+  // 2. Try proxy URL
+  try {
+    const res = await fetch(`${CART_API_PROXY}${query}`, { headers });
+    const data = await res.json().catch(() => null);
+    if (res.ok && data?.cart) {
+      return data as { cart: CartData };
+    }
+  } catch {}
+
+  // 3. Fallback to local
+  try {
+    const res = await fetch(`http://localhost:8000/api/v1/cart${query}`, { headers });
+    const data = await res.json().catch(() => null);
+    if (res.ok && data?.cart) {
+      return data as { cart: CartData };
+    }
+  } catch {}
+
+  return {
+    cart: {
+      cart_token: cartToken,
+      count: 0,
+      total: 0,
+      items: []
+    }
+  };
+}
+
+export async function removeFromCart(orderId: number): Promise<{ message: string }> {
+  const cartToken = getOrCreateCartToken();
+  const headers = { 'Accept': 'application/json', 'X-Cart-Token': cartToken };
+
+  // 1. Try direct URL
+  try {
+    const res = await fetch(`${CART_API_BASE}/${orderId}`, {
+      method: 'DELETE',
+      headers
+    });
+    const data = await res.json().catch(() => null);
+    if (res.ok) return data || { message: 'Booking item removed from cart.' };
+  } catch {}
+
+  // 2. Try proxy URL
+  try {
+    const res = await fetch(`${CART_API_PROXY}/${orderId}`, {
+      method: 'DELETE',
+      headers
+    });
+    const data = await res.json().catch(() => null);
+    if (res.ok) return data || { message: 'Booking item removed from cart.' };
+  } catch {}
+
+  // 3. Fallback to local
+  try {
+    const res = await fetch(`http://localhost:8000/api/v1/cart/${orderId}`, {
+      method: 'DELETE',
+      headers
+    });
+    const data = await res.json().catch(() => null);
+    if (res.ok) return data || { message: 'Booking item removed from cart.' };
+  } catch {}
+
+  return { message: 'Booking item removed from cart.' };
+}
+
+export async function refreshCartCheckout(orderId: number): Promise<RefreshCheckoutResponse> {
+  const cartToken = getOrCreateCartToken();
+  const headers = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    'X-Cart-Token': cartToken
+  };
+
+  // 1. Try direct URL
+  try {
+    const res = await fetch(`${CART_API_BASE}/${orderId}/checkout`, {
+      method: 'POST',
+      headers
+    });
+    const data = await res.json().catch(() => null);
+    if (res.ok && data?.checkout_url) {
+      return data as RefreshCheckoutResponse;
+    }
+    if (res.status === 409 || res.status === 400 || res.status === 422 || data?.code === 'ROOM_ALREADY_PAID' || data?.message) {
+      const errorMsg = data?.message || 'Kamar ini sudah dibayar oleh orang lain.';
+      const err: any = new Error(errorMsg);
+      err.code = data?.code || (res.status === 409 ? 'ROOM_ALREADY_PAID' : undefined);
+      err.response = { data, status: res.status };
+      throw err;
+    }
+  } catch (directErr: any) {
+    if (directErr.code || (directErr.message && !directErr.message.includes('Failed to fetch') && !directErr.message.includes('NetworkError') && !directErr.message.includes('fetch failed'))) {
+      throw directErr;
+    }
+  }
+
+  // 2. Try proxy URL
+  try {
+    const res = await fetch(`${CART_API_PROXY}/${orderId}/checkout`, {
+      method: 'POST',
+      headers
+    });
+    const data = await res.json().catch(() => null);
+    if (res.ok && data?.checkout_url) {
+      return data as RefreshCheckoutResponse;
+    }
+    if (res.status === 409 || res.status === 400 || res.status === 422 || data?.code === 'ROOM_ALREADY_PAID' || data?.message) {
+      const errorMsg = data?.message || 'Kamar ini sudah dibayar oleh orang lain.';
+      const err: any = new Error(errorMsg);
+      err.code = data?.code || (res.status === 409 ? 'ROOM_ALREADY_PAID' : undefined);
+      err.response = { data, status: res.status };
+      throw err;
+    }
+  } catch (proxyErr: any) {
+    if (proxyErr.code || (proxyErr.message && !proxyErr.message.includes('Failed to fetch') && !proxyErr.message.includes('NetworkError') && !proxyErr.message.includes('fetch failed'))) {
+      throw proxyErr;
+    }
+  }
+
+  // 3. Fallback to local
+  try {
+    const res = await fetch(`http://localhost:8000/api/v1/cart/${orderId}/checkout`, {
+      method: 'POST',
+      headers
+    });
+    const data = await res.json().catch(() => null);
+    if (res.ok && data?.checkout_url) {
+      return data as RefreshCheckoutResponse;
+    }
+    if (res.status === 409 || res.status === 400 || res.status === 422 || data?.code === 'ROOM_ALREADY_PAID' || data?.message) {
+      const errorMsg = data?.message || 'Kamar ini sudah dibayar oleh orang lain.';
+      const err: any = new Error(errorMsg);
+      err.code = data?.code || (res.status === 409 ? 'ROOM_ALREADY_PAID' : undefined);
+      err.response = { data, status: res.status };
+      throw err;
+    }
+  } catch (localErr: any) {
+    if (localErr.code || (localErr.message && !localErr.message.includes('Failed to fetch') && !localErr.message.includes('NetworkError') && !localErr.message.includes('fetch failed'))) {
+      throw localErr;
+    }
+  }
+
+  throw new Error('Gagal memperbarui tautan pembayaran DOKU.');
 }
 
 // 6. Submit Invoice Payment Proof

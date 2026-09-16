@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { createBooking, fetchSettings } from '../api';
+import { createBooking, addToCart, getOrCreateCartToken, fetchSettings, refreshCartCheckout } from '../api';
 import type { Property, UserSession, Booking } from '../api';
 
 interface BookingModalProps {
@@ -15,25 +15,26 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [selectedRoom, setSelectedRoom] = useState(initialRoomName || '');
+  const [selectedUnitId, setSelectedUnitId] = useState<number | null>(null);
   const [bookingType, setBookingType] = useState<'monthly' | 'transit'>('monthly');
-  const [date, setDate] = useState(''); // Target Move-in Date or Transit Date
+  const [date, setDate] = useState(''); // Move-in Date for monthly, or Transit Date
+  const [durationMonths, setDurationMonths] = useState<number>(1);
+  const [notes, setNotes] = useState('');
   const [transitStartTime, setTransitStartTime] = useState('');
   const [transitDuration, setTransitDuration] = useState<number>(3);
   const [session, setSession] = useState<UserSession | null>(null);
+  const [createdOrder, setCreatedOrder] = useState<any | null>(null);
 
   const hasTransitSupport = !!(property?.transit3h || property?.transit6h || property?.transit12h || property?.transit24h);
 
-  // New fields for monthly bookings
-  const [surveyDate, setSurveyDate] = useState('');
-  const [surveyTime, setSurveyTime] = useState('');
-  
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isPayingCheckout, setIsPayingCheckout] = useState(false);
   const [error, setError] = useState('');
   const [whatsappNumber, setWhatsappNumber] = useState('628123456789');
 
   useEffect(() => {
-    // Load Midtrans Snap JS dynamically
+    // Load Midtrans Snap JS dynamically for transit fallback
     const scriptUrl = 'https://app.sandbox.midtrans.com/snap/snap.js';
     const isLoaded = document.querySelector(`script[src="${scriptUrl}"]`);
     if (!isLoaded) {
@@ -64,11 +65,33 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
         // Default reset
         setBookingType('monthly');
         setDate('');
+        setDurationMonths(1);
+        setNotes('');
         setTransitStartTime('');
         setTransitDuration(property?.minTransitHours || 3);
-        setSurveyDate('');
-        setSurveyTime('');
-        setSelectedRoom(initialRoomName || '');
+        setCreatedOrder(null);
+        setIsSuccess(false);
+        setError('');
+
+        // Room and Unit ID initialization
+        if (initialRoomName && property?.availableRoomDetails && property.availableRoomDetails.length > 0) {
+          const cleanName = initialRoomName.replace(/^Kamar\s+/i, '').trim().toLowerCase();
+          const match = property.availableRoomDetails.find(r => r.name.toLowerCase() === cleanName);
+          if (match) {
+            setSelectedRoom(`Kamar ${match.name}`);
+            setSelectedUnitId(match.id);
+          } else {
+            setSelectedRoom(initialRoomName);
+            setSelectedUnitId(property.availableRoomDetails[0].id);
+          }
+        } else if (property?.availableRoomDetails && property.availableRoomDetails.length > 0) {
+          const first = property.availableRoomDetails[0];
+          setSelectedRoom(`Kamar ${first.name}`);
+          setSelectedUnitId(first.id);
+        } else {
+          setSelectedRoom(initialRoomName || '');
+          setSelectedUnitId(null);
+        }
 
         // Load session
         const savedSession = localStorage.getItem('userSession');
@@ -97,9 +120,33 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
         }
       }, 0);
     }
-  }, [isOpen, property]);
+  }, [isOpen, property, initialRoomName]);
 
+  // Selected room details & pricing calculations
+  const selectedRoomDetail = property?.availableRoomDetails?.find(r => 
+    (selectedUnitId && r.id === selectedUnitId) || 
+    (selectedRoom && r.name.toLowerCase() === selectedRoom.replace(/^Kamar\s+/i, '').trim().toLowerCase())
+  );
 
+  const effectiveMonthlyRate = selectedRoomDetail?.monthly_rate || 
+    (property?.promoPrice ? property.promoPrice : (property?.rawPrice || 1500000));
+
+  const totalRent = effectiveMonthlyRate * durationMonths;
+  const deposit = Number(property?.deposit || 0);
+  const totalInitialPayment = totalRent + deposit;
+
+  const handleRoomSelect = (roomVal: string) => {
+    setSelectedRoom(roomVal);
+    if (property?.availableRoomDetails) {
+      const clean = roomVal.replace(/^Kamar\s+/i, '').trim().toLowerCase();
+      const match = property.availableRoomDetails.find(r => r.name.toLowerCase() === clean);
+      if (match) {
+        setSelectedUnitId(match.id);
+        return;
+      }
+    }
+    setSelectedUnitId(null);
+  };
 
   const getTransitSummary = () => {
     if (!transitStartTime || !transitDuration || !property) return null;
@@ -152,8 +199,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email || !phone || !date) {
-      setError('Mohon isi semua kolom.');
+    if (!name.trim() || !phone.trim() || !date) {
+      setError('Mohon lengkapi nama, nomor WhatsApp, dan tanggal mulai sewa.');
       return;
     }
     
@@ -167,24 +214,135 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
         setError(sum.error || 'Detail transit tidak valid.');
         return;
       }
-    } else {
-      if (!surveyDate || !surveyTime) {
-        setError('Mohon tentukan tanggal dan waktu rencana survei.');
-        return;
-      }
     }
     
     setError('');
     setIsSubmitting(true);
 
+    // --- ALUR SEWA BULANAN (CART-FIRST BOOKING & DOKU CHECKOUT) ---
+    if (bookingType === 'monthly') {
+      try {
+        // Resolve unit_id from selected room or available rooms list
+        let resolvedUnitId = selectedUnitId;
+        if (!resolvedUnitId && property?.availableRoomDetails && property.availableRoomDetails.length > 0) {
+          if (selectedRoom) {
+            const clean = selectedRoom.replace(/^Kamar\s+/i, '').trim().toLowerCase();
+            const match = property.availableRoomDetails.find(r => r.name.toLowerCase() === clean);
+            if (match) resolvedUnitId = match.id;
+          }
+          if (!resolvedUnitId) {
+            resolvedUnitId = property.availableRoomDetails[0].id;
+          }
+        }
+
+        if (!resolvedUnitId) {
+          throw new Error('Mohon pilih salah satu kamar yang tersedia untuk melanjutkan penyewaan.');
+        }
+
+        // 1. Simpan kamar ke Keranjang Pemesanan OpenKos (Cart-First: kamar belum dikunci, lease_created: false)
+        const cartToken = getOrCreateCartToken();
+        const cartRes = await addToCart({
+          unit_id: resolvedUnitId,
+          name: name.trim(),
+          phone: phone.trim(),
+          email: email.trim() || undefined,
+          start_date: date,
+          duration_months: durationMonths,
+          notes: notes.trim() || undefined
+        }, cartToken);
+
+        const orderData = cartRes.order;
+        setCreatedOrder(orderData);
+
+        // 2. Simpan data transaksi ke sessionStorage untuk verifikasi saat kembali dari DOKU
+        sessionStorage.setItem('pending_doku_checkout', JSON.stringify({
+          order_id: orderData.id,
+          booking_reference: orderData.reference,
+          amount: orderData.amount,
+          property_name: orderData.property?.name,
+          unit_name: orderData.unit?.name,
+          cart_token: orderData.cart_token,
+          created_at: Date.now()
+        }));
+
+        // Periksa apakah kamar bentrok atau sudah dibayar orang lain
+        if (orderData.is_available === false || orderData.conflict_message) {
+          setError(orderData.conflict_message || 'Kamar ini baru saja dipesan atau dibayar oleh orang lain. Silakan pilih unit kamar lain yang masih tersedia.');
+          setIsSubmitting(false);
+          return;
+        }
+
+        // 3. Sinkronisasi pencatatan internal database lokal (non-blocking)
+        try {
+          await createBooking({
+            propertyName: property?.title || '',
+            userName: name,
+            userEmail: email || '',
+            phone,
+            bookingType: 'monthly',
+            moveInDate: date,
+            notes: `Cart Order: ${orderData.reference} | Kamar: ${orderData.unit?.name || selectedRoom} | Durasi: ${durationMonths} Bulan`,
+            tenantId: session?.id
+          });
+        } catch (syncErr) {
+          console.warn('Local booking sync note:', syncErr);
+        }
+
+        // 4. Dapatkan URL pembayaran DOKU Checkout (Jokul)
+        let checkoutUrl = orderData.checkout_url;
+        if (!checkoutUrl && orderData.id) {
+          try {
+            const freshCheckout = await refreshCartCheckout(orderData.id);
+            if (freshCheckout?.checkout_url) {
+              checkoutUrl = freshCheckout.checkout_url;
+              orderData.checkout_url = freshCheckout.checkout_url;
+              setCreatedOrder({ ...orderData });
+            }
+          } catch (freshErr) {
+            console.warn('Fresh checkout URL lookup note:', freshErr);
+          }
+        }
+
+        // 5. Buka langsung halaman pembayaran DOKU Checkout (TANPA lewat WhatsApp)
+        if (checkoutUrl) {
+          setIsSuccess(true);
+          window.location.href = checkoutUrl;
+          return;
+        }
+
+        // Jika checkout_url belum siap, tampilkan modal sukses pemesanan
+        setIsSuccess(true);
+      } catch (err: any) {
+        console.error('Cart booking error:', err);
+        const isConflict = err?.code === 'ROOM_ALREADY_PAID' || 
+                           err?.message?.toLowerCase().includes('sudah dibayar') ||
+                           err?.message?.toLowerCase().includes('sudah diisi') ||
+                           err?.message?.toLowerCase().includes('already paid') ||
+                           err?.message?.toLowerCase().includes('tidak tersedia') ||
+                           err?.message?.toLowerCase().includes('conflict');
+        if (isConflict) {
+          setError(err?.message || 'Kamar ini sudah dibayar atau dipesan oleh calon penghuni lain. Silakan pilih unit kamar lain yang masih tersedia.');
+        } else {
+          setError(err?.message || 'Gagal menambahkan kamar ke keranjang pemesanan. Silakan coba lagi.');
+        }
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    // --- ALUR SEWA TRANSIT ---
     try {
-      const payload: Omit<Booking, 'id' | 'status'> & { phone: string } & { surveyDate?: string; surveyTime?: string } = {
+      const payload: Omit<Booking, 'id' | 'status'> & { phone: string } = {
         propertyName: property?.title || '',
         userName: name,
         userEmail: email,
         phone,
         bookingType,
         moveInDate: date,
+        transitDate: date,
+        transitStartTime: transitStartTime,
+        duration: transitDuration
       };
 
       if (session) {
@@ -192,16 +350,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
       }
 
       if (selectedRoom) {
-        payload.notes = `Kamar Pilihan: ${selectedRoom}`;
-      }
-
-      if (bookingType === 'transit') {
-        payload.transitDate = date;
-        payload.transitStartTime = transitStartTime;
-        payload.duration = transitDuration;
-      } else {
-        payload.surveyDate = surveyDate;
-        payload.surveyTime = surveyTime;
+        payload.notes = `Kamar Transit: ${selectedRoom}`;
       }
 
       const res = await createBooking(payload as any);
@@ -229,22 +378,20 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
         }
       }
 
-      if (bookingType === 'monthly') {
-        const waMessage = encodeURIComponent(
-          `Halo Admin Highlanderstay, saya baru saja mengajukan sewa Bulanan.\n\n` +
-          `Detail Pemesanan:\n` +
-          `- Properti: ${propertyName}\n` +
-          (selectedRoom ? `- Pilihan Kamar: ${selectedRoom}\n` : '') +
-          `- Nama: ${name}\n` +
-          `- Email: ${email}\n` +
-          `- Telepon: ${phone}\n` +
-          `- Rencana Masuk: ${date}\n` +
-          `- Rencana Survei: ${surveyDate} pukul ${surveyTime}`
-        );
-        const targetWa = (property?.phone || whatsappNumber).replace(/[^\d]/g, '');
-        const waUrl = `https://wa.me/${targetWa}?text=${waMessage}`;
-        window.open(waUrl, '_blank');
-      }
+      const waMessage = encodeURIComponent(
+        `Halo Admin Highlanderstay, saya baru saja memesan Transit.\n\n` +
+        `Detail Pemesanan:\n` +
+        `- Properti: ${propertyName}\n` +
+        (selectedRoom ? `- Pilihan Kamar: ${selectedRoom}\n` : '') +
+        `- Nama: ${name}\n` +
+        `- Telepon: ${phone}\n` +
+        `- Tanggal Transit: ${date}\n` +
+        `- Waktu Mulai: ${transitStartTime} (${transitDuration} Jam)`
+      );
+      const targetWa = (property?.phone || whatsappNumber).replace(/[^\d]/g, '');
+      const waUrl = `https://wa.me/${targetWa}?text=${waMessage}`;
+      window.open(waUrl, '_blank');
+
       setTimeout(() => {
         setIsSuccess(false);
         if (!session) {
@@ -255,10 +402,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
         setDate('');
         setTransitStartTime('');
         setTransitDuration(property?.minTransitHours || 3);
-        setSurveyDate('');
-        setSurveyTime('');
         onClose();
-      }, 2000);
+      }, 2500);
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : 'Gagal mengirim pemesanan. Silakan coba lagi.');
@@ -302,14 +447,111 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
             <div className="absolute inset-0 halftone-overlay mix-blend-multiply opacity-10 pointer-events-none" />
 
             {isSuccess ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-6">
+              <div className="flex flex-col items-center justify-center py-6 text-center">
+                <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-4">
                   <span className="text-2xl text-emerald-400">✓</span>
                 </div>
-                <h3 className="text-xl font-display font-medium text-text-primary mb-2">Pemesanan Terkirim!</h3>
-                <p className="text-xs text-muted max-w-xs leading-relaxed">
-                  Kami telah menerima permintaan reservasi/survei Anda untuk <strong>{propertyName}</strong>. Tim kami akan menghubungi Anda secepatnya.
+                <h3 className="text-xl font-display font-semibold text-text-primary mb-1">
+                  {createdOrder ? 'Pesanan Kamar Siap Dibayar!' : 'Pemesanan Terkirim!'}
+                </h3>
+                <p className="text-xs text-muted max-w-sm leading-relaxed mb-4">
+                  {createdOrder 
+                    ? `Pesanan kamar ${createdOrder.unit?.name || selectedRoom} untuk ${createdOrder.property?.name || propertyName} telah disimpan ke keranjang. Mengarahkan Anda ke halaman pembayaran DOKU Checkout...`
+                    : `Kami telah menerima permintaan pemesanan Anda untuk ${propertyName}.`}
                 </p>
+
+                {createdOrder && (
+                  <div className="w-full bg-bg/80 border border-stroke rounded-xl p-4 text-left flex flex-col gap-2.5 text-xs mb-5">
+                    <div className="flex justify-between items-center pb-2 border-b border-stroke/40">
+                      <span className="text-muted">Kode Pesanan (Ref)</span>
+                      <span className="font-mono font-bold text-text-primary bg-text-primary/10 px-2 py-0.5 rounded">
+                        {createdOrder.reference}
+                      </span>
+                    </div>
+                    {createdOrder.unit?.name && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted">Kamar Pilihan</span>
+                        <span className="font-semibold text-amber-400">
+                          Kamar {createdOrder.unit.name}
+                        </span>
+                      </div>
+                    )}
+                    {createdOrder.period?.start_date && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted">Rencana Masuk</span>
+                        <span className="font-semibold text-text-primary">
+                          {createdOrder.period.start_date} ({createdOrder.period.duration_months} Bulan)
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center pt-2 border-t border-stroke/40">
+                      <span className="text-muted">Total Tagihan</span>
+                      <span className="font-extrabold text-amber-400 text-sm">
+                        Rp {Number(createdOrder.amount || totalInitialPayment).toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {createdOrder ? (
+                  <div className="w-full flex flex-col gap-2.5">
+                    <button
+                      type="button"
+                      disabled={isPayingCheckout}
+                      onClick={async () => {
+                        if (createdOrder.checkout_url) {
+                          window.location.href = createdOrder.checkout_url;
+                          return;
+                        }
+                        if (createdOrder.id) {
+                          try {
+                            setIsPayingCheckout(true);
+                            const res = await refreshCartCheckout(createdOrder.id);
+                            if (res?.checkout_url) {
+                              window.location.href = res.checkout_url;
+                              return;
+                            }
+                            throw new Error('Tautan pembayaran DOKU belum tersedia.');
+                          } catch (err: any) {
+                            alert(err?.message || 'Gagal membuka halaman DOKU Checkout. Silakan coba kembali.');
+                          } finally {
+                            setIsPayingCheckout(false);
+                          }
+                        }
+                      }}
+                      className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-bg font-bold text-xs uppercase tracking-wider text-center transition-colors shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      {isPayingCheckout ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
+                          <span>Membuka Pembayaran DOKU...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Bayar Sekarang dengan DOKU (QRIS/VA)</span>
+                          <span>→</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="w-full py-2.5 px-4 rounded-xl bg-surface border border-stroke hover:border-text-primary/30 text-text-primary text-xs font-medium text-center transition-colors cursor-pointer"
+                    >
+                      Tutup
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-full flex flex-col gap-2.5">
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="w-full py-3 px-4 rounded-xl bg-text-primary hover:bg-white text-bg font-bold text-xs uppercase tracking-wider text-center transition-colors shadow-md cursor-pointer"
+                    >
+                      Selesai
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="flex flex-col gap-5 relative z-10">
@@ -395,10 +637,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
 
                     {/* Input Email */}
                     <div className="flex flex-col gap-2">
-                      <label className="text-xs text-muted uppercase tracking-wider font-medium">Alamat Email *</label>
+                      <label className="text-xs text-muted uppercase tracking-wider font-medium">Alamat Email (Opsional)</label>
                       <input 
                         type="email"
-                        required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="anda@contoh.com"
@@ -408,7 +649,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
 
                     {/* Input Phone */}
                     <div className="flex flex-col gap-2">
-                      <label className="text-xs text-muted uppercase tracking-wider font-medium">Nomor Telepon *</label>
+                      <label className="text-xs text-muted uppercase tracking-wider font-medium">Nomor WhatsApp *</label>
                       <input 
                         type="tel"
                         required
@@ -428,7 +669,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                     {((property?.availableRoomsList && property.availableRoomsList.length > 0) || (property?.availableRoomDetails && property.availableRoomDetails.length > 0)) && (
                       <div className="flex flex-col gap-2">
                         <div className="flex justify-between items-center">
-                          <label className="text-xs text-muted uppercase tracking-wider font-medium">Pilihan Kamar Siap Huni</label>
+                          <label className="text-xs text-muted uppercase tracking-wider font-medium">Pilihan Kamar Siap Huni *</label>
                           {selectedRoom && (
                             <span className="text-[10px] text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-md">
                               Terpilih: {selectedRoom}
@@ -437,10 +678,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                         </div>
                         <select
                           value={selectedRoom}
-                          onChange={(e) => setSelectedRoom(e.target.value)}
+                          onChange={(e) => handleRoomSelect(e.target.value)}
                           className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-base sm:text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors duration-200"
                         >
-                          <option value="">-- Pilih Kamar (Acak / Bebas) --</option>
+                          <option value="">-- Pilih Kamar --</option>
                           {(property.availableRoomDetails && property.availableRoomDetails.length > 0
                             ? property.availableRoomDetails.map((r: any) => ({
                                 value: `Kamar ${r.name}`,
@@ -459,75 +700,85 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                       </div>
                     )}
 
-                    {/* Target Move-in Date */}
+                    {/* Target Move-in Date (Replaces Survey Date/Time) */}
                     <div className="flex flex-col gap-2">
-                      <label className="text-xs text-muted uppercase tracking-wider font-medium">Tanggal Masuk Rencana *</label>
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs text-muted uppercase tracking-wider font-medium">Tanggal Mulai Sewa (Move-in) *</label>
+                        <span className="text-[10px] text-emerald-400 font-medium">Kamar otomatis terkunci</span>
+                      </div>
                       <input 
                         type="date"
                         required
                         value={date}
+                        min={new Date().toISOString().split('T')[0]}
                         onChange={(e) => setDate(e.target.value)}
                         className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-base sm:text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors duration-200"
                       />
                     </div>
 
-                    {/* Survey Date & Time */}
-                    <div className="border-t border-stroke/40 pt-4 mt-2 flex flex-col gap-4">
-                      <span className="text-[10px] text-muted uppercase tracking-[0.2em] font-semibold">Jadwal Survei Lokasi</span>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="flex flex-col gap-2">
-                          <label className="text-xs text-muted uppercase tracking-wider font-medium">Tanggal Survei *</label>
-                          <input 
-                            type="date"
-                            required
-                            value={surveyDate}
-                            onChange={(e) => setSurveyDate(e.target.value)}
-                            className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-base sm:text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors duration-200"
-                          />
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          <label className="text-xs text-muted uppercase tracking-wider font-medium">Waktu Survei *</label>
-                          <input 
-                            type="time"
-                            required
-                            value={surveyTime}
-                            onChange={(e) => setSurveyTime(e.target.value)}
-                            className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-base sm:text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors duration-200"
-                          />
-                        </div>
+                    {/* Rental Duration Picker */}
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs text-muted uppercase tracking-wider font-medium">Durasi Sewa *</label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {[1, 3, 6, 12].map((m) => (
+                          <button
+                            key={m}
+                            type="button"
+                            onClick={() => setDurationMonths(m)}
+                            className={`py-2 px-1 text-xs rounded-xl border font-semibold transition-all duration-200 ${
+                              durationMonths === m
+                                ? 'bg-text-primary text-bg border-text-primary shadow-sm'
+                                : 'bg-bg/60 text-muted border-stroke hover:text-text-primary hover:border-text-primary/40'
+                            }`}
+                          >
+                            {m} Bulan
+                          </button>
+                        ))}
                       </div>
                     </div>
 
+                    {/* Notes / Special Request */}
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs text-muted uppercase tracking-wider font-medium">Catatan Tambahan (Opsional)</label>
+                      <input 
+                        type="text"
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        placeholder="cth. Perkiraan sampai jam 2 siang, butuh parkir motor"
+                        className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-base sm:text-sm text-text-primary placeholder:text-muted/50 focus:outline-none focus:border-white/20 transition-colors duration-200"
+                      />
+                    </div>
+
                     {/* Monthly pricing summary */}
-                    <div className="bg-bg border border-stroke/70 rounded-2xl p-4 flex flex-col gap-2 text-xs">
+                    <div className="bg-bg border border-stroke/70 rounded-2xl p-4 flex flex-col gap-2.5 text-xs">
                       <div className="flex justify-between text-muted">
-                        <span>Sewa Bulanan:</span>
-                        {property?.promoPrice ? (
-                          <div className="flex items-center gap-1.5 font-semibold text-text-primary">
-                            <span className="animate-strike text-muted/50 text-[10px]">
-                              Rp {Number(property.rawPrice).toLocaleString('id-ID')}
-                            </span>
-                            <span className="text-emerald-400 font-extrabold">
-                              Rp {Number(property.promoPrice).toLocaleString('id-ID')}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-text-primary font-semibold">
-                            Rp {(property?.rawPrice || 1500000).toLocaleString('id-ID')}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex justify-between text-muted">
-                        <span>Deposit Keamanan:</span>
+                        <span>Tarif Sewa Kamar:</span>
                         <span className="text-text-primary font-semibold">
-                          Rp {Number(property?.deposit || 0).toLocaleString('id-ID')}
+                          Rp {effectiveMonthlyRate.toLocaleString('id-ID')} / bulan
                         </span>
                       </div>
-                      <div className="flex justify-between border-t border-stroke/40 pt-2 mt-1 text-sm font-bold text-text-primary">
-                        <span>Est. Pembayaran Bulan Pertama:</span>
+                      <div className="flex justify-between text-muted">
+                        <span>Durasi Sewa:</span>
+                        <span className="text-text-primary font-semibold">{durationMonths} Bulan</span>
+                      </div>
+                      <div className="flex justify-between text-muted">
+                        <span>Subtotal Sewa:</span>
+                        <span className="text-text-primary font-semibold">
+                          Rp {(effectiveMonthlyRate * durationMonths).toLocaleString('id-ID')}
+                        </span>
+                      </div>
+                      {deposit > 0 && (
+                        <div className="flex justify-between text-muted">
+                          <span>Deposit Keamanan:</span>
+                          <span className="text-text-primary font-semibold">
+                            Rp {deposit.toLocaleString('id-ID')}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between border-t border-stroke/40 pt-2.5 mt-1 text-sm font-bold text-text-primary">
+                        <span>Total Tagihan Pertama:</span>
                         <span className="text-emerald-400">
-                          Rp {((property?.promoPrice ? property.promoPrice : (property?.rawPrice || 1500000)) + Number(property?.deposit || 0)).toLocaleString('id-ID')}
+                          Rp {totalInitialPayment.toLocaleString('id-ID')}
                         </span>
                       </div>
                     </div>
@@ -690,10 +941,22 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                 <button
                   type="submit"
                   disabled={isSubmitting || !!(summary && 'error' in summary)}
-                  className="w-full relative group rounded-full text-xs font-semibold uppercase tracking-wider py-4 bg-text-primary text-bg hover:bg-bg hover:text-text-primary transition-all duration-300 flex items-center justify-center gap-2 border border-transparent mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full relative group rounded-full text-xs font-semibold uppercase tracking-wider py-4 bg-text-primary text-bg hover:bg-bg hover:text-text-primary transition-all duration-300 flex items-center justify-center gap-2 border border-transparent mt-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                 >
                   <span className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 p-[1px] accent-gradient" style={{ margin: '-1px' }} />
-                  {isSubmitting ? 'Mengirim...' : 'Kirim Pertanyaan Pemesanan'}
+                  {isSubmitting ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4 text-current" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Memproses Sewa & Tagihan...
+                    </span>
+                  ) : bookingType === 'monthly' ? (
+                    'Pesan Kamar & Bayar (DOKU Checkout)'
+                  ) : (
+                    'Kirim Pertanyaan Pemesanan'
+                  )}
                 </button>
               </form>
             )}

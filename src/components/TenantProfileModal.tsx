@@ -19,14 +19,19 @@ import {
   AlertTriangle, 
   Receipt, 
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  ShoppingCart,
+  Trash2,
+  ExternalLink
 } from 'lucide-react';
 import type { 
   UserSession, 
   TenantDashboardData, 
   TenantLease, 
   TenantInvoice, 
-  MaintenanceTicket 
+  MaintenanceTicket,
+  CartData,
+  CartItem
 } from '../api';
 import { 
   sendPhoneOtp, 
@@ -37,7 +42,11 @@ import {
   createTenantInvoiceCheckout,
   submitInvoicePaymentProof, 
   fetchMaintenanceTickets, 
-  createMaintenanceTicket 
+  createMaintenanceTicket,
+  fetchCart,
+  removeFromCart,
+  refreshCartCheckout,
+  getOrCreateCartToken
 } from '../api';
 
 interface TenantProfileModalProps {
@@ -48,7 +57,7 @@ interface TenantProfileModalProps {
   onSessionUpdate?: (updatedSession: UserSession) => void;
 }
 
-type DashboardTab = 'overview' | 'leases' | 'invoices' | 'maintenance' | 'profile';
+type DashboardTab = 'overview' | 'cart' | 'leases' | 'invoices' | 'maintenance' | 'profile';
 
 export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
   isOpen,
@@ -92,6 +101,12 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
   const [isSubmittingTicket, setIsSubmittingTicket] = useState(false);
   const [ticketMessage, setTicketMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Cart State (Pemesanan Kamar Tertunda)
+  const [cartData, setCartData] = useState<CartData | null>(null);
+  const [cartLoading, setCartLoading] = useState(false);
+  const [cartActionLoadingId, setCartActionLoadingId] = useState<number | null>(null);
+  const [cartErrorMessage, setCartErrorMessage] = useState<string | null>(null);
+
   // Phone Verification in Profile Tab
   const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
   const [otpCode, setOtpCode] = useState('');
@@ -127,8 +142,87 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
     }
   };
 
+  // Load Cart Data
+  const loadCartData = useCallback(async () => {
+    setCartLoading(true);
+    setCartErrorMessage(null);
+    try {
+      const token = getOrCreateCartToken();
+      const res = await fetchCart(token);
+      if (res?.cart) {
+        setCartData(res.cart);
+      }
+    } catch (err: any) {
+      console.warn('Load cart error:', err?.message || err);
+    } finally {
+      setCartLoading(false);
+    }
+  }, []);
+
+  // Pay Cart Item via DOKU
+  const handlePayCartItem = async (item: CartItem) => {
+    if (item.is_available === false) {
+      setCartErrorMessage(item.conflict_message || 'Kamar ini sudah diisi atau dibayar oleh orang lain. Silakan hapus pesanan ini dan pilih kamar yang masih tersedia.');
+      return;
+    }
+
+    setCartActionLoadingId(item.id);
+    setCartErrorMessage(null);
+    try {
+      // Selalu verifikasi ketersediaan kamar ke backend sebelum redirect
+      const res = await refreshCartCheckout(item.id);
+      if (res?.checkout_url) {
+        sessionStorage.setItem('pending_doku_checkout', JSON.stringify({
+          orderId: item.id,
+          reference: item.reference,
+          amount: item.amount,
+          isCart: true,
+          timestamp: Date.now()
+        }));
+        window.location.href = res.checkout_url;
+      } else {
+        throw new Error('Tautan pembayaran DOKU tidak tersedia.');
+      }
+    } catch (err: any) {
+      console.error('Pay cart error:', err);
+      const isConflict = err?.code === 'ROOM_ALREADY_PAID' || 
+                         err?.response?.data?.code === 'ROOM_ALREADY_PAID' ||
+                         err?.message?.toLowerCase().includes('sudah dibayar') || 
+                         err?.message?.toLowerCase().includes('sudah diisi') ||
+                         err?.message?.toLowerCase().includes('already paid') ||
+                         err?.message?.toLowerCase().includes('tidak tersedia') ||
+                         err?.message?.toLowerCase().includes('conflict');
+
+      if (isConflict) {
+        setCartErrorMessage(err?.response?.data?.message || err.message || 'Kamar pada pesanan ini telah dibayar oleh orang lain.');
+        // Segarkan keranjang otomatis agar status item terupdate menjadi tidak tersedia
+        await loadCartData();
+      } else {
+        setCartErrorMessage(err?.message || 'Gagal memproses pembayaran keranjang. Silakan coba lagi.');
+      }
+    } finally {
+      setCartActionLoadingId(null);
+    }
+  };
+
+  // Remove item from cart
+  const handleRemoveCartItem = async (orderId: number) => {
+    if (!window.confirm('Apakah Anda yakin ingin membatalkan dan menghapus pesanan kamar ini dari keranjang?')) return;
+    setCartActionLoadingId(orderId);
+    try {
+      await removeFromCart(orderId);
+      await loadCartData();
+    } catch (err: any) {
+      console.error('Remove cart error:', err);
+      setCartErrorMessage(err?.message || 'Gagal menghapus kamar dari keranjang.');
+    } finally {
+      setCartActionLoadingId(null);
+    }
+  };
+
   // Load tenant portal data
   const loadPortalData = useCallback(async () => {
+    loadCartData();
     if (!session?.token) return;
     setIsLoading(true);
     setLoadError('');
@@ -169,13 +263,16 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [session?.token, invoiceFilter]);
+  }, [session?.token, invoiceFilter, loadCartData]);
 
   useEffect(() => {
-    if (isOpen && session?.token) {
-      loadPortalData();
+    if (isOpen) {
+      loadCartData();
+      if (session?.token) {
+        loadPortalData();
+      }
     }
-  }, [isOpen, session?.token, loadPortalData]);
+  }, [isOpen, session?.token, loadPortalData, loadCartData]);
 
   // Handle invoice filter change
   const handleFilterChange = async (filter: 'all' | 'unpaid' | 'paid' | 'overdue') => {
@@ -472,6 +569,22 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
               </button>
 
               <button
+                onClick={() => setActiveTab('cart')}
+                className={`text-xs font-semibold px-4 py-2 rounded-full transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap ${
+                  activeTab === 'cart'
+                    ? 'bg-text-primary text-bg shadow'
+                    : 'text-muted hover:text-text-primary hover:bg-stroke/30'
+                }`}
+              >
+                <ShoppingCart size={13} /> Keranjang Kamar
+                {(cartData?.count || 0) > 0 && (
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-500 text-bg font-bold font-mono">
+                    {cartData?.count}
+                  </span>
+                )}
+              </button>
+
+              <button
                 onClick={() => setActiveTab('leases')}
                 className={`text-xs font-semibold px-4 py-2 rounded-full transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap ${
                   activeTab === 'leases'
@@ -603,6 +716,38 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                       </div>
                     </div>
                   </div>
+
+                  {/* UNPAID CART CALLOUT (if any unpaid cart items) */}
+                  {cartData && cartData.count > 0 && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-transparent border border-amber-500/40 rounded-2xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4"
+                    >
+                      <div className="flex items-start gap-3.5">
+                        <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                          <ShoppingCart size={20} />
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase font-bold tracking-wider text-amber-400">Keranjang Pemesanan Kamar</div>
+                          <h4 className="text-sm sm:text-base font-semibold text-text-primary mt-0.5">
+                            Ada {cartData.count} pesanan kamar belum dibayar ({formatRupiah(cartData.total)})
+                          </h4>
+                          <p className="text-xs text-muted mt-0.5 max-w-xl">
+                            Kamar ditahan sementara di keranjang pemesanan dan belum dikunci permanen hingga pembayaran DOKU diselesaikan.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setActiveTab('cart')}
+                        className="px-4 py-2 bg-gradient-to-r from-amber-400 to-amber-500 text-bg hover:from-amber-300 hover:to-amber-400 rounded-full text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <ShoppingCart size={13} />
+                        <span>Buka Keranjang ({cartData.count})</span>
+                        <ArrowRight size={13} />
+                      </button>
+                    </motion.div>
+                  )}
 
                   {/* NEXT ACTION CALLOUT (if any) */}
                   {dashboardData?.next_action && (
@@ -808,6 +953,232 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                       </button>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* ===================== TAB: CART (KERANJANG PEMESANAN) ===================== */}
+              {activeTab === 'cart' && (
+                <div className="space-y-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-base font-bold text-text-primary flex items-center gap-2">
+                        <ShoppingCart size={16} className="text-amber-400" />
+                        Keranjang Pemesanan Kamar
+                      </h3>
+                      <p className="text-xs text-muted mt-0.5">
+                        Kamar yang dipilih ditahan sementara di keranjang. Selesaikan pembayaran sebelum kamar kembali tersedia untuk orang lain.
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={loadCartData}
+                      disabled={cartLoading}
+                      className="px-3.5 py-1.5 border border-stroke hover:border-text-primary text-text-primary rounded-full text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <RefreshCw size={12} className={cartLoading ? 'animate-spin' : ''} />
+                      <span>Segarkan Keranjang</span>
+                    </button>
+                  </div>
+
+                  {cartErrorMessage && (
+                    <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-400 text-xs flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle size={15} className="shrink-0" />
+                        <span>{cartErrorMessage}</span>
+                      </div>
+                      <button onClick={() => setCartErrorMessage(null)} className="hover:text-white font-bold">✕</button>
+                    </div>
+                  )}
+
+                  {cartLoading && !cartData ? (
+                    <div className="bg-bg/30 border border-stroke rounded-2xl p-10 text-center text-muted">
+                      <RefreshCw size={28} className="mx-auto animate-spin text-amber-400 mb-3" />
+                      <p className="text-xs font-medium">Memuat data keranjang pemesanan...</p>
+                    </div>
+                  ) : cartData && cartData.items && cartData.items.length > 0 ? (
+                    <div className="space-y-4">
+                      {/* Cart Item Cards */}
+                      <div className="grid grid-cols-1 gap-3.5">
+                        {cartData.items.map((item) => {
+                          const unitName = item.unit?.name || item.unit_name || 'Unit Kamar';
+                          const propName = item.property?.name || item.property_name || 'Properti';
+                          const guestName = item.guest?.name || item.guest_name || session.name;
+                          const guestPhone = item.guest?.phone || item.guest_phone || session.phone;
+                          const startDate = item.period?.start_date || item.start_date;
+                          const endDate = item.period?.end_date || item.end_date;
+                          const duration = item.period?.duration_months || item.duration_months || 1;
+                          const isAvailable = item.is_available !== false;
+
+                          return (
+                            <div
+                              key={item.id}
+                              className={`border rounded-2xl p-4 sm:p-5 transition-all space-y-4 ${
+                                isAvailable
+                                  ? 'bg-bg/50 border-stroke hover:border-stroke/80'
+                                  : 'bg-rose-500/5 border-rose-500/30'
+                              }`}
+                            >
+                              {/* Header */}
+                              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stroke/40 pb-3">
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs uppercase ${
+                                    isAvailable ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/15 text-rose-400'
+                                  }`}>
+                                    {unitName.substring(0, 3)}
+                                  </div>
+                                  <div>
+                                    <h4 className="text-sm sm:text-base font-bold text-text-primary">
+                                      {unitName} • {propName}
+                                    </h4>
+                                    <span className="text-[11px] text-muted font-mono">{item.reference}</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {isAvailable ? (
+                                    <span className="text-[10px] font-bold uppercase px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                                      <Clock size={11} /> Belum Dibayar
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] font-bold uppercase px-2.5 py-1 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30 flex items-center gap-1">
+                                      <AlertTriangle size={11} /> Sudah Diisi Orang Lain
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Conflict Alert Box if item not available or has message */}
+                              {(!isAvailable || item.conflict_message) && (
+                                <div className="p-3 bg-rose-500/10 border border-rose-500/25 rounded-xl text-rose-400 text-xs flex items-center gap-2">
+                                  <AlertTriangle size={15} className="shrink-0" />
+                                  <span>{item.conflict_message || 'Kamar ini telah dibayar atau dipesan oleh calon penghuni lain. Mohon hapus pesanan ini dan pilih kamar lain yang masih tersedia.'}</span>
+                                </div>
+                              )}
+
+                              {/* Detail Grid */}
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                                <div>
+                                  <span className="text-muted block text-[11px] uppercase tracking-wider">Tanggal Masuk</span>
+                                  <strong className="text-text-primary block mt-0.5">
+                                    {formatDate(startDate)}
+                                  </strong>
+                                </div>
+                                <div>
+                                  <span className="text-muted block text-[11px] uppercase tracking-wider">Durasi Sewa</span>
+                                  <strong className="text-text-primary block mt-0.5">
+                                    {duration} Bulan
+                                  </strong>
+                                  {endDate && (
+                                    <span className="text-muted block text-[10px]">
+                                      s/d {formatDate(endDate)}
+                                    </span>
+                                  )}
+                                </div>
+                                <div>
+                                  <span className="text-muted block text-[11px] uppercase tracking-wider">Data Pemesan</span>
+                                  <strong className="text-text-primary block mt-0.5 truncate">
+                                    {guestName}
+                                  </strong>
+                                  <span className="text-muted block text-[10px] truncate">
+                                    {guestPhone}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-muted block text-[11px] uppercase tracking-wider">Total Tagihan</span>
+                                  <strong className={`${isAvailable ? 'text-amber-400' : 'text-muted line-through'} block mt-0.5 text-sm sm:text-base font-bold font-mono`}>
+                                    {formatRupiah(item.amount)}
+                                  </strong>
+                                  <span className="text-muted block text-[10px]">
+                                    {isAvailable ? 'Belum terbit kontrak resmi' : 'Tidak dapat dilanjutkan'}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Footer Note & Actions */}
+                              <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-stroke/30">
+                                <div className="text-[11px] text-muted flex items-center gap-1.5">
+                                  {isAvailable ? (
+                                    <>
+                                      <AlertCircle size={13} className="text-amber-400 shrink-0" />
+                                      <span>Kamar belum dikunci permanen hingga pembayaran diverifikasi DOKU.</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <AlertTriangle size={13} className="text-rose-400 shrink-0" />
+                                      <span className="text-rose-400">Kamar sudah tidak tersedia. Silakan hapus item ini.</span>
+                                    </>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => handleRemoveCartItem(item.id)}
+                                    disabled={cartActionLoadingId === item.id}
+                                    className="px-3.5 py-1.5 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border border-rose-500/20 rounded-full transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                  >
+                                    <Trash2 size={12} />
+                                    <span>Hapus</span>
+                                  </button>
+
+                                  {isAvailable ? (
+                                    <button
+                                      onClick={() => handlePayCartItem(item)}
+                                      disabled={cartActionLoadingId === item.id}
+                                      className="px-4 py-1.5 bg-gradient-to-r from-amber-400 to-amber-500 text-bg hover:from-amber-300 hover:to-amber-400 font-bold text-xs rounded-full shadow transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                                    >
+                                      {cartActionLoadingId === item.id ? (
+                                        <>
+                                          <div className="w-3.5 h-3.5 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
+                                          <span>Mempersiapkan...</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <CreditCard size={13} />
+                                          <span>Bayar Online (DOKU)</span>
+                                          <ExternalLink size={12} />
+                                        </>
+                                      )}
+                                    </button>
+                                  ) : (
+                                    <span className="text-xs text-rose-400/80 font-medium px-3 py-1 bg-rose-500/10 rounded-full border border-rose-500/20">
+                                      Tidak Tersedia
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {!cartData.items.some(i => i.is_available !== false) && (
+                        <div className="p-4 bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs rounded-2xl text-center flex items-center justify-center gap-2">
+                          <AlertTriangle size={16} className="shrink-0" />
+                          <span>Semua kamar pada keranjang ini telah diisi oleh orang lain. Silakan hapus item dan pilih kamar lain yang masih tersedia di beranda.</span>
+                        </div>
+                      )}
+
+                      {/* Cart Total Summary Card */}
+                      <div className="bg-bg/60 border border-stroke rounded-2xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4">
+                        <div>
+                          <div className="text-xs text-muted">Total Pembayaran Tertunda ({cartData.count} Kamar)</div>
+                          <div className="text-lg sm:text-xl font-bold text-amber-400 font-mono mt-0.5">
+                            {formatRupiah(cartData.total)}
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted text-right">
+                          <span>Metode: QRIS, Virtual Account, & Kartu Kredit melalui DOKU Jokul</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-bg/30 border border-stroke rounded-2xl p-8 sm:p-12 text-center text-muted">
+                      <ShoppingCart size={40} className="mx-auto mb-3 opacity-30 text-stroke" />
+                      <h4 className="text-sm sm:text-base font-semibold text-text-primary">Keranjang Pemesanan Kosong</h4>
+                      <p className="text-xs mt-1.5 max-w-md mx-auto text-muted leading-relaxed">
+                        Tidak ada kamar yang sedang Anda pesan dalam keranjang. Silakan pilih unit kamar di beranda dan klik "Pesan Kamar Sekarang".
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 

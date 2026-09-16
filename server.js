@@ -1522,7 +1522,7 @@ app.use('/api/v1/tenant', async (req, res) => {
     try {
       apiRes = await fetch(targetUrl, fetchOptions);
     } catch (primaryErr) {
-      const fallbackUrl = `http://localhost:8080/api/v1/tenant/${targetSubPath}`;
+      const fallbackUrl = `http://localhost:8000/api/v1/tenant/${targetSubPath}`;
       apiRes = await fetch(fallbackUrl, fetchOptions);
     }
 
@@ -1536,6 +1536,119 @@ app.use('/api/v1/tenant', async (req, res) => {
   } catch (err) {
     console.error('[Tenant Proxy Error]', err);
     res.status(502).json({ error: 'Tenant API service unreachable: ' + err.message });
+  }
+});
+
+// Proxy route for Orders / Bookings API (OpenKos)
+const ORDERS_UPSTREAM_URL = process.env.OPENKOS_ORDERS_URL || 'https://dashboard.highlanderstay.com/api/v1/orders';
+
+app.use(['/api/v1/orders', '/api/v1/bookings'], async (req, res) => {
+  const targetSubPath = req.url.replace(/^\//, '');
+  const targetUrl = targetSubPath ? `${ORDERS_UPSTREAM_URL.replace(/\/$/, '')}/${targetSubPath}` : ORDERS_UPSTREAM_URL;
+
+  try {
+    const headers = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    };
+    if (req.headers.authorization) {
+      headers['Authorization'] = req.headers.authorization;
+    }
+
+    const fetchOptions = {
+      method: req.method,
+      headers
+    };
+
+    if (req.method !== 'GET' && req.method !== 'HEAD' && req.body && Object.keys(req.body).length > 0) {
+      fetchOptions.body = JSON.stringify(req.body);
+    }
+
+    let apiRes;
+    try {
+      apiRes = await fetch(targetUrl, fetchOptions);
+      if (apiRes.status === 404) {
+        throw new Error('Remote endpoint returned 404');
+      }
+    } catch (primaryErr) {
+      // Fallback to local OpenKos instance on port 8000
+      const fallbackUrl = targetSubPath 
+        ? `http://localhost:8000/api/v1/orders/${targetSubPath}`
+        : `http://localhost:8000/api/v1/orders`;
+      apiRes = await fetch(fallbackUrl, fetchOptions);
+    }
+
+    const data = await apiRes.text();
+    res.status(apiRes.status);
+    try {
+      res.json(JSON.parse(data));
+    } catch {
+      res.send(data);
+    }
+  } catch (err) {
+    console.error('[Orders Proxy Error]', err);
+    res.status(502).json({ message: 'Layanan pemesanan OpenKos tidak dapat dihubungi: ' + err.message });
+  }
+});
+
+// Proxy route for Cart API (OpenKos Cart-First Booking)
+const CART_UPSTREAM_URL = process.env.OPENKOS_CART_URL || 'https://dashboard.highlanderstay.com/api/v1/cart';
+
+app.use('/api/v1/cart', async (req, res) => {
+  const targetSubPath = req.url.replace(/^\//, '');
+  const baseUrl = CART_UPSTREAM_URL.replace(/\/$/, '');
+  const targetUrl = targetSubPath 
+    ? (targetSubPath.startsWith('?') ? `${baseUrl}${targetSubPath}` : `${baseUrl}/${targetSubPath}`)
+    : baseUrl;
+
+  try {
+    const headers = {
+      'Accept': 'application/json'
+    };
+    if (req.headers['x-cart-token']) {
+      headers['X-Cart-Token'] = req.headers['x-cart-token'];
+    }
+    if (req.headers.authorization) {
+      headers['Authorization'] = req.headers.authorization;
+    }
+    if (req.headers['content-type'] && !req.headers['content-type'].includes('multipart/form-data')) {
+      headers['Content-Type'] = req.headers['content-type'];
+    }
+
+    const fetchOptions = {
+      method: req.method,
+      headers
+    };
+
+    if (req.method !== 'GET' && req.method !== 'HEAD' && req.body && Object.keys(req.body).length > 0) {
+      fetchOptions.body = JSON.stringify(req.body);
+      headers['Content-Type'] = 'application/json';
+    }
+
+    let apiRes;
+    try {
+      apiRes = await fetch(targetUrl, fetchOptions);
+      if (apiRes.status === 404) {
+        throw new Error('Remote endpoint returned 404');
+      }
+    } catch (primaryErr) {
+      // Fallback to local OpenKos instance on port 8000
+      const fallbackUrl = targetSubPath 
+        ? (targetSubPath.startsWith('?') ? `http://localhost:8000/api/v1/cart${targetSubPath}` : `http://localhost:8000/api/v1/cart/${targetSubPath}`)
+        : `http://localhost:8000/api/v1/cart`;
+      apiRes = await fetch(fallbackUrl, fetchOptions);
+    }
+
+    const data = await apiRes.text();
+    res.status(apiRes.status);
+    try {
+      res.json(JSON.parse(data));
+    } catch {
+      res.send(data);
+    }
+  } catch (err) {
+    console.error('[Cart Proxy Error]', err);
+    res.status(502).json({ message: 'Layanan keranjang OpenKos tidak dapat dihubungi: ' + err.message });
   }
 });
 

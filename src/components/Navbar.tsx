@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { UserSession, WebsiteSettings } from '../api';
-import { Menu, X, LogIn, LogOut, User } from 'lucide-react';
+import { Menu, X, LogIn, LogOut, User, ShoppingCart } from 'lucide-react';
 
 interface NavbarProps {
   activeSection: string;
@@ -10,6 +10,8 @@ interface NavbarProps {
   onLogout: () => void;
   onLoginClick: () => void;
   onProfileClick?: () => void;
+  onCartClick?: () => void;
+  cartCount?: number;
   settings?: WebsiteSettings | null;
 }
 
@@ -20,6 +22,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogout, 
   onLoginClick,
   onProfileClick,
+  onCartClick,
+  cartCount,
   settings
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -166,6 +170,23 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <div className="w-px h-5 bg-stroke mr-3" />
 
+          {/* Cart Button (Desktop) */}
+          {onCartClick && (
+            <button
+              onClick={onCartClick}
+              className="relative p-2 text-text-primary hover:text-amber-400 rounded-full border border-white/10 hover:border-amber-500/40 bg-stroke/30 transition-all mr-2 cursor-pointer flex items-center justify-center"
+              title="Keranjang Pemesanan Kamar"
+              aria-label="Keranjang Pemesanan"
+            >
+              <ShoppingCart size={15} />
+              {(cartCount ?? 0) > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 text-[9px] font-bold font-mono bg-amber-500 text-bg rounded-full flex items-center justify-center shadow-md animate-pulse">
+                  {cartCount}
+                </span>
+              )}
+            </button>
+          )}
+
           {/* Session / Login controls for Desktop */}
           {session ? (
             <div className="flex items-center gap-2">
@@ -202,6 +223,22 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Mobile controls (Burger menu & Quick actions) */}
         <div className="flex sm:hidden items-center gap-2">
+          {onCartClick && (
+            <button
+              onClick={onCartClick}
+              className="relative p-2.5 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full border border-white/10 bg-stroke/30 text-text-primary active:scale-95 transition-transform"
+              title="Keranjang Pemesanan"
+              aria-label="Keranjang Pemesanan"
+            >
+              <ShoppingCart size={17} />
+              {(cartCount ?? 0) > 0 && (
+                <span className="absolute top-0.5 right-0.5 min-w-[17px] h-[17px] px-1 text-[9px] font-bold font-mono bg-amber-500 text-bg rounded-full flex items-center justify-center shadow-md">
+                  {cartCount}
+                </span>
+              )}
+            </button>
+          )}
+
           {session ? (
             <button
               onClick={() => onProfileClick ? onProfileClick() : onLoginClick()}
@@ -259,6 +296,26 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {link.label}
                 </button>
               ))}
+
+              {onCartClick && (
+                <button
+                  onClick={() => {
+                    onCartClick();
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full text-left text-sm py-2.5 px-3.5 rounded-xl hover:bg-stroke/30 active:bg-stroke/40 text-text-primary transition-colors flex justify-between items-center min-h-[44px] font-medium"
+                >
+                  <span className="flex items-center gap-2">
+                    <ShoppingCart size={15} className="text-amber-400" />
+                    <span>Keranjang Booking Kos</span>
+                  </span>
+                  {(cartCount ?? 0) > 0 && (
+                    <span className="text-[10px] bg-amber-500 text-bg px-2.5 py-0.5 rounded-full font-bold">
+                      {cartCount} Kamar
+                    </span>
+                  )}
+                </button>
+              )}
               <a
                 href="#contact"
                 onClick={(e) => {
