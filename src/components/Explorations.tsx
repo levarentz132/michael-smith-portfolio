@@ -162,21 +162,21 @@ export const Explorations: React.FC<ExplorationsProps> = ({ settings }) => {
     <section 
       ref={containerRef} 
       id="resume" 
-      className="relative min-h-screen bg-bg flex flex-col md:flex-row justify-between items-start px-6 md:px-12 lg:px-24 py-20 md:py-32 overflow-visible select-none"
+      className="relative min-h-screen bg-bg flex flex-col md:flex-row justify-between items-start px-4 sm:px-8 md:px-12 lg:px-24 py-16 md:py-32 overflow-visible select-none"
     >
       {/* Layer 1: Pinned Center Left Side */}
       <div 
         ref={pinnedRef} 
-        className="w-full md:w-[40%] h-auto md:h-screen flex flex-col justify-center items-start text-left mb-16 md:mb-0 z-10 md:sticky md:top-0"
+        className="w-full md:w-[40%] h-auto md:h-screen flex flex-col justify-center items-start text-left mb-12 md:mb-0 z-10 md:sticky md:top-0"
       >
         <div className="flex items-center gap-2 mb-3 amenity-text-item">
           <span className="w-8 h-px bg-stroke inline-block" />
           <span className="text-xs text-muted uppercase tracking-[0.3em] font-medium">Fasilitas Modern</span>
         </div>
-        <h2 className="text-4xl md:text-5xl lg:text-6xl font-display font-medium text-text-primary mb-6 leading-none amenity-text-item">
+        <h2 className="text-4xl md:text-5xl lg:text-6xl font-display font-medium text-text-primary mb-4 sm:mb-6 leading-none">
           Fasilitas <span className="italic font-normal">premium</span>
         </h2>
-        <p className="text-sm md:text-base text-muted font-light leading-relaxed mb-8 max-w-sm amenity-text-item">
+        <p className="text-xs sm:text-sm md:text-base text-muted font-light leading-relaxed mb-6 sm:mb-8 max-w-sm">
           Tinggal dengan nyaman berkat fasilitas bergaya butik, ruang dengan layanan penuh, internet fiber berkecepatan tinggi, dan keamanan standar untuk ketenangan pikiran di semua unit kami.
         </p>
         
@@ -186,7 +186,7 @@ export const Explorations: React.FC<ExplorationsProps> = ({ settings }) => {
             const contactSection = document.getElementById('contact');
             if (contactSection) contactSection.scrollIntoView({ behavior: 'smooth' });
           }}
-          className="relative group rounded-full text-xs font-semibold uppercase tracking-[0.15em] px-6 py-3.5 border border-stroke bg-bg hover:border-transparent text-text-primary transition-all duration-300 hover:scale-105 amenity-text-item"
+          className="relative group rounded-full text-xs font-semibold uppercase tracking-[0.15em] px-6 py-3.5 min-h-[44px] border border-stroke bg-bg hover:border-transparent text-text-primary transition-all duration-300 hover:scale-105"
         >
           <span className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 p-[1px] accent-gradient" style={{ margin: '-1px' }} />
           Jadwalkan Kunjungan <span className="inline-block transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-200">→</span>
@@ -194,10 +194,10 @@ export const Explorations: React.FC<ExplorationsProps> = ({ settings }) => {
       </div>
 
       {/* Layer 2: Parallax Columns Right Side */}
-      <div className="w-full md:w-[50%] flex gap-6 md:gap-12 lg:gap-16 pt-10 md:pt-40 pb-40 overflow-visible">
+      <div className="w-full md:w-[50%] flex gap-4 sm:gap-6 md:gap-12 lg:gap-16 pt-4 md:pt-40 pb-16 md:pb-40 overflow-visible">
         
         {/* Left Column */}
-        <div ref={leftColRef} className="flex-1 flex flex-col gap-8 md:gap-16 lg:gap-24">
+        <div ref={leftColRef} className="flex-1 flex flex-col gap-5 sm:gap-8 md:gap-16 lg:gap-24">
           {leftItems.map((item) => (
             <div key={item.id} className="amenity-card-wrapper w-full">
               <motion.div 
@@ -213,8 +213,8 @@ export const Explorations: React.FC<ExplorationsProps> = ({ settings }) => {
                   alt={item.title} 
                   className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
                 />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
-                  <span className="text-xs text-text-primary font-medium tracking-wide">{item.title}</span>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3 sm:p-4">
+                  <span className="text-[11px] sm:text-xs text-text-primary font-medium tracking-wide drop-shadow">{item.title}</span>
                 </div>
               </motion.div>
             </div>
@@ -222,7 +222,7 @@ export const Explorations: React.FC<ExplorationsProps> = ({ settings }) => {
         </div>
 
         {/* Right Column */}
-        <div ref={rightColRef} className="flex-1 flex flex-col gap-8 md:gap-16 lg:gap-24 mt-12 md:mt-24">
+        <div ref={rightColRef} className="flex-1 flex flex-col gap-5 sm:gap-8 md:gap-16 lg:gap-24 mt-6 sm:mt-12 md:mt-24">
           {rightItems.map((item) => (
             <div key={item.id} className="amenity-card-wrapper w-full">
               <motion.div 
@@ -238,8 +238,8 @@ export const Explorations: React.FC<ExplorationsProps> = ({ settings }) => {
                   alt={item.title} 
                   className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
                 />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
-                  <span className="text-xs text-text-primary font-medium tracking-wide">{item.title}</span>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3 sm:p-4">
+                  <span className="text-[11px] sm:text-xs text-text-primary font-medium tracking-wide drop-shadow">{item.title}</span>
                 </div>
               </motion.div>
             </div>

@@ -132,7 +132,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ project, index, onPropertyC
       transition={{ duration: 0.35 }}
       key={project.id || index}
       onClick={() => project.id && onPropertyClick(project.id, project.title)}
-      className={`group relative overflow-hidden bg-surface border rounded-2xl md:rounded-3xl cursor-pointer w-full aspect-[4/3] transition-all duration-300 ${
+      className={`group relative overflow-hidden bg-surface border rounded-xl sm:rounded-2xl md:rounded-3xl cursor-pointer w-full aspect-[4/5] sm:aspect-[4/3] transition-all duration-300 ${
         isHot 
           ? 'border-orange-500/40 shadow-lg shadow-orange-500/5 hover:border-orange-400 hover:shadow-orange-500/15' 
           : 'border-stroke hover:border-text-primary/30'
@@ -151,23 +151,23 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ project, index, onPropertyC
       />
 
       {/* Glassmorphic border light effect on hover */}
-      <div className="absolute inset-0 border border-white/0 group-hover:border-white/10 rounded-2xl md:rounded-3xl transition-colors duration-500 pointer-events-none z-20" />
+      <div className="absolute inset-0 border border-white/0 group-hover:border-white/10 rounded-xl sm:rounded-2xl md:rounded-3xl transition-colors duration-500 pointer-events-none z-20" />
 
       {/* Top Badge Overlay */}
-      <div className="absolute top-2.5 left-2.5 right-2.5 md:top-4 md:left-4 md:right-4 flex justify-between items-start z-10 transition-all duration-300 group-hover:opacity-0 group-hover:scale-95 gap-2">
-        <div className="flex flex-col gap-1.5 items-start">
-          <div className="flex items-center gap-1.5 flex-wrap">
+      <div className="absolute top-2 left-2 right-2 md:top-4 md:left-4 md:right-4 flex justify-between items-start z-10 transition-all duration-300 md:group-hover:opacity-0 md:group-hover:scale-95 gap-1">
+        <div className="flex flex-col gap-1 items-start min-w-0">
+          <div className="flex items-center gap-1 flex-wrap">
             {/* Highlighted Area Tag Pill at Top Left */}
-            <span className={`backdrop-blur-md text-[8px] md:text-[10px] font-extrabold uppercase px-2 py-0.5 md:px-2.5 md:py-1 rounded-full border shadow-sm flex items-center gap-1 ${badgeStyles.bg} ${badgeStyles.text} ${badgeStyles.border}`}>
-              <MapPin size={9} className="fill-white" />
-              <span>{areaName}</span>
+            <span className={`backdrop-blur-md text-[7px] sm:text-[8px] md:text-[10px] font-extrabold uppercase px-1.5 py-0.5 md:px-2.5 md:py-1 rounded-full border shadow-sm flex items-center gap-0.5 sm:gap-1 ${badgeStyles.bg} ${badgeStyles.text} ${badgeStyles.border}`}>
+              <MapPin size={8} className="fill-white" />
+              <span className="truncate max-w-[55px] sm:max-w-none">{areaName}</span>
             </span>
 
             {/* Price Badge */}
-            <span className="bg-bg/85 backdrop-blur-md text-[9px] md:text-[11px] font-bold text-text-primary px-2.5 py-1 md:px-3 md:py-1.5 rounded-full border border-white/5 flex items-center gap-1">
+            <span className="bg-bg/85 backdrop-blur-md text-[7px] sm:text-[9px] md:text-[11px] font-bold text-text-primary px-1.5 py-0.5 sm:px-2.5 sm:py-1 md:px-3 md:py-1.5 rounded-full border border-white/5 flex items-center gap-0.5 sm:gap-1">
               {project.promoPrice ? (
                 <>
-                  <span className="animate-strike text-text-primary/40 text-[7px] md:text-[10px]">
+                  <span className="animate-strike text-text-primary/40 text-[6px] sm:text-[7px] md:text-[10px]">
                     Rp {Math.round(Number(project.rawPrice) / 1000)}k
                   </span>
                   <span className="text-emerald-400 font-extrabold">
@@ -175,43 +175,43 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ project, index, onPropertyC
                   </span>
                 </>
               ) : (
-                <span>{project.priceRange || project.price.replace('Rp.', 'Rp').replace('/ month', '')}</span>
+                <span>{project.priceRange || project.price.replace('Rp.', 'Rp').replace('/ month', '').replace('/ bulan', '')}</span>
               )}
             </span>
 
             {/* HOT Pill Badge */}
             {isHot && (
-              <span className="bg-gradient-to-r from-orange-500/90 to-rose-500/90 backdrop-blur-md text-[8px] md:text-[10px] font-extrabold text-white px-2 py-0.5 md:px-2.5 md:py-1 rounded-full shadow-md shadow-orange-500/20 flex items-center gap-1">
-                <Flame size={11} className="fill-white" />
-                <span>HOT</span>
+              <span className="bg-gradient-to-r from-orange-500/90 to-rose-500/90 backdrop-blur-md text-[7px] sm:text-[8px] md:text-[10px] font-extrabold text-white px-1.5 py-0.5 md:px-2.5 md:py-1 rounded-full shadow-md shadow-orange-500/20 flex items-center gap-0.5">
+                <Flame size={9} className="fill-white" />
+                <span className="hidden xs:inline">HOT</span>
               </span>
             )}
           </div>
 
           {/* Availability Status Badge */}
           {project.availabilityStatus && (
-            <span className={`backdrop-blur-md text-[8px] md:text-[10px] font-bold px-2 py-0.5 md:px-2.5 md:py-1 rounded-full border flex items-center gap-1 shadow-sm ${
+            <span className={`backdrop-blur-md text-[7px] sm:text-[8px] md:text-[10px] font-bold px-1.5 py-0.5 md:px-2.5 md:py-1 rounded-full border flex items-center gap-1 shadow-sm ${
               hasRooms
                 ? 'bg-emerald-500/25 text-emerald-200 border-emerald-400/40'
                 : 'bg-rose-500/20 text-rose-300 border-rose-500/30'
             }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${hasRooms ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
-              <span>{project.availabilityStatus}</span>
+              <span className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${hasRooms ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
+              <span className="truncate max-w-[65px] sm:max-w-none">{project.availabilityStatus}</span>
             </span>
           )}
         </div>
 
         {/* Rating Badge */}
-        <span className="bg-bg/85 backdrop-blur-md text-[9px] md:text-[11px] font-bold text-text-primary px-2 py-1 md:px-2.5 md:py-1.5 rounded-full border border-white/5 flex items-center shrink-0">
+        <span className="bg-bg/85 backdrop-blur-md text-[7.5px] sm:text-[9px] md:text-[11px] font-bold text-text-primary px-1.5 py-0.5 sm:px-2 sm:py-1 md:px-2.5 md:py-1.5 rounded-full border border-white/5 flex items-center shrink-0">
           {project.rating}
         </span>
       </div>
 
       {/* Permanent Bottom Info Overlay (Desktop & Mobile, visible before hover) */}
-      <div className="absolute bottom-0 left-0 right-0 p-3 md:p-4 bg-gradient-to-t from-black/95 via-black/75 to-transparent flex justify-between items-end z-10 transition-all duration-300 group-hover:opacity-0 pointer-events-none">
-        <div className="text-left min-w-0 flex-1 pr-2">
-          {/* Prominent Highlighted Area Badge */}
-          <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+      <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3 md:p-4 bg-gradient-to-t from-black/95 via-black/80 to-transparent flex justify-between items-end z-10 transition-all duration-300 md:group-hover:opacity-0 pointer-events-none">
+        <div className="text-left min-w-0 flex-1 pr-1 sm:pr-2">
+          {/* Prominent Highlighted Area Badge (Hidden on mobile to avoid duplication with top badge) */}
+          <div className="hidden sm:flex items-center gap-1.5 mb-1.5 flex-wrap">
             <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] md:text-[10px] font-extrabold uppercase tracking-wider shadow-md backdrop-blur-md border ${badgeStyles.bg} ${badgeStyles.text} ${badgeStyles.border}`}>
               <MapPin size={10} className="fill-white" />
               <span>{areaName}</span>
@@ -224,30 +224,30 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ project, index, onPropertyC
           </div>
 
           {/* Property Title */}
-          <span className="text-sm md:text-base text-white font-bold block truncate drop-shadow-md tracking-tight">
+          <span className="text-xs sm:text-sm md:text-base text-white font-bold block truncate drop-shadow-md tracking-tight leading-snug">
             {project.title}
           </span>
 
           {/* Subtitle / Available Rooms Live Preview */}
           {roomBadges.length > 0 ? (
-            <span className="text-[10px] md:text-[11px] text-emerald-300 font-semibold block mt-0.5 truncate flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Kamar Ready: {roomBadges.join(', ')}{project.availableRoomsList && project.availableRoomsList.length > 3 ? ` +${project.availableRoomsList.length - 3}` : ''}</span>
+            <span className="text-[8px] sm:text-[10px] md:text-[11px] text-emerald-300 font-semibold block mt-0.5 truncate flex items-center gap-1">
+              <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+              <span className="truncate">Ready: {roomBadges.join(', ')}{project.availableRoomsList && project.availableRoomsList.length > 3 ? ` +${project.availableRoomsList.length - 3}` : ''}</span>
             </span>
           ) : (
-            <span className="text-[10px] text-white/60 block mt-0.5 truncate">
+            <span className="text-[8px] sm:text-[10px] text-white/60 block mt-0.5 truncate">
               {project.category}
             </span>
           )}
         </div>
 
-        <span className="text-[10px] md:text-xs text-white/40 font-mono shrink-0 mb-0.5">
+        <span className="text-[8px] sm:text-[10px] md:text-xs text-white/40 font-mono shrink-0 mb-0.5">
           {String(index + 1).padStart(2, '0')}
         </span>
       </div>
 
-      {/* Hover Details Mask (Desktop) */}
-      <div className="absolute inset-0 bg-bg/90 opacity-0 group-hover:opacity-100 transition-opacity duration-400 backdrop-blur-md flex flex-col justify-between p-6 md:p-8 z-20">
+      {/* Hover Details Mask (Desktop Only) */}
+      <div className="hidden md:flex absolute inset-0 bg-bg/90 opacity-0 group-hover:opacity-100 transition-opacity duration-400 backdrop-blur-md flex-col justify-between p-6 md:p-8 z-20 pointer-events-none md:pointer-events-auto">
         {/* Category & Highlighted Area info (Slides Down) */}
         <div className="flex flex-col gap-1.5 transition-all duration-400 ease-out transform -translate-y-3 opacity-0 group-hover:translate-y-0 group-hover:opacity-100">
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -456,8 +456,8 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick, i
   };
 
   return (
-    <section id="work" className="bg-bg py-16 md:py-24 select-none">
-      <div className="max-w-[1200px] mx-auto px-6 md:px-10 lg:px-16">
+    <section id="work" className="bg-bg py-12 md:py-24 select-none">
+      <div className="max-w-[1200px] mx-auto px-3 sm:px-6 md:px-10 lg:px-16">
         
         {/* Header Section */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-10 gap-8">
@@ -483,7 +483,7 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick, i
                   placeholder="Cari ruangan, area (Kebon Jeruk, Grogol), atau fasilitas..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-surface border border-stroke rounded-full px-5 py-3 text-xs text-text-primary placeholder:text-muted focus:outline-none focus:border-text-primary/40 focus:ring-1 focus:ring-text-primary/10 transition-all duration-300 font-sans shadow-sm"
+                  className="w-full bg-surface border border-stroke rounded-full px-5 py-3 text-base sm:text-xs text-text-primary placeholder:text-muted focus:outline-none focus:border-text-primary/40 focus:ring-1 focus:ring-text-primary/10 transition-all duration-300 font-sans shadow-sm"
                 />
                 {searchTerm && (
                   <button
@@ -714,7 +714,7 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick, i
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-7">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 md:gap-7">
                 {baseFilteredProperties.map((project, index) => (
                   <PropertyCard 
                     key={project.id || index}
@@ -763,7 +763,7 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick, i
                 </div>
 
                 {/* HOT Area Selector Tabs Bar */}
-                <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-8 no-scrollbar">
+                <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-8 no-scrollbar touch-pan-x">
                   <button
                     onClick={() => setSelectedHotArea('all')}
                     className={`px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide whitespace-nowrap transition-all duration-200 shrink-0 flex items-center gap-1.5 ${
@@ -810,26 +810,26 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick, i
                     {groupedHotByArea.map((group) => (
                       <div key={group.area} className="text-left">
                         {/* Area Subheading inside HOT section */}
-                        <div className="flex items-center justify-between mb-4 pb-2 border-b border-orange-500/20">
-                          <div className="flex items-center gap-2">
-                            <span className="w-2.5 h-2.5 rounded-full bg-orange-400 shadow-sm shadow-orange-400/50 animate-pulse" />
-                            <h4 className="text-lg md:text-xl font-display font-medium text-text-primary">
+                        <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 mb-3 sm:mb-4 pb-2 border-b border-orange-500/20">
+                          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                            <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-orange-400 shadow-sm shadow-orange-400/50 animate-pulse shrink-0" />
+                            <h4 className="text-base sm:text-lg md:text-xl font-display font-medium text-text-primary">
                               Area {group.area}
                             </h4>
-                            <span className="text-[11px] text-orange-300 font-semibold bg-orange-500/10 px-2.5 py-0.5 rounded-full border border-orange-500/20">
+                            <span className="text-[9px] sm:text-[11px] text-orange-300 font-semibold bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">
                               {group.items.length} Unit Ready • {group.totalRooms} Kamar Siap Huni
                             </span>
                           </div>
                           <button
                             onClick={() => setSelectedHotArea(group.area)}
-                            className="text-xs text-orange-400 hover:text-orange-300 transition-colors font-medium flex items-center gap-1"
+                            className="text-[11px] sm:text-xs text-orange-400 hover:text-orange-300 transition-colors font-medium flex items-center gap-1 shrink-0 ml-auto sm:ml-0"
                           >
                             Fokus Area {group.area} →
                           </button>
                         </div>
 
                         {/* Cards Grid */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-7">
+                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 md:gap-7">
                           {group.items.map((project, index) => (
                             <PropertyCard 
                               key={project.id || index}
@@ -846,25 +846,25 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick, i
                 ) : (
                   /* Focused Area View in HOT section */
                   <div>
-                    <div className="flex items-center justify-between mb-6 pb-2 border-b border-orange-500/20 text-left">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-orange-400 shadow-sm shadow-orange-400/50" />
-                        <h4 className="text-lg md:text-xl font-display font-medium text-text-primary">
+                    <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 mb-4 sm:mb-6 pb-2 border-b border-orange-500/20 text-left">
+                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                        <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-orange-400 shadow-sm shadow-orange-400/50 shrink-0" />
+                        <h4 className="text-base sm:text-lg md:text-xl font-display font-medium text-text-primary">
                           Kamar Ready di Area: <span className="text-orange-400 font-semibold">{selectedHotArea}</span>
                         </h4>
-                        <span className="text-xs text-orange-300 bg-orange-500/10 px-2.5 py-0.5 rounded-full border border-orange-500/20">
+                        <span className="text-[10px] sm:text-xs text-orange-300 bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">
                           {filteredHotProperties.length} Unit Ready
                         </span>
                       </div>
                       <button
                         onClick={() => setSelectedHotArea('all')}
-                        className="text-xs text-orange-400 hover:text-orange-300 transition-colors font-medium"
+                        className="text-[11px] sm:text-xs text-orange-400 hover:text-orange-300 transition-colors font-medium shrink-0 ml-auto sm:ml-0"
                       >
                         Lihat Semua Area Ready
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-7">
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 md:gap-7">
                       {filteredHotProperties.map((project, index) => (
                         <PropertyCard 
                           key={project.id || index}
@@ -904,7 +904,7 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick, i
               </div>
 
               {/* Area Selector Tabs Bar */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-8 no-scrollbar">
+              <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-8 no-scrollbar touch-pan-x">
                 <button
                   onClick={() => setSelectedArea('all')}
                   className={`px-4 py-2 rounded-full text-xs font-semibold tracking-wide whitespace-nowrap transition-all duration-200 shrink-0 flex items-center gap-1.5 ${
@@ -950,26 +950,26 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick, i
                   {groupedByArea.map((group) => (
                     <div key={group.area} className="text-left">
                       {/* Area Group Header */}
-                      <div className="flex items-center justify-between mb-5 pb-2 border-b border-stroke/40">
-                        <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/30" />
-                          <h4 className="text-lg md:text-xl font-display font-medium text-text-primary">
+                      <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 mb-3 sm:mb-5 pb-2 border-b border-stroke/40">
+                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                          <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/30 shrink-0" />
+                          <h4 className="text-base sm:text-lg md:text-xl font-display font-medium text-text-primary">
                             Area {group.area}
                           </h4>
-                          <span className="text-xs text-muted font-light">
+                          <span className="text-[11px] sm:text-xs text-muted font-light">
                             ({group.items.length} Unit)
                           </span>
                         </div>
                         <button
                           onClick={() => setSelectedArea(group.area)}
-                          className="text-xs text-muted hover:text-text-primary transition-colors font-medium flex items-center gap-1"
+                          className="text-[11px] sm:text-xs text-muted hover:text-text-primary transition-colors font-medium flex items-center gap-1 shrink-0 ml-auto sm:ml-0"
                         >
                           Fokus Area →
                         </button>
                       </div>
 
                       {/* Area Group Cards Grid */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-7">
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 md:gap-7">
                         {group.items.map((project, index) => (
                           <PropertyCard 
                             key={project.id || index}
@@ -986,19 +986,19 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick, i
               ) : (
                 /* Specific Selected Area View */
                 <div>
-                  <div className="flex items-center justify-between mb-6 pb-2 border-b border-stroke/40 text-left">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                      <h4 className="text-lg md:text-xl font-display font-medium text-text-primary">
+                  <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 mb-4 sm:mb-6 pb-2 border-b border-stroke/40 text-left">
+                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                      <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-400 shrink-0" />
+                      <h4 className="text-base sm:text-lg md:text-xl font-display font-medium text-text-primary">
                         Menampilkan Unit di Area: <span className="text-emerald-400 font-semibold">{selectedArea}</span>
                       </h4>
-                      <span className="text-xs text-muted">
+                      <span className="text-[11px] sm:text-xs text-muted">
                         ({areaFilteredProperties.length} Unit)
                       </span>
                     </div>
                     <button
                       onClick={() => setSelectedArea('all')}
-                      className="text-xs text-muted hover:text-text-primary transition-colors font-medium"
+                      className="text-[11px] sm:text-xs text-muted hover:text-text-primary transition-colors font-medium shrink-0 ml-auto sm:ml-0"
                     >
                       Lihat Semua Area
                     </button>
@@ -1015,7 +1015,7 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick, i
                       </button>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-7">
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 md:gap-7">
                       {areaFilteredProperties.map((project, index) => (
                         <PropertyCard 
                           key={project.id || index}

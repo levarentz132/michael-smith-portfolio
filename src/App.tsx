@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { LoadingScreen } from './components/LoadingScreen';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
@@ -13,6 +13,7 @@ import { Footer } from './components/Footer';
 import { BookingModal } from './components/BookingModal';
 import { LoginModal } from './components/LoginModal';
 import { TenantProfileModal } from './components/TenantProfileModal';
+import { PaymentReturnModal } from './components/PaymentReturnModal';
 import { PropertyPage } from './components/PropertyPage';
 import { ArticlePage } from './components/ArticlePage';
 import { ResortPage } from './components/ResortPage';
@@ -30,6 +31,8 @@ function App() {
   const [bookingPref, setBookingPref] = useState<'all' | 'monthly' | 'transit'>('all');
   const [loginOpen, setLoginOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [paymentReturnOpen, setPaymentReturnOpen] = useState(false);
+  const [paymentReturnInvoiceId, setPaymentReturnInvoiceId] = useState<number | null>(null);
   const [settings, setSettings] = useState<WebsiteSettings | null>(null);
   const [userSession, setUserSession] = useState<UserSession | null>(() => {
     const savedSession = localStorage.getItem('userSession');
@@ -68,6 +71,41 @@ function App() {
     };
     loadSettings();
   }, []);
+
+  // DOKU Callback / Return URL detection (/portal/billing, ?status=finish, ?invoice_id=...)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const status = params.get('status');
+    const invoiceIdParam = params.get('invoice_id');
+    const isDokuPath = location.pathname === '/portal/billing' || location.pathname === '/billing';
+    const isDokuReturn = 
+      isDokuPath || 
+      status === 'finish' || 
+      status === 'success' || 
+      status === 'pending' || 
+      Boolean(invoiceIdParam && (status || params.get('checkout')));
+
+    if (isDokuReturn) {
+      let resolvedId: number | null = invoiceIdParam ? parseInt(invoiceIdParam, 10) : null;
+      if (!resolvedId) {
+        try {
+          const saved = sessionStorage.getItem('pending_doku_checkout');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed.invoiceId) resolvedId = parsed.invoiceId;
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+      setPaymentReturnInvoiceId(resolvedId);
+      setPaymentReturnOpen(true);
+
+      // Clean up URL parameters cleanly without page refresh
+      const cleanPath = isDokuPath ? '/' : location.pathname;
+      window.history.replaceState({}, document.title, cleanPath);
+    }
+  }, [location.pathname, location.search]);
 
   // Track active section on scroll
   useEffect(() => {
@@ -158,6 +196,11 @@ function App() {
 
         {/* Privacy Policy Route for Meta/Facebook */}
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+
+        {/* DOKU Hosted Checkout Callback Return Routes */}
+        <Route path="/portal/billing" element={<Navigate to="/" replace />} />
+        <Route path="/billing" element={<Navigate to="/" replace />} />
+        <Route path="/portal" element={<Navigate to="/" replace />} />
 
       {/* Landing Page Route */}
       <Route path="/" element={
@@ -332,6 +375,21 @@ function App() {
                 session={userSession}
                 onLogout={handleLogout}
                 onSessionUpdate={(updated) => setUserSession(updated)}
+              />
+
+              {/* DOKU Hosted Checkout Return & Verification Modal */}
+              <PaymentReturnModal
+                isOpen={paymentReturnOpen}
+                onClose={() => setPaymentReturnOpen(false)}
+                token={userSession?.token}
+                invoiceId={paymentReturnInvoiceId}
+                onPaymentSuccess={() => {
+                  setProfileOpen(true);
+                }}
+                onOpenTenantPortal={() => {
+                  setPaymentReturnOpen(false);
+                  setProfileOpen(true);
+                }}
               />
             </motion.div>
           )}

@@ -287,18 +287,18 @@ export const ResortPage: React.FC = () => {
             initial={{ opacity: 0, y: 45 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.65 }}
-            className="flex flex-wrap items-center justify-center gap-4 mt-4"
+            className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4 mt-4 w-full sm:w-auto px-4 sm:px-0"
           >
             <a
               href="#accommodations"
-              className="relative group rounded-full text-xs font-semibold uppercase tracking-wider px-8 py-4 bg-text-primary text-bg hover:bg-bg hover:text-text-primary transition-all duration-300 border border-transparent shadow-lg"
+              className="relative group rounded-full text-xs font-semibold uppercase tracking-wider px-7 py-3.5 sm:py-4 bg-text-primary text-bg hover:bg-bg hover:text-text-primary transition-all duration-300 border border-transparent shadow-lg text-center flex items-center justify-center min-h-[44px]"
             >
               <span className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 p-[1px] accent-gradient" />
               Explore Accommodations
             </a>
             <button
               onClick={() => handleBookWhatsApp('General Inquiry')}
-              className="text-xs uppercase tracking-[0.15em] font-semibold text-text-primary hover:text-amber-400 border border-stroke px-6 py-4 rounded-full transition-colors duration-200 backdrop-blur-md bg-white/5"
+              className="text-xs uppercase tracking-[0.15em] font-semibold text-text-primary hover:text-amber-400 border border-stroke px-6 py-3.5 sm:py-4 rounded-full transition-colors duration-200 backdrop-blur-md bg-white/5 text-center flex items-center justify-center min-h-[44px]"
             >
               Contact Reservation
             </button>

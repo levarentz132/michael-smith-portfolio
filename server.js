@@ -391,6 +391,53 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
   }
 });
 
+// Proxy route for Tenant API (OpenKos)
+const TENANT_UPSTREAM_URL = process.env.OPENKOS_TENANT_URL || 'https://dashboard.highlanderstay.com/api/v1/tenant';
+
+app.use('/api/v1/tenant', async (req, res) => {
+  const targetUrl = `${TENANT_UPSTREAM_URL}${req.url}`;
+
+  try {
+    const headers = {
+      'Accept': 'application/json'
+    };
+    if (req.headers.authorization) {
+      headers['Authorization'] = req.headers.authorization;
+    }
+    if (req.headers['content-type'] && !req.headers['content-type'].includes('multipart/form-data')) {
+      headers['Content-Type'] = req.headers['content-type'];
+    }
+
+    const options = {
+      method: req.method,
+      headers
+    };
+
+    if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.body && Object.keys(req.body).length > 0) {
+      options.body = JSON.stringify(req.body);
+      headers['Content-Type'] = 'application/json';
+    }
+
+    const upstreamRes = await fetch(targetUrl, options);
+    const contentType = upstreamRes.headers.get('content-type') || '';
+    res.status(upstreamRes.status);
+
+    if (contentType.includes('application/json')) {
+      const data = await upstreamRes.json();
+      return res.json(data);
+    } else {
+      const text = await upstreamRes.text();
+      return res.send(text);
+    }
+  } catch (err) {
+    console.error(`[Proxy Tenant API] Error forwarding to ${targetUrl}:`, err);
+    return res.status(502).json({
+      message: 'Gagal terhubung ke server OpenKos Tenant API.',
+      error: err.message
+    });
+  }
+});
+
 // 1. Properties Routes (100% External Available Rooms API - Direct & Live, Zero Local DB)
 
 const EXTERNAL_AVAILABLE_ROOMS_API = 'https://dashboard.highlanderstay.com/api/v1/available-rooms';
@@ -1436,6 +1483,59 @@ app.use('/api/v1/auth', async (req, res) => {
   } catch (err) {
     console.error('[Auth Proxy Error]', err);
     res.status(502).json({ error: 'Auth API service unreachable: ' + err.message });
+  }
+});
+
+// Forwarding proxy to Highlanderstay / OpenKos Tenant Portal Data API
+const getTenantTargetUrl = (subPath) => {
+  const customUrl = process.env.OPENKOS_TENANT_URL || 'https://dashboard.highlanderstay.com/api/v1/tenant';
+  return `${customUrl.replace(/\/$/, '')}/${subPath}`;
+};
+
+app.use('/api/v1/tenant', async (req, res) => {
+  const targetSubPath = req.url.replace(/^\//, '');
+  const targetUrl = getTenantTargetUrl(targetSubPath);
+
+  try {
+    const headers = {
+      'Accept': 'application/json',
+    };
+    if (req.headers.authorization) {
+      headers['Authorization'] = req.headers.authorization;
+    }
+    if (req.headers['content-type'] && !req.headers['content-type'].includes('multipart/form-data')) {
+      headers['Content-Type'] = req.headers['content-type'];
+    }
+
+    const fetchOptions = {
+      method: req.method,
+      headers
+    };
+
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      if (req.headers['content-type']?.includes('application/json') && req.body && Object.keys(req.body).length > 0) {
+        fetchOptions.body = JSON.stringify(req.body);
+      }
+    }
+
+    let apiRes;
+    try {
+      apiRes = await fetch(targetUrl, fetchOptions);
+    } catch (primaryErr) {
+      const fallbackUrl = `http://localhost:8080/api/v1/tenant/${targetSubPath}`;
+      apiRes = await fetch(fallbackUrl, fetchOptions);
+    }
+
+    const data = await apiRes.text();
+    res.status(apiRes.status);
+    try {
+      res.json(JSON.parse(data));
+    } catch {
+      res.send(data);
+    }
+  } catch (err) {
+    console.error('[Tenant Proxy Error]', err);
+    res.status(502).json({ error: 'Tenant API service unreachable: ' + err.message });
   }
 });
 

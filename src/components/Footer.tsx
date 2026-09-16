@@ -95,33 +95,32 @@ export const Footer: React.FC = () => {
       </div>
 
       {/* Center CTA */}
-      <div className="max-w-[1200px] mx-auto px-6 md:px-10 lg:px-16 flex flex-col items-center justify-center text-center mb-20 md:mb-32">
-        <span className="text-xs text-muted uppercase tracking-[0.3em] font-medium mb-6">Sewa Ruang Anda</span>
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-10 lg:px-16 flex flex-col items-center justify-center text-center mb-16 md:mb-32">
+        <span className="text-[10px] sm:text-xs text-muted uppercase tracking-[0.3em] font-medium mb-4 sm:mb-6">Sewa Ruang Anda</span>
         
-        <h2 className="text-3xl md:text-5xl lg:text-6xl font-display italic font-light text-text-primary max-w-2xl leading-tight mb-10">
+        <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-display italic font-light text-text-primary max-w-2xl leading-tight mb-8 sm:mb-10 px-2">
           Siap menemukan <span className="font-semibold not-italic">ruang hunian estetis</span> Anda berikutnya?
         </h2>
 
         {/* Email button with gradient hover border */}
         <a 
           href="mailto:hello@highlanderstay.com" 
-          className="relative group rounded-full text-base sm:text-lg md:text-xl font-display italic font-semibold px-10 py-5 bg-surface border border-stroke text-text-primary hover:text-white transition-all duration-300 hover:scale-105 hover:border-transparent flex items-center gap-2"
+          className="relative group rounded-full text-xs sm:text-base md:text-xl font-display italic font-semibold px-6 sm:px-10 py-3.5 sm:py-5 bg-surface border border-stroke text-text-primary hover:text-white transition-all duration-300 hover:scale-105 hover:border-transparent flex items-center justify-center gap-2 max-w-[90vw] truncate shadow-lg"
         >
           {/* Accent gradient ring */}
           <span 
-            className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"
+            className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 p-[1.5px] accent-gradient"
             style={{
-              padding: '2px',
-              background: 'linear-gradient(90deg, #89AACC 0%, #4E85BF 100%)',
-              margin: '-2px',
+              margin: '-1.5px',
             }}
           />
-          hello@highlanderstay.com <span className="inline-block transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-200 font-sans not-italic text-sm">↗</span>
+          <span className="truncate">hello@highlanderstay.com</span>
+          <span className="inline-block transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-200 font-sans not-italic text-sm shrink-0">↗</span>
         </a>
       </div>
 
       {/* Footer Bottom Bar */}
-      <div className="max-w-[1200px] mx-auto px-6 md:px-10 lg:px-16 border-t border-stroke/30 pt-8 flex flex-col md:flex-row items-center justify-between gap-6">
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-10 lg:px-16 border-t border-stroke/30 pt-8 pb-4 pb-safe flex flex-col md:flex-row items-center justify-between gap-6">
         
         {/* Availability pulse indicator */}
         <div className="flex items-center gap-2 order-2 md:order-1">

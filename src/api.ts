@@ -118,13 +118,14 @@ export interface UserSession {
 }
 
 export interface RegisterPayload {
-  name: string;
-  email: string;
   phone: string;
   password: string;
-  password_confirmation: string;
+  name?: string;
+  email?: string;
+  password_confirmation?: string;
   otp_channel?: 'whatsapp' | 'email';
   device_name?: string;
+  otp?: string;
 }
 
 export interface RegisterResponse {
@@ -133,6 +134,43 @@ export interface RegisterResponse {
   otp_sent: boolean;
   otp_channel: string;
   target: string;
+  driver?: string;
+  delivery_warning?: string;
+  delivery_error?: string;
+  debug_otp?: string;
+}
+
+export interface ForgotPasswordPayload {
+  login: string;
+  channel?: 'whatsapp' | 'email';
+}
+
+export interface ForgotPasswordResponse {
+  message: string;
+  reset_token: string;
+  channel: string;
+  target: string;
+  sent: boolean;
+  driver?: string;
+  delivery_warning?: string;
+  delivery_error?: string;
+  debug_otp?: string;
+}
+
+export interface ResetPasswordPayload {
+  reset_token?: string;
+  login?: string;
+  code?: string;
+  otp?: string;
+  password: string;
+  password_confirmation?: string;
+  device_name?: string;
+}
+
+export interface ResetPasswordResponse {
+  message: string;
+  token: string;
+  user: AuthUser;
 }
 
 export interface SendOtpPayload {
@@ -214,6 +252,172 @@ export interface CheckStatusResponse {
     };
   };
   is_fully_verified?: boolean;
+}
+
+export interface TenantUnit {
+  id: number;
+  name: string;
+  floor?: number;
+  status?: string;
+}
+
+export interface TenantProperty {
+  id: number;
+  name: string;
+  address: string;
+  city?: string;
+  image_url?: string;
+}
+
+export interface TenantPayment {
+  id: number;
+  invoice_id: number;
+  amount: number;
+  payment_method?: string;
+  status: string;
+  payment_date?: string;
+  notes?: string | null;
+}
+
+export interface TenantInvoice {
+  id: number;
+  reference: string;
+  lease_id?: number;
+  lease_reference?: string;
+  property_name?: string;
+  unit_name?: string;
+  period_start?: string;
+  period_end?: string;
+  due_date: string;
+  status: string;
+  total: number;
+  amount_paid: number;
+  outstanding: number;
+  is_overdue: boolean;
+  lease?: {
+    reference: string;
+    unit_name: string;
+    property_name: string;
+    address: string;
+  };
+  payments?: TenantPayment[];
+}
+
+export interface TenantLease {
+  id: number;
+  reference: string;
+  start_date: string;
+  end_date: string;
+  rent_amount: number;
+  deposit_amount?: number;
+  billing_label?: string;
+  billing_cycle?: string;
+  status: string;
+  notes?: string | null;
+  unit: TenantUnit;
+  property: TenantProperty;
+  invoices?: TenantInvoice[];
+}
+
+export interface TenantAccountSummary {
+  total_unpaid_invoices: number;
+  total_outstanding_amount: number;
+  next_due_date?: string | null;
+  open_maintenance_tickets: number;
+}
+
+export interface TenantNextAction {
+  type: string;
+  title: string;
+  message: string;
+  invoice_id?: number;
+  reference?: string;
+  amount?: number;
+  due_date?: string;
+}
+
+export interface MaintenanceTicket {
+  id: number;
+  reference: string;
+  title: string;
+  description: string;
+  status: string;
+  priority: string;
+  location?: string | null;
+  property_name?: string;
+  unit_name?: string;
+  created_at: string;
+  resolved_at?: string | null;
+}
+
+export interface TenantDashboardData {
+  tenant: {
+    id: number;
+    name: string;
+    phone: string;
+    email?: string | null;
+    phone_verified: boolean;
+  };
+  active_lease?: TenantLease | null;
+  account_summary: TenantAccountSummary;
+  next_action?: TenantNextAction | null;
+  recent_invoices: TenantInvoice[];
+  recent_tickets: MaintenanceTicket[];
+}
+
+export interface TenantLeasesResponse {
+  current_leases: TenantLease[];
+  lease_history: TenantLease[];
+}
+
+export interface TenantInvoicesResponse {
+  invoices: {
+    current_page: number;
+    data: TenantInvoice[];
+    last_page: number;
+    total: number;
+  };
+}
+
+export interface DokuCheckoutAttempt {
+  id?: number;
+  reference: string;
+  provider_reference?: string;
+  amount: number;
+  currency?: string;
+  status: string;
+  expires_at?: string;
+}
+
+export interface DokuCheckoutResponse {
+  message: string;
+  checkout_url: string;
+  reused?: boolean;
+  attempt?: DokuCheckoutAttempt;
+}
+
+export interface TenantTicketsResponse {
+  tickets: {
+    current_page: number;
+    data: MaintenanceTicket[];
+    total: number;
+  };
+}
+
+export interface SubmitPaymentPayload {
+  invoiceId: number;
+  amount: number;
+  payment_method: string;
+  proof_image?: File | null;
+  payment_date?: string;
+  notes?: string;
+}
+
+export interface CreateTicketPayload {
+  title: string;
+  description: string;
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  location?: string;
 }
 
 export interface Tenant {
@@ -438,7 +642,11 @@ export async function deleteBooking(id: number): Promise<{ id: number }> {
 }
 
 export const AUTH_API_PROXY = '/api/v1/auth';
-export const AUTH_API_BASE = (import.meta as any).env?.VITE_AUTH_API_URL || '/api/v1/auth';
+export const AUTH_API_BASE = 
+  (import.meta as any).env?.VITE_API_BASE_URL || 
+  (import.meta as any).env?.API_BASE_URL || 
+  (import.meta as any).env?.VITE_AUTH_API_URL || 
+  'https://dashboard.highlanderstay.com/api/v1/auth';
 
 async function callAuthApi<T>(path: string, options: RequestInit = {}): Promise<T> {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
@@ -501,12 +709,21 @@ async function callAuthApi<T>(path: string, options: RequestInit = {}): Promise<
   }
 }
 
-// 1. Register a new tenant account (Staged Anti-Spam Registration)
+// 1. Register a new tenant account (Staged Anti-Spam Registration with phone & password)
 export async function registerTenant(payload: RegisterPayload): Promise<RegisterResponse> {
+  const phone = payload.phone.trim();
+  const password = payload.password;
+  const name = payload.name?.trim() || `Penyewa ${phone}`;
+  const password_confirmation = payload.password_confirmation || password;
+
   return await callAuthApi<RegisterResponse>('/register', {
     method: 'POST',
     body: JSON.stringify({
-      ...payload,
+      name,
+      email: payload.email?.trim() || '',
+      phone,
+      password,
+      password_confirmation,
       otp_channel: payload.otp_channel || 'whatsapp',
       device_name: payload.device_name || 'highlanderstay-web'
     })
@@ -634,6 +851,237 @@ export async function checkAuthStatus(login: string): Promise<CheckStatusRespons
       login: login.trim()
     })
   });
+}
+
+// 9. Request Password Reset OTP (WhatsApp / Email)
+export async function forgotPassword(payload: ForgotPasswordPayload): Promise<ForgotPasswordResponse> {
+  return await callAuthApi<ForgotPasswordResponse>('/password/forgot', {
+    method: 'POST',
+    body: JSON.stringify({
+      login: payload.login.trim(),
+      channel: payload.channel || 'whatsapp'
+    })
+  });
+}
+
+// 10. Reset Password with OTP and automatically sign in
+export async function resetPassword(payload: ResetPasswordPayload): Promise<{ session: UserSession; message: string; token: string }> {
+  const code = (payload.code || payload.otp || '').trim();
+  const passwordConfirmation = payload.password_confirmation || payload.password;
+
+  const body: Record<string, any> = {
+    code,
+    otp: code,
+    password: payload.password,
+    password_confirmation: passwordConfirmation,
+    device_name: payload.device_name || 'highlanderstay-web'
+  };
+
+  if (payload.reset_token) {
+    body.reset_token = payload.reset_token;
+  }
+  if (payload.login) {
+    body.login = payload.login.trim();
+  }
+
+  const data = await callAuthApi<ResetPasswordResponse>('/password/reset', {
+    method: 'POST',
+    body: JSON.stringify(body)
+  });
+
+  const session: UserSession = {
+    role: 'tenant',
+    id: data.user.id,
+    name: data.user.name,
+    email: data.user.email,
+    phone: data.user.phone,
+    token: data.token,
+    phone_verified: Boolean(data.user.phone_verified),
+    phone_verified_at: (data.user as any).phone_verified_at || new Date().toISOString(),
+    is_active: Boolean(data.user.is_active),
+    has_tenant_profile: Boolean((data.user as any).has_tenant_profile),
+    tenant: (data.user as any).tenant || null
+  };
+
+  return {
+    session,
+    message: data.message || 'Password berhasil direset! Anda telah otomatis masuk.',
+    token: data.token
+  };
+}
+
+// --- TENANT PORTAL SECURED API ---
+export const TENANT_API_PROXY = '/api/v1/tenant';
+export const TENANT_API_BASE = 
+  (import.meta as any).env?.VITE_TENANT_API_URL || 
+  (import.meta as any).env?.VITE_API_BASE_URL?.replace(/\/auth$/, '/tenant') || 
+  'https://dashboard.highlanderstay.com/api/v1/tenant';
+
+async function callTenantApi<T>(path: string, token: string, options: RequestInit = {}): Promise<T> {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const directUrl = `${TENANT_API_BASE}${normalizedPath}`;
+  const proxyUrl = `${TENANT_API_PROXY}${normalizedPath}`;
+
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+    'Authorization': `Bearer ${token}`
+  };
+
+  // Only set application/json if body is not FormData
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  const mergedHeaders = {
+    ...headers,
+    ...(options.headers as Record<string, string> || {})
+  };
+
+  const reqOptions: RequestInit = {
+    ...options,
+    headers: mergedHeaders
+  };
+
+  try {
+    const res = await fetch(directUrl, reqOptions);
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok) {
+      const errorMsg = data?.message || 
+        (data?.errors ? Object.values(data.errors).flat().join(', ') : null) ||
+        `Request failed with status ${res.status}`;
+      throw new Error(errorMsg);
+    }
+
+    return data as T;
+  } catch (err: any) {
+    if (err?.message && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError') && !err.message.includes('fetch failed')) {
+      throw err;
+    }
+
+    if (directUrl === proxyUrl) {
+      throw err;
+    }
+
+    // Try proxy fallback
+    try {
+      const res = await fetch(proxyUrl, reqOptions);
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        const errorMsg = data?.message || 
+          (data?.errors ? Object.values(data.errors).flat().join(', ') : null) ||
+          `Request failed with status ${res.status}`;
+        throw new Error(errorMsg);
+      }
+
+      return data as T;
+    } catch (proxyErr: any) {
+      throw new Error(err?.message || proxyErr?.message || 'Gagal terhubung ke server portal penyewa.');
+    }
+  }
+}
+
+// 1. Fetch Tenant Dashboard Overview
+export async function fetchTenantDashboard(token: string): Promise<TenantDashboardData> {
+  return await callTenantApi<TenantDashboardData>('/dashboard', token, { method: 'GET' });
+}
+
+// 2. Fetch Tenant Leases
+export async function fetchTenantLeases(token: string): Promise<TenantLeasesResponse> {
+  return await callTenantApi<TenantLeasesResponse>('/leases', token, { method: 'GET' });
+}
+
+// 3. Fetch Single Lease Details
+export async function fetchTenantLeaseDetails(leaseId: number, token: string): Promise<{ lease: TenantLease }> {
+  return await callTenantApi<{ lease: TenantLease }>(`/leases/${leaseId}`, token, { method: 'GET' });
+}
+
+// 4. Fetch Tenant Invoices (with filtering)
+export async function fetchTenantInvoices(
+  token: string, 
+  params?: { status?: string; lease_id?: number; page?: number }
+): Promise<TenantInvoicesResponse> {
+  const query = new URLSearchParams();
+  if (params?.status && params.status !== 'all') query.set('status', params.status);
+  if (params?.lease_id) query.set('lease_id', String(params.lease_id));
+  if (params?.page) query.set('page', String(params.page));
+  const queryString = query.toString() ? `?${query.toString()}` : '';
+
+  return await callTenantApi<TenantInvoicesResponse>(`/invoices${queryString}`, token, { method: 'GET' });
+}
+
+// 5. Fetch Single Invoice Details
+export async function fetchTenantInvoiceDetails(invoiceId: number, token: string): Promise<{ invoice: TenantInvoice }> {
+  return await callTenantApi<{ invoice: TenantInvoice }>(`/invoices/${invoiceId}`, token, { method: 'GET' });
+}
+
+// 5b. Create DOKU Checkout Session for Invoice
+export async function createTenantInvoiceCheckout(
+  invoiceId: number,
+  token: string
+): Promise<DokuCheckoutResponse> {
+  return await callTenantApi<DokuCheckoutResponse>(
+    `/invoices/${invoiceId}/checkout`,
+    token,
+    {
+      method: 'POST',
+      body: JSON.stringify({})
+    }
+  );
+}
+
+// 6. Submit Invoice Payment Proof
+export async function submitInvoicePaymentProof(
+  payload: SubmitPaymentPayload,
+  token: string
+): Promise<{ message: string; payment: TenantPayment }> {
+  const formData = new FormData();
+  formData.append('amount', String(payload.amount));
+  formData.append('payment_method', payload.payment_method);
+  if (payload.proof_image) {
+    formData.append('proof_image', payload.proof_image);
+  }
+  if (payload.payment_date) {
+    formData.append('payment_date', payload.payment_date);
+  }
+  if (payload.notes) {
+    formData.append('notes', payload.notes);
+  }
+
+  return await callTenantApi<{ message: string; payment: TenantPayment }>(
+    `/invoices/${payload.invoiceId}/pay`,
+    token,
+    {
+      method: 'POST',
+      body: formData
+    }
+  );
+}
+
+// 7. Fetch Maintenance Tickets
+export async function fetchMaintenanceTickets(token: string): Promise<TenantTicketsResponse> {
+  return await callTenantApi<TenantTicketsResponse>('/maintenance-tickets', token, { method: 'GET' });
+}
+
+// 8. Create Maintenance Ticket
+export async function createMaintenanceTicket(
+  payload: CreateTicketPayload,
+  token: string
+): Promise<{ message: string; ticket: MaintenanceTicket }> {
+  return await callTenantApi<{ message: string; ticket: MaintenanceTicket }>(
+    '/maintenance-tickets',
+    token,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    }
+  );
+}
+
+// 9. Fetch Maintenance Ticket Details
+export async function fetchMaintenanceTicketDetails(ticketId: number, token: string): Promise<{ ticket: MaintenanceTicket }> {
+  return await callTenantApi<{ ticket: MaintenanceTicket }>(`/maintenance-tickets/${ticketId}`, token, { method: 'GET' });
 }
 
 // Fetch bookings for a specific tenant

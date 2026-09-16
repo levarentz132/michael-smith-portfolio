@@ -272,7 +272,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 select-none">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4">
           {/* Backdrop */}
           <motion.div 
             initial={{ opacity: 0 }}
@@ -288,7 +288,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", damping: 25, stiffness: 250 }}
-            className="relative w-full max-w-md bg-surface border border-stroke rounded-3xl p-6 sm:p-8 overflow-y-auto max-h-[90vh] shadow-2xl text-left"
+            className="relative w-full max-w-md bg-surface border border-stroke rounded-2xl sm:rounded-3xl p-4 sm:p-8 overflow-y-auto max-h-[92vh] shadow-2xl text-left"
           >
             {/* Top Close Button */}
             <button 
@@ -389,7 +389,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="Masukkan nama Anda"
-                        className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-muted/50 focus:outline-none focus:border-white/20 transition-colors duration-200"
+                        className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-base sm:text-sm text-text-primary placeholder:text-muted/50 focus:outline-none focus:border-white/20 transition-colors duration-200"
                       />
                     </div>
 
@@ -402,7 +402,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="anda@contoh.com"
-                        className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-muted/50 focus:outline-none focus:border-white/20 transition-colors duration-200"
+                        className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-base sm:text-sm text-text-primary placeholder:text-muted/50 focus:outline-none focus:border-white/20 transition-colors duration-200"
                       />
                     </div>
 
@@ -415,7 +415,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         placeholder="cth. 081287681714"
-                        className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-muted/50 focus:outline-none focus:border-white/20 transition-colors duration-200"
+                        className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-base sm:text-sm text-text-primary placeholder:text-muted/50 focus:outline-none focus:border-white/20 transition-colors duration-200"
                       />
                     </div>
                   </>
@@ -438,7 +438,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                         <select
                           value={selectedRoom}
                           onChange={(e) => setSelectedRoom(e.target.value)}
-                          className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors duration-200"
+                          className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-base sm:text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors duration-200"
                         >
                           <option value="">-- Pilih Kamar (Acak / Bebas) --</option>
                           {(property.availableRoomDetails && property.availableRoomDetails.length > 0
@@ -467,7 +467,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                         required
                         value={date}
                         onChange={(e) => setDate(e.target.value)}
-                        className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors duration-200"
+                        className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-base sm:text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors duration-200"
                       />
                     </div>
 
@@ -483,7 +483,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                             required
                             value={surveyDate}
                             onChange={(e) => setSurveyDate(e.target.value)}
-                            className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors duration-200"
+                            className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-base sm:text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors duration-200"
                           />
                         </div>
                         <div className="flex flex-col gap-2">
@@ -493,7 +493,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                             required
                             value={surveyTime}
                             onChange={(e) => setSurveyTime(e.target.value)}
-                            className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors duration-200"
+                            className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-base sm:text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors duration-200"
                           />
                         </div>
                       </div>
@@ -542,7 +542,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                         required
                         value={date}
                         onChange={(e) => setDate(e.target.value)}
-                        className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors duration-200"
+                        className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-base sm:text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors duration-200"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -553,7 +553,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                           required
                           value={transitStartTime}
                           onChange={(e) => setTransitStartTime(e.target.value)}
-                          className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors duration-200"
+                          className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-base sm:text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors duration-200"
                         />
                       </div>
                       <div className="flex flex-col gap-2 justify-end">

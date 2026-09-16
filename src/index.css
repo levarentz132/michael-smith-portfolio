@@ -16,6 +16,8 @@ html {
   background-color: hsl(var(--bg));
   color: hsl(var(--text));
   font-family: 'Inter', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -24,6 +26,8 @@ body {
   overflow-x: hidden;
   margin: 0;
   padding: 0;
+  min-height: 100svh;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Custom scrollbar */
@@ -132,12 +136,22 @@ video:focus {
 }
 
 /* Hide scrollbar utility */
-.scrollbar-none::-webkit-scrollbar {
+.scrollbar-none::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar {
   display: none;
 }
-.scrollbar-none {
+.scrollbar-none,
+.no-scrollbar {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
+}
+
+/* Mobile Safe Area Helpers */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 16px);
 }
 
 /* Animated Strikethrough for original prices when promo is active */

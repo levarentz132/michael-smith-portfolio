@@ -205,30 +205,32 @@ export const Navbar: React.FC<NavbarProps> = ({
           {session ? (
             <button
               onClick={() => onProfileClick ? onProfileClick() : onLoginClick()}
-              className="p-2 rounded-full border border-white/10 bg-stroke/30 text-text-primary relative"
+              className="p-2.5 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full border border-white/10 bg-stroke/30 text-text-primary relative active:scale-95 transition-transform"
               title="Profil Penyewa"
+              aria-label="Profil Penyewa"
             >
-              <User size={16} className="text-emerald-400" />
+              <User size={18} className="text-emerald-400" />
               {session.phone_verified && (
-                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-400 border border-bg" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-400 border border-bg" />
               )}
             </button>
           ) : (
             <button
               onClick={onLoginClick}
-              className="p-2 rounded-full border border-white/10 bg-text-primary text-bg"
+              className="p-2.5 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full border border-white/10 bg-text-primary text-bg active:scale-95 transition-transform font-semibold"
               title="Masuk / Daftar"
+              aria-label="Masuk atau Daftar"
             >
-              <LogIn size={16} />
+              <LogIn size={17} />
             </button>
           )}
           
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-2 rounded-full border border-white/10 bg-stroke/20 text-text-primary"
+            className="p-2.5 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full border border-white/10 bg-stroke/30 text-text-primary active:scale-95 transition-transform"
             aria-label="Toggle menu"
           >
-            {isMobileMenuOpen ? <X size={16} /> : <Menu size={16} />}
+            {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
         </div>
       </div>
@@ -237,14 +239,14 @@ export const Navbar: React.FC<NavbarProps> = ({
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            initial={{ opacity: 0, y: -16, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            exit={{ opacity: 0, y: -16, scale: 0.96 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="w-full max-w-[360px] sm:hidden mt-2 bg-surface/95 backdrop-blur-lg border border-white/10 rounded-3xl p-5 shadow-2xl flex flex-col gap-4 text-left"
+            className="w-[calc(100vw-32px)] max-w-sm sm:hidden mt-2 bg-surface/98 backdrop-blur-xl border border-white/10 rounded-3xl p-5 shadow-2xl flex flex-col gap-4 text-left z-50"
           >
-            <div className="flex flex-col gap-2 border-b border-white/5 pb-3">
-              <span className="text-[10px] text-muted uppercase tracking-wider font-semibold">Navigasi</span>
+            <div className="flex flex-col gap-1 border-b border-white/5 pb-3">
+              <span className="text-[10px] text-muted uppercase tracking-wider font-semibold px-1 mb-1">Navigasi</span>
               {navLinks.map((link) => (
                 <button
                   key={link.target}
@@ -252,7 +254,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     onNavClick(link.target);
                     setIsMobileMenuOpen(false);
                   }}
-                  className="w-full text-left text-sm py-2 px-3 rounded-xl hover:bg-stroke/30 text-muted hover:text-text-primary transition-colors"
+                  className="w-full text-left text-sm py-2.5 px-3.5 rounded-xl hover:bg-stroke/30 active:bg-stroke/40 text-muted hover:text-text-primary transition-colors min-h-[44px] flex items-center font-medium"
                 >
                   {link.label}
                 </button>
@@ -264,24 +266,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                   onNavClick('contact');
                   setIsMobileMenuOpen(false);
                 }}
-                className="w-full text-left text-sm py-2 px-3 rounded-xl hover:bg-stroke/30 text-muted hover:text-text-primary transition-colors flex justify-between items-center"
+                className="w-full text-left text-sm py-2.5 px-3.5 rounded-xl hover:bg-stroke/30 active:bg-stroke/40 text-muted hover:text-text-primary transition-colors flex justify-between items-center min-h-[44px] font-medium"
               >
                 <span>Pesan Sekarang</span>
-                <span className="text-[10px] bg-stroke/50 text-text-primary px-2.5 py-0.5 rounded-full">Reservasi</span>
+                <span className="text-[10px] bg-stroke/50 text-text-primary px-2.5 py-1 rounded-full font-bold">Reservasi</span>
               </a>
             </div>
 
             <div className="flex flex-col gap-2">
-              <span className="text-[10px] text-muted uppercase tracking-wider font-semibold">Akun Penyewa</span>
+              <span className="text-[10px] text-muted uppercase tracking-wider font-semibold px-1">Akun Penyewa</span>
               {session ? (
                 <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between px-3 py-2 text-xs text-text-primary font-medium bg-stroke/20 rounded-xl">
+                  <div className="flex items-center justify-between px-3.5 py-2.5 text-xs text-text-primary font-medium bg-stroke/20 rounded-xl">
                     <div className="flex items-center gap-2 truncate">
-                      <User size={13} className="text-emerald-400 shrink-0" />
+                      <User size={14} className="text-emerald-400 shrink-0" />
                       <span className="truncate">{session.name}</span>
                     </div>
                     {session.phone_verified && (
-                      <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full font-bold shrink-0">
+                      <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold shrink-0">
                         Terverifikasi
                       </span>
                     )}
@@ -291,19 +293,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                       if (onProfileClick) onProfileClick();
                       setIsMobileMenuOpen(false);
                     }}
-                    className="w-full text-left text-sm py-2 px-3 rounded-xl bg-stroke/40 hover:bg-stroke/70 text-text-primary transition-colors flex items-center gap-2"
+                    className="w-full text-left text-sm py-2.5 px-3.5 rounded-xl bg-stroke/40 hover:bg-stroke/70 active:bg-stroke/80 text-text-primary transition-colors flex items-center gap-2.5 min-h-[44px] font-medium"
                   >
-                    <User size={14} className="text-emerald-400" />
-                    Profil & Verifikasi WhatsApp
+                    <User size={15} className="text-emerald-400 shrink-0" />
+                    Dashboard & Profil Penyewa
                   </button>
                   <button
                     onClick={() => {
                       onLogout();
                       setIsMobileMenuOpen(false);
                     }}
-                    className="w-full text-left text-sm py-2 px-3 rounded-xl hover:bg-rose-500/10 text-rose-400 transition-colors flex items-center gap-2"
+                    className="w-full text-left text-sm py-2.5 px-3.5 rounded-xl hover:bg-rose-500/10 active:bg-rose-500/20 text-rose-400 transition-colors flex items-center gap-2.5 min-h-[44px] font-medium"
                   >
-                    <LogOut size={14} />
+                    <LogOut size={15} className="shrink-0" />
                     Keluar Akun
                   </button>
                 </div>
@@ -313,9 +315,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                     onLoginClick();
                     setIsMobileMenuOpen(false);
                   }}
-                  className="w-full text-center text-sm py-2.5 rounded-xl bg-text-primary text-bg hover:bg-text-primary/95 transition-colors font-medium flex items-center justify-center gap-2"
+                  className="w-full text-center text-sm py-3 px-4 rounded-xl bg-text-primary text-bg hover:bg-text-primary/95 active:scale-[0.99] transition-all font-semibold flex items-center justify-center gap-2 min-h-[44px] shadow-lg"
                 >
-                  <LogIn size={14} />
+                  <LogIn size={15} />
                   Masuk / Daftar Akun
                 </button>
               )}
