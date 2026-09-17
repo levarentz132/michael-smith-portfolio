@@ -20,7 +20,8 @@ import {
   refreshCartCheckout, 
   getOrCreateCartToken,
   isValidCheckoutUrl,
-  simulatePaymentSuccess
+  simulatePaymentSuccess,
+  isOnlinePaymentEnabled
 } from '../api';
 import type { CartItem, CartData } from '../api';
 
@@ -404,33 +405,56 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
                           </div>
                         ) : isAvailable ? (
                           <div className="flex items-center gap-1.5">
-                            <button
-                              onClick={() => handleSimulatePay(item)}
-                              disabled={actionLoadingId === item.id}
-                              className="px-2.5 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-400 rounded-full text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                              title="Simulasikan pembayaran lunas di OpenKos Sandbox"
-                            >
-                              <Zap size={11} />
-                              <span>Simulasi</span>
-                            </button>
-                            <button
-                              onClick={() => handlePay(item)}
-                              disabled={actionLoadingId === item.id}
-                              className="px-3.5 py-1.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-bg rounded-full text-xs font-bold transition shadow flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                            >
-                              {actionLoadingId === item.id ? (
-                                <>
-                                  <div className="w-3.5 h-3.5 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
-                                  <span>Memverifikasi...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <CreditCard size={13} />
-                                  <span>Bayar</span>
-                                  <ExternalLink size={12} />
-                                </>
-                              )}
-                            </button>
+                            {isOnlinePaymentEnabled() ? (
+                              <>
+                                <button
+                                  onClick={() => handleSimulatePay(item)}
+                                  disabled={actionLoadingId === item.id}
+                                  className="px-2.5 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-400 rounded-full text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                  title="Simulasikan pembayaran lunas di OpenKos Sandbox"
+                                >
+                                  <Zap size={11} />
+                                  <span>Simulasi</span>
+                                </button>
+                                <button
+                                  onClick={() => handlePay(item)}
+                                  disabled={actionLoadingId === item.id}
+                                  className="px-3.5 py-1.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-bg rounded-full text-xs font-bold transition shadow flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                                >
+                                  {actionLoadingId === item.id ? (
+                                    <>
+                                      <div className="w-3.5 h-3.5 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
+                                      <span>Memverifikasi...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CreditCard size={13} />
+                                      <span>Bayar</span>
+                                      <ExternalLink size={12} />
+                                    </>
+                                  )}
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => handleSimulatePay(item)}
+                                disabled={actionLoadingId === item.id}
+                                className="px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-bg rounded-full text-xs font-bold transition shadow flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                                title="Konfirmasi sewa langsung di OpenKos lokal"
+                              >
+                                {actionLoadingId === item.id ? (
+                                  <>
+                                    <div className="w-3.5 h-3.5 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
+                                    <span>Memproses...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle2 size={13} />
+                                    <span>Konfirmasi (Lokal)</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
                           </div>
                         ) : (
                           <span className="text-xs text-rose-400/80 font-medium px-2.5 py-1 bg-rose-500/10 rounded-full border border-rose-500/20">
@@ -457,44 +481,67 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
 
               {activeItem ? (
                 <div className="space-y-2">
-                  <button
-                    onClick={() => handlePay(activeItem)}
-                    disabled={actionLoadingId !== null}
-                    className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-bg font-bold text-xs sm:text-sm rounded-xl transition shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    {actionLoadingId === activeItem.id ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
-                        <span>Mempersiapkan Pembayaran DOKU...</span>
-                      </>
-                    ) : (
-                      <>
-                        <CreditCard size={16} />
-                        <span>Bayar Sekarang dengan DOKU (QRIS/VA)</span>
-                        <ArrowRight size={15} />
-                      </>
-                    )}
-                  </button>
+                  {isOnlinePaymentEnabled() ? (
+                    <>
+                      <button
+                        onClick={() => handlePay(activeItem)}
+                        disabled={actionLoadingId !== null}
+                        className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-bg font-bold text-xs sm:text-sm rounded-xl transition shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                      >
+                        {actionLoadingId === activeItem.id ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
+                            <span>Mempersiapkan Pembayaran DOKU...</span>
+                          </>
+                        ) : (
+                          <>
+                            <CreditCard size={16} />
+                            <span>Bayar Sekarang dengan DOKU (QRIS/VA)</span>
+                            <ArrowRight size={15} />
+                          </>
+                        )}
+                      </button>
 
-                  <button
-                    type="button"
-                    onClick={() => handleSimulatePay(activeItem)}
-                    disabled={actionLoadingId !== null}
-                    className="w-full py-2.5 px-4 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-400 font-semibold text-xs tracking-wider text-center transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                    title="Simulasikan pembayaran sukses (sandbox OpenKos) tanpa gateway DOKU"
-                  >
-                    {actionLoadingId === activeItem.id ? (
-                      <>
-                        <div className="w-3.5 h-3.5 border-2 border-amber-400/40 border-t-amber-400 rounded-full animate-spin" />
-                        <span>Memproses Simulasi...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Zap size={14} />
-                        <span>⚡ Simulasikan Sukses Bayar (Sandbox Test)</span>
-                      </>
-                    )}
-                  </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSimulatePay(activeItem)}
+                        disabled={actionLoadingId !== null}
+                        className="w-full py-2.5 px-4 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-400 font-semibold text-xs tracking-wider text-center transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                        title="Simulasikan pembayaran sukses (sandbox OpenKos) tanpa gateway DOKU"
+                      >
+                        {actionLoadingId === activeItem.id ? (
+                          <>
+                            <div className="w-3.5 h-3.5 border-2 border-amber-400/40 border-t-amber-400 rounded-full animate-spin" />
+                            <span>Memproses Simulasi...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Zap size={14} />
+                            <span>⚡ Simulasikan Sukses Bayar (Sandbox Test)</span>
+                          </>
+                        )}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => handleSimulatePay(activeItem)}
+                      disabled={actionLoadingId !== null}
+                      className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-bg font-bold text-xs sm:text-sm rounded-xl transition shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      {actionLoadingId === activeItem.id ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
+                          <span>Memproses Konfirmasi Sewa...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 size={16} />
+                          <span>⚡ Konfirmasi Sewa Langsung (Mode Uji Lokal)</span>
+                          <ArrowRight size={15} />
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="p-3 bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs rounded-xl text-center flex items-center justify-center gap-2">

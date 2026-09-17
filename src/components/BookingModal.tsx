@@ -8,6 +8,7 @@ import {
   refreshCartCheckout, 
   isValidCheckoutUrl,
   simulatePaymentSuccess,
+  isOnlinePaymentEnabled,
   type SimulatePaymentResponse
 } from '../api';
 import type { Property, UserSession, Booking } from '../api';
@@ -314,14 +315,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
           }
         }
 
-        // 5. Buka langsung halaman pembayaran DOKU Checkout jika link pembayaran valid
-        if (isValidCheckoutUrl(checkoutUrl)) {
+        // 5. Buka langsung halaman pembayaran DOKU Checkout jika link pembayaran valid dan payment gateway diaktifkan
+        if (isOnlinePaymentEnabled() && isValidCheckoutUrl(checkoutUrl)) {
           setIsSuccess(true);
           window.location.href = checkoutUrl!;
           return;
         }
 
-        // Jika checkout_url belum siap, tampilkan modal sukses pemesanan
+        // Mode lokal / pembayaran online dinonaktifkan: tampilkan modal konfirmasi langsung
         setIsSuccess(true);
       } catch (err: any) {
         console.error('Cart booking error:', err);
@@ -463,11 +464,17 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                   <span className="text-2xl text-emerald-400">✓</span>
                 </div>
                 <h3 className="text-xl font-display font-semibold text-text-primary mb-1">
-                  {createdOrder ? 'Pesanan Kamar Siap Dibayar!' : 'Pemesanan Terkirim!'}
+                  {simulationData 
+                    ? 'Pemesanan Berhasil & Terverifikasi!' 
+                    : createdOrder 
+                      ? (isOnlinePaymentEnabled() ? 'Pesanan Kamar Siap Dibayar!' : 'Pesanan Kamar Tercatat (Mode Lokal)!') 
+                      : 'Pemesanan Terkirim!'}
                 </h3>
                 <p className="text-xs text-muted max-w-sm leading-relaxed mb-4">
                   {createdOrder 
-                    ? `Pesanan kamar ${createdOrder.unit?.name || selectedRoom} untuk ${createdOrder.property?.name || propertyName} telah disimpan ke keranjang. Mengarahkan Anda ke halaman pembayaran DOKU Checkout...`
+                    ? (isOnlinePaymentEnabled()
+                        ? `Pesanan kamar ${createdOrder.unit?.name || selectedRoom} untuk ${createdOrder.property?.name || propertyName} telah disimpan ke keranjang. Mengarahkan Anda ke halaman pembayaran DOKU Checkout...`
+                        : `Pesanan kamar ${createdOrder.unit?.name || selectedRoom} untuk ${createdOrder.property?.name || propertyName} telah berhasil disimpan ke database OpenKos lokal. Klik tombol di bawah untuk konfirmasi sewa langsung tanpa gateway DOKU.`)
                     : `Kami telah menerima permintaan pemesanan Anda untuk ${propertyName}.`}
                 </p>
 
@@ -541,73 +548,107 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                   </div>
                 ) : createdOrder ? (
                   <div className="w-full flex flex-col gap-2.5">
-                    <button
-                      type="button"
-                      disabled={isPayingCheckout}
-                      onClick={async () => {
-                        if (isValidCheckoutUrl(createdOrder.checkout_url)) {
-                          window.location.href = createdOrder.checkout_url!;
-                          return;
-                        }
-                        if (createdOrder.id) {
-                          try {
-                            setIsPayingCheckout(true);
-                            const res = await refreshCartCheckout(createdOrder.id);
-                            if (isValidCheckoutUrl(res?.checkout_url)) {
-                              window.location.href = res.checkout_url!;
-                              return;
-                            }
-                            throw new Error('Tautan pembayaran DOKU belum tersedia dari server.');
-                          } catch (err: any) {
-                            alert(err?.message || 'Gagal membuka halaman DOKU Checkout. Silakan coba kembali.');
-                          } finally {
-                            setIsPayingCheckout(false);
+                    {isOnlinePaymentEnabled() ? (
+                      <button
+                        type="button"
+                        disabled={isPayingCheckout}
+                        onClick={async () => {
+                          if (isValidCheckoutUrl(createdOrder.checkout_url)) {
+                            window.location.href = createdOrder.checkout_url!;
+                            return;
                           }
-                        }
-                      }}
-                      className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-bg font-bold text-xs uppercase tracking-wider text-center transition-colors shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                    >
-                      {isPayingCheckout ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
-                          <span>Membuka Pembayaran DOKU...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>Bayar Sekarang dengan DOKU (QRIS/VA)</span>
-                          <span>→</span>
-                        </>
-                      )}
-                    </button>
+                          if (createdOrder.id) {
+                            try {
+                              setIsPayingCheckout(true);
+                              const res = await refreshCartCheckout(createdOrder.id);
+                              if (isValidCheckoutUrl(res?.checkout_url)) {
+                                window.location.href = res.checkout_url!;
+                                return;
+                              }
+                              throw new Error('Tautan pembayaran DOKU belum tersedia dari server.');
+                            } catch (err: any) {
+                              alert(err?.message || 'Gagal membuka halaman DOKU Checkout. Silakan coba kembali.');
+                            } finally {
+                              setIsPayingCheckout(false);
+                            }
+                          }
+                        }}
+                        className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-bg font-bold text-xs uppercase tracking-wider text-center transition-colors shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                      >
+                        {isPayingCheckout ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
+                            <span>Membuka Pembayaran DOKU...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>Bayar Sekarang dengan DOKU (QRIS/VA)</span>
+                            <span>→</span>
+                          </>
+                        )}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={isSimulatingPayment}
+                        onClick={async () => {
+                          try {
+                            setIsSimulatingPayment(true);
+                            const res = await simulatePaymentSuccess(createdOrder.id || createdOrder.reference);
+                            setSimulationData(res);
+                          } catch (err: any) {
+                            alert(err?.message || 'Gagal konfirmasi pembayaran lokal.');
+                          } finally {
+                            setIsSimulatingPayment(false);
+                          }
+                        }}
+                        className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-bg font-bold text-xs uppercase tracking-wider text-center transition-colors shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                        title="Klik untuk menyelesaikan pesanan & terbitkan kontrak sewa di OpenKos lokal"
+                      >
+                        {isSimulatingPayment ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
+                            <span>Memproses Konfirmasi Sewa...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>⚡ Konfirmasi Sewa Langsung (Mode Uji Lokal)</span>
+                            <span>✓</span>
+                          </>
+                        )}
+                      </button>
+                    )}
 
-                    <button
-                      type="button"
-                      disabled={isSimulatingPayment}
-                      onClick={async () => {
-                        try {
-                          setIsSimulatingPayment(true);
-                          const res = await simulatePaymentSuccess(createdOrder.id || createdOrder.reference);
-                          setSimulationData(res);
-                        } catch (err: any) {
-                          alert(err?.message || 'Gagal simulasi pembayaran sandbox.');
-                        } finally {
-                          setIsSimulatingPayment(false);
-                        }
-                      }}
-                      className="w-full py-2.5 px-4 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-400 font-semibold text-xs tracking-wider text-center transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                      title="Klik untuk mensimulasikan pembayaran lunas di OpenKos tanpa gateway eksternal"
-                    >
-                      {isSimulatingPayment ? (
-                        <>
-                          <div className="w-3.5 h-3.5 border-2 border-amber-400/40 border-t-amber-400 rounded-full animate-spin" />
-                          <span>Memproses Simulasi Pembayaran...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>⚡ Simulasikan Sukses Bayar (Sandbox Test)</span>
-                        </>
-                      )}
-                    </button>
+                    {isOnlinePaymentEnabled() && (
+                      <button
+                        type="button"
+                        disabled={isSimulatingPayment}
+                        onClick={async () => {
+                          try {
+                            setIsSimulatingPayment(true);
+                            const res = await simulatePaymentSuccess(createdOrder.id || createdOrder.reference);
+                            setSimulationData(res);
+                          } catch (err: any) {
+                            alert(err?.message || 'Gagal simulasi pembayaran sandbox.');
+                          } finally {
+                            setIsSimulatingPayment(false);
+                          }
+                        }}
+                        className="w-full py-2.5 px-4 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-400 font-semibold text-xs tracking-wider text-center transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                        title="Klik untuk mensimulasikan pembayaran lunas di OpenKos tanpa gateway eksternal"
+                      >
+                        {isSimulatingPayment ? (
+                          <>
+                            <div className="w-3.5 h-3.5 border-2 border-amber-400/40 border-t-amber-400 rounded-full animate-spin" />
+                            <span>Memproses Simulasi Pembayaran...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>⚡ Simulasikan Sukses Bayar (Sandbox Test)</span>
+                          </>
+                        )}
+                      </button>
+                    )}
 
                     <button
                       type="button"

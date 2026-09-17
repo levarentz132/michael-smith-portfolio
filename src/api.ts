@@ -618,9 +618,9 @@ export async function fetchProperties(): Promise<Property[]> {
     console.warn('Failed to fetch /api/properties, trying direct API:', err);
   }
 
-  // Fallback: fetch directly from dashboard API if backend is unreachable
+  // Fallback: fetch directly from OpenKos API if backend is unreachable
   try {
-    const directRes = await fetch('https://dashboard.highlanderstay.com/api/v1/available-rooms');
+    const directRes = await fetch('http://localhost:8000/api/v1/available-rooms');
     if (directRes.ok) {
       const json = await directRes.json();
       if (Array.isArray(json.data)) {
@@ -784,7 +784,7 @@ export const AUTH_API_BASE =
   (import.meta as any).env?.VITE_API_BASE_URL || 
   (import.meta as any).env?.API_BASE_URL || 
   (import.meta as any).env?.VITE_AUTH_API_URL || 
-  'https://dashboard.highlanderstay.com/api/v1/auth';
+  'http://localhost:8000/api/v1/auth';
 
 async function callAuthApi<T>(path: string, options: RequestInit = {}): Promise<T> {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
@@ -1053,7 +1053,7 @@ export const TENANT_API_PROXY = '/api/v1/tenant';
 export const TENANT_API_BASE = 
   (import.meta as any).env?.VITE_TENANT_API_URL || 
   (import.meta as any).env?.VITE_API_BASE_URL?.replace(/\/auth$/, '/tenant') || 
-  'https://dashboard.highlanderstay.com/api/v1/tenant';
+  'http://localhost:8000/api/v1/tenant';
 
 async function callTenantApi<T>(path: string, token: string, options: RequestInit = {}): Promise<T> {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
@@ -1174,7 +1174,7 @@ export const ORDERS_API_PROXY = '/api/v1/orders';
 export const ORDERS_API_BASE = 
   (import.meta as any).env?.VITE_ORDERS_API_URL || 
   (import.meta as any).env?.VITE_API_BASE_URL?.replace(/\/auth$/, '/orders') || 
-  'https://dashboard.highlanderstay.com/api/v1/orders';
+  'http://localhost:8000/api/v1/orders';
 
 export async function createOpenKosOrder(payload: CreateOrderPayload): Promise<CreateOrderResponse> {
   const reqBody = {
@@ -1273,7 +1273,7 @@ export const CART_API_PROXY = '/api/v1/cart';
 export const CART_API_BASE =
   (import.meta as any).env?.VITE_CART_API_URL ||
   (import.meta as any).env?.VITE_API_BASE_URL?.replace(/\/auth$/, '/cart') ||
-  'https://dashboard.highlanderstay.com/api/v1/cart';
+  'http://localhost:8000/api/v1/cart';
 
 export function getOrCreateCartToken(): string {
   let token = localStorage.getItem('openkos_cart_token');
@@ -1479,6 +1479,21 @@ export function isValidCheckoutUrl(url?: string | null): boolean {
   return clean.startsWith('http://') || clean.startsWith('https://');
 }
 
+export function isOnlinePaymentEnabled(): boolean {
+  const envVal = (import.meta as any).env?.VITE_ENABLE_ONLINE_PAYMENT;
+  if (envVal === 'false' || envVal === '0') return false;
+  if (envVal === 'true' || envVal === '1') return true;
+
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return false;
+    }
+  }
+  return true;
+}
+
+
 export async function refreshCartCheckout(orderId: number): Promise<RefreshCheckoutResponse> {
   const cartToken = getOrCreateCartToken();
   const headers = {
@@ -1548,7 +1563,7 @@ export async function refreshCartCheckout(orderId: number): Promise<RefreshCheck
 export const SANDBOX_API_PROXY = '/api/v1/sandbox';
 export const SANDBOX_API_BASE =
   (import.meta as any).env?.VITE_SANDBOX_API_URL ||
-  'https://dashboard.highlanderstay.com/api/v1/sandbox';
+  'http://localhost:8000/api/v1/sandbox';
 
 export interface SimulatePaymentResponse {
   success: boolean;

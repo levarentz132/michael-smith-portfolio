@@ -392,7 +392,7 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
 });
 
 // Proxy route for Tenant API (OpenKos)
-const TENANT_UPSTREAM_URL = process.env.OPENKOS_TENANT_URL || 'https://dashboard.highlanderstay.com/api/v1/tenant';
+const TENANT_UPSTREAM_URL = process.env.OPENKOS_TENANT_URL || 'http://localhost:8000/api/v1/tenant';
 
 app.use('/api/v1/tenant', async (req, res) => {
   const targetUrl = `${TENANT_UPSTREAM_URL}${req.url}`;
@@ -440,7 +440,7 @@ app.use('/api/v1/tenant', async (req, res) => {
 
 // 1. Properties Routes (100% External Available Rooms API - Direct & Live, Zero Local DB)
 
-const EXTERNAL_AVAILABLE_ROOMS_API = 'https://dashboard.highlanderstay.com/api/v1/available-rooms';
+const EXTERNAL_AVAILABLE_ROOMS_API = process.env.OPENKOS_ROOMS_URL || 'http://localhost:8000/api/v1/available-rooms';
 let propertiesCache = null;
 let propertiesCacheTimestamp = 0;
 const CACHE_TTL_MS = 60 * 1000; // 60s in-memory cache
@@ -1440,7 +1440,7 @@ app.delete('/api/bookings/:id', async (req, res) => {
 
 // Forwarding proxy to Highlanderstay / OpenKos Auth API
 const getAuthTargetUrl = (subPath) => {
-  const customUrl = process.env.OPENKOS_AUTH_URL || 'https://dashboard.highlanderstay.com/api/v1/auth';
+  const customUrl = process.env.OPENKOS_AUTH_URL || 'http://localhost:8000/api/v1/auth';
   return `${customUrl.replace(/\/$/, '')}/${subPath}`;
 };
 
@@ -1469,7 +1469,7 @@ app.use('/api/v1/auth', async (req, res) => {
       apiRes = await fetch(targetUrl, fetchOptions);
     } catch (primaryErr) {
       // Fallback to local OpenKos if remote has network issue
-      const fallbackUrl = `http://localhost:8080/api/v1/auth/${targetSubPath}`;
+      const fallbackUrl = `http://localhost:8000/api/v1/auth/${targetSubPath}`;
       apiRes = await fetch(fallbackUrl, fetchOptions);
     }
 
@@ -1488,7 +1488,7 @@ app.use('/api/v1/auth', async (req, res) => {
 
 // Forwarding proxy to Highlanderstay / OpenKos Tenant Portal Data API
 const getTenantTargetUrl = (subPath) => {
-  const customUrl = process.env.OPENKOS_TENANT_URL || 'https://dashboard.highlanderstay.com/api/v1/tenant';
+  const customUrl = process.env.OPENKOS_TENANT_URL || 'http://localhost:8000/api/v1/tenant';
   return `${customUrl.replace(/\/$/, '')}/${subPath}`;
 };
 
@@ -1540,7 +1540,7 @@ app.use('/api/v1/tenant', async (req, res) => {
 });
 
 // Proxy route for Orders / Bookings API (OpenKos)
-const ORDERS_UPSTREAM_URL = process.env.OPENKOS_ORDERS_URL || 'https://dashboard.highlanderstay.com/api/v1/orders';
+const ORDERS_UPSTREAM_URL = process.env.OPENKOS_ORDERS_URL || 'http://localhost:8000/api/v1/orders';
 
 app.use(['/api/v1/orders', '/api/v1/bookings'], async (req, res) => {
   const targetSubPath = req.url.replace(/^\//, '');
@@ -1601,7 +1601,7 @@ app.use(['/api/v1/orders', '/api/v1/bookings'], async (req, res) => {
 });
 
 // Proxy route for Cart API (OpenKos Cart-First Booking)
-const CART_UPSTREAM_URL = process.env.OPENKOS_CART_URL || 'https://dashboard.highlanderstay.com/api/v1/cart';
+const CART_UPSTREAM_URL = process.env.OPENKOS_CART_URL || 'http://localhost:8000/api/v1/cart';
 
 app.use('/api/v1/cart', async (req, res) => {
   const targetSubPath = req.url.replace(/^\//, '');
@@ -1658,11 +1658,9 @@ app.use('/api/v1/cart', async (req, res) => {
         throw new Error('Remote endpoint returned 404');
       }
     } catch (primaryErr) {
-      const isTargetLocal = targetUrl.includes('localhost') || targetUrl.includes('127.0.0.1');
-      const fallbackBase = isTargetLocal ? 'https://dashboard.highlanderstay.com/api/v1/cart' : 'http://localhost:8000/api/v1/cart';
       const fallbackUrl = targetSubPath 
-        ? (targetSubPath.startsWith('?') ? `${fallbackBase}${targetSubPath}` : `${fallbackBase}/${targetSubPath}`)
-        : fallbackBase;
+        ? `http://localhost:8000/api/v1/cart/${targetSubPath}`
+        : `http://localhost:8000/api/v1/cart`;
       console.warn(`[Cart Proxy] Primary (${targetUrl}) failed: ${primaryErr.message}. Attempting fallback: ${fallbackUrl}`);
       apiRes = await fetch(fallbackUrl, fetchOptions);
     }
@@ -1707,7 +1705,7 @@ app.use('/api/v1/cart', async (req, res) => {
 });
 
 // Proxy route for Sandbox / Simulation API (OpenKos)
-const SANDBOX_UPSTREAM_URL = process.env.OPENKOS_SANDBOX_URL || 'https://dashboard.highlanderstay.com/api/v1/sandbox';
+const SANDBOX_UPSTREAM_URL = process.env.OPENKOS_SANDBOX_URL || 'http://localhost:8000/api/v1/sandbox';
 
 app.use('/api/v1/sandbox', async (req, res) => {
   const targetSubPath = req.url.replace(/^\//, '');
@@ -1740,11 +1738,9 @@ app.use('/api/v1/sandbox', async (req, res) => {
         throw new Error('Remote endpoint returned 404');
       }
     } catch (primaryErr) {
-      const isTargetLocal = targetUrl.includes('localhost') || targetUrl.includes('127.0.0.1');
-      const fallbackBase = isTargetLocal ? 'https://dashboard.highlanderstay.com/api/v1/sandbox' : 'http://localhost:8000/api/v1/sandbox';
       const fallbackUrl = targetSubPath 
-        ? (targetSubPath.startsWith('?') ? `${fallbackBase}${targetSubPath}` : `${fallbackBase}/${targetSubPath}`)
-        : fallbackBase;
+        ? `http://localhost:8000/api/v1/sandbox/${targetSubPath}`
+        : `http://localhost:8000/api/v1/sandbox`;
       console.warn(`[Sandbox Proxy] Primary (${targetUrl}) failed: ${primaryErr.message}. Attempting fallback: ${fallbackUrl}`);
       apiRes = await fetch(fallbackUrl, fetchOptions);
     }
