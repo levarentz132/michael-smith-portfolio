@@ -459,6 +459,8 @@ export interface CartItem {
   currency?: string;
   status: string;
   is_available?: boolean;
+  is_paid?: boolean;
+  lease_id?: number | null;
   conflict_message?: string | null;
   checkout_url?: string | null;
   expires_at?: string;

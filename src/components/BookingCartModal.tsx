@@ -335,7 +335,6 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
                           <h4 className="font-semibold text-sm sm:text-base text-text-primary">
                             {unitName}
                           </h4>
-                          {isAvailable ? (
                           {item.status === "paid" || item.is_paid ? (
                             <span className="px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
                               <CheckCircle2 size={11} /> Lunas (Paid)
@@ -349,7 +348,7 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
                               <AlertTriangle size={11} /> Sudah Diisi Orang Lain
                             </span>
                           )}
-                          )}
+
                         </div>
 
                         <button
