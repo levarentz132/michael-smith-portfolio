@@ -1467,6 +1467,16 @@ export async function removeFromCart(orderId: number): Promise<{ message: string
   return { message: 'Booking item removed from cart.' };
 }
 
+export function isValidCheckoutUrl(url?: string | null): boolean {
+  if (!url || typeof url !== 'string') return false;
+  const clean = url.trim().toLowerCase();
+  if (clean.length < 10) return false;
+  if (clean.includes('/api/v1/') || clean.endsWith('/checkout')) {
+    return false;
+  }
+  return clean.startsWith('http://') || clean.startsWith('https://');
+}
+
 export async function refreshCartCheckout(orderId: number): Promise<RefreshCheckoutResponse> {
   const cartToken = getOrCreateCartToken();
   const headers = {
@@ -1475,43 +1485,24 @@ export async function refreshCartCheckout(orderId: number): Promise<RefreshCheck
     'X-Cart-Token': cartToken
   };
 
-  // 1. Try direct URL
-  try {
-    const res = await fetch(`${CART_API_BASE}/${orderId}/checkout`, {
-      method: 'POST',
-      headers
-    });
-    const data = await res.json().catch(() => null);
-    if (res.ok && data?.checkout_url) {
-      return data as RefreshCheckoutResponse;
-    }
-    if (res.status === 409 || res.status === 400 || res.status === 422 || data?.code === 'ROOM_ALREADY_PAID' || data?.message) {
-      const errorMsg = data?.message || 'Kamar ini sudah dibayar oleh orang lain.';
-      const err: any = new Error(errorMsg);
-      err.code = data?.code || (res.status === 409 ? 'ROOM_ALREADY_PAID' : undefined);
-      err.response = { data, status: res.status };
-      throw err;
-    }
-  } catch (directErr: any) {
-    if (directErr.code || (directErr.message && !directErr.message.includes('Failed to fetch') && !directErr.message.includes('NetworkError') && !directErr.message.includes('fetch failed'))) {
-      throw directErr;
-    }
-  }
-
-  // 2. Try proxy URL
+  // 1. Try proxy URL first (goes through local Express server with error interceptor)
   try {
     const res = await fetch(`${CART_API_PROXY}/${orderId}/checkout`, {
       method: 'POST',
-      headers
+      headers,
+      body: JSON.stringify({})
     });
     const data = await res.json().catch(() => null);
-    if (res.ok && data?.checkout_url) {
+    if (res.ok && data?.checkout_url && isValidCheckoutUrl(data.checkout_url)) {
       return data as RefreshCheckoutResponse;
     }
     if (res.status === 409 || res.status === 400 || res.status === 422 || data?.code === 'ROOM_ALREADY_PAID' || data?.message) {
-      const errorMsg = data?.message || 'Kamar ini sudah dibayar oleh orang lain.';
+      let errorMsg = data?.message || 'Kamar ini sudah dibayar oleh orang lain.';
+      if (res.status === 502 || errorMsg.includes('The GET method is not supported') || data?.code === 'PAYMENT_GATEWAY_ERROR') {
+        errorMsg = 'Layanan pembayaran online (DOKU Checkout) di server sedang mengalami kendala teknis (HTTP 502). Pesanan kamar Anda telah tersimpan di keranjang. Silakan hubungi admin untuk konfirmasi pembayaran manual.';
+      }
       const err: any = new Error(errorMsg);
-      err.code = data?.code || (res.status === 409 ? 'ROOM_ALREADY_PAID' : undefined);
+      err.code = data?.code || (res.status === 409 ? 'ROOM_ALREADY_PAID' : (res.status === 502 ? 'PAYMENT_GATEWAY_ERROR' : undefined));
       err.response = { data, status: res.status };
       throw err;
     }
@@ -1521,30 +1512,34 @@ export async function refreshCartCheckout(orderId: number): Promise<RefreshCheck
     }
   }
 
-  // 3. Fallback to local
+  // 2. Try direct URL fallback
   try {
-    const res = await fetch(`http://localhost:8000/api/v1/cart/${orderId}/checkout`, {
+    const res = await fetch(`${CART_API_BASE}/${orderId}/checkout`, {
       method: 'POST',
-      headers
+      headers,
+      body: JSON.stringify({})
     });
     const data = await res.json().catch(() => null);
-    if (res.ok && data?.checkout_url) {
+    if (res.ok && data?.checkout_url && isValidCheckoutUrl(data.checkout_url)) {
       return data as RefreshCheckoutResponse;
     }
     if (res.status === 409 || res.status === 400 || res.status === 422 || data?.code === 'ROOM_ALREADY_PAID' || data?.message) {
-      const errorMsg = data?.message || 'Kamar ini sudah dibayar oleh orang lain.';
+      let errorMsg = data?.message || 'Kamar ini sudah dibayar oleh orang lain.';
+      if (res.status === 502 || errorMsg.includes('The GET method is not supported') || data?.code === 'PAYMENT_GATEWAY_ERROR') {
+        errorMsg = 'Layanan pembayaran online (DOKU Checkout) di server sedang mengalami kendala teknis (HTTP 502). Pesanan kamar Anda telah tersimpan di keranjang. Silakan hubungi admin untuk konfirmasi pembayaran manual.';
+      }
       const err: any = new Error(errorMsg);
-      err.code = data?.code || (res.status === 409 ? 'ROOM_ALREADY_PAID' : undefined);
+      err.code = data?.code || (res.status === 409 ? 'ROOM_ALREADY_PAID' : (res.status === 502 ? 'PAYMENT_GATEWAY_ERROR' : undefined));
       err.response = { data, status: res.status };
       throw err;
     }
-  } catch (localErr: any) {
-    if (localErr.code || (localErr.message && !localErr.message.includes('Failed to fetch') && !localErr.message.includes('NetworkError') && !localErr.message.includes('fetch failed'))) {
-      throw localErr;
+  } catch (directErr: any) {
+    if (directErr.code || (directErr.message && !directErr.message.includes('Failed to fetch') && !directErr.message.includes('NetworkError') && !directErr.message.includes('fetch failed'))) {
+      throw directErr;
     }
   }
 
-  throw new Error('Gagal memperbarui tautan pembayaran DOKU.');
+  throw new Error('Tautan pembayaran DOKU belum tersedia dari server.');
 }
 
 // 6. Submit Invoice Payment Proof

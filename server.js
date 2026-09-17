@@ -1565,6 +1565,12 @@ app.use(['/api/v1/orders', '/api/v1/bookings'], async (req, res) => {
     }
 
     let apiRes;
+    console.log(`\n--------------------------------------------------`);
+    console.log(`[Orders Proxy Request] ${req.method} ${targetUrl}`);
+    if (fetchOptions.body) {
+      console.log(`[Orders Proxy Body] ${fetchOptions.body}`);
+    }
+
     try {
       apiRes = await fetch(targetUrl, fetchOptions);
       if (apiRes.status === 404) {
@@ -1579,6 +1585,9 @@ app.use(['/api/v1/orders', '/api/v1/bookings'], async (req, res) => {
     }
 
     const data = await apiRes.text();
+    console.log(`[Orders Proxy Response Status] ${apiRes.status}`);
+    console.log(`[Orders Proxy Response Body]`, data);
+    console.log(`--------------------------------------------------\n`);
     res.status(apiRes.status);
     try {
       res.json(JSON.parse(data));
@@ -1601,6 +1610,10 @@ app.use('/api/v1/cart', async (req, res) => {
     ? (targetSubPath.startsWith('?') ? `${baseUrl}${targetSubPath}` : `${baseUrl}/${targetSubPath}`)
     : baseUrl;
 
+  const isCheckoutRoute = targetSubPath.includes('checkout');
+  // Upstream only supports POST for checkout; automatically upgrade GET to POST if requested
+  const effectiveMethod = (isCheckoutRoute && req.method === 'GET') ? 'POST' : req.method;
+
   try {
     const headers = {
       'Accept': 'application/json'
@@ -1613,42 +1626,83 @@ app.use('/api/v1/cart', async (req, res) => {
     }
     if (req.headers['content-type'] && !req.headers['content-type'].includes('multipart/form-data')) {
       headers['Content-Type'] = req.headers['content-type'];
+    } else if (effectiveMethod === 'POST') {
+      headers['Content-Type'] = 'application/json';
     }
 
     const fetchOptions = {
-      method: req.method,
+      method: effectiveMethod,
       headers
     };
 
-    if (req.method !== 'GET' && req.method !== 'HEAD' && req.body && Object.keys(req.body).length > 0) {
-      fetchOptions.body = JSON.stringify(req.body);
+    if (effectiveMethod !== 'GET' && effectiveMethod !== 'HEAD') {
+      if (req.body && Object.keys(req.body).length > 0) {
+        fetchOptions.body = JSON.stringify(req.body);
+      } else {
+        fetchOptions.body = JSON.stringify({});
+      }
       headers['Content-Type'] = 'application/json';
     }
 
     let apiRes;
+    console.log(`\n--------------------------------------------------`);
+    console.log(`[Cart Proxy Request] ${effectiveMethod} ${targetUrl}`);
+    console.log(`[Cart Proxy Token] ${req.headers['x-cart-token'] || 'none'}`);
+    if (fetchOptions.body) {
+      console.log(`[Cart Proxy Body] ${fetchOptions.body}`);
+    }
+
     try {
       apiRes = await fetch(targetUrl, fetchOptions);
       if (apiRes.status === 404) {
         throw new Error('Remote endpoint returned 404');
       }
     } catch (primaryErr) {
-      // Fallback to local OpenKos instance on port 8000
+      const isTargetLocal = targetUrl.includes('localhost') || targetUrl.includes('127.0.0.1');
+      const fallbackBase = isTargetLocal ? 'https://dashboard.highlanderstay.com/api/v1/cart' : 'http://localhost:8000/api/v1/cart';
       const fallbackUrl = targetSubPath 
-        ? (targetSubPath.startsWith('?') ? `http://localhost:8000/api/v1/cart${targetSubPath}` : `http://localhost:8000/api/v1/cart/${targetSubPath}`)
-        : `http://localhost:8000/api/v1/cart`;
+        ? (targetSubPath.startsWith('?') ? `${fallbackBase}${targetSubPath}` : `${fallbackBase}/${targetSubPath}`)
+        : fallbackBase;
+      console.warn(`[Cart Proxy] Primary (${targetUrl}) failed: ${primaryErr.message}. Attempting fallback: ${fallbackUrl}`);
       apiRes = await fetch(fallbackUrl, fetchOptions);
     }
 
     const data = await apiRes.text();
-    res.status(apiRes.status);
+    console.log(`[Cart Proxy Response Status] ${apiRes.status}`);
+    console.log(`[Cart Proxy Response Body]`, data);
+    console.log(`--------------------------------------------------\n`);
+
+    let parsedData = null;
     try {
-      res.json(JSON.parse(data));
-    } catch {
+      parsedData = JSON.parse(data);
+    } catch {}
+
+    // If browser directly navigated via GET and we received a checkout_url, redirect user to payment page
+    if (req.method === 'GET' && req.headers.accept?.includes('text/html') && parsedData?.checkout_url) {
+      return res.redirect(parsedData.checkout_url);
+    }
+
+    // Intercept upstream 502 crashes or Nginx GET fallback errors
+    if (apiRes.status === 502 || parsedData?.message?.includes('The GET method is not supported')) {
+      return res.status(502).json({
+        code: 'PAYMENT_GATEWAY_ERROR',
+        message: 'Layanan pembayaran online (DOKU Checkout) di server sedang mengalami kendala teknis (HTTP 502). Pesanan kamar Anda telah berhasil dicatat. Silakan hubungi admin untuk konfirmasi pembayaran.',
+        error: 'Upstream payment gateway 502'
+      });
+    }
+
+    res.status(apiRes.status);
+    if (parsedData !== null) {
+      res.json(parsedData);
+    } else {
       res.send(data);
     }
   } catch (err) {
     console.error('[Cart Proxy Error]', err);
-    res.status(502).json({ message: 'Layanan keranjang OpenKos tidak dapat dihubungi: ' + err.message });
+    res.status(502).json({
+      message: 'Layanan keranjang OpenKos tidak dapat dihubungi: ' + err.message,
+      error: err.message
+    });
   }
 });
 

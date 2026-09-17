@@ -17,7 +17,8 @@ import {
   fetchCart, 
   removeFromCart, 
   refreshCartCheckout, 
-  getOrCreateCartToken 
+  getOrCreateCartToken,
+  isValidCheckoutUrl
 } from '../api';
 import type { CartItem, CartData } from '../api';
 
@@ -103,7 +104,7 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
       // 1. Selalu verifikasi ketersediaan kamar ke backend sebelum redirect
       const res = await refreshCartCheckout(item.id);
 
-      if (res?.checkout_url) {
+      if (isValidCheckoutUrl(res?.checkout_url)) {
         // Simpan pending context di sessionStorage untuk validasi return callback
         sessionStorage.setItem('pending_doku_checkout', JSON.stringify({
           orderId: item.id,
@@ -118,7 +119,7 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
           window.location.href = res.checkout_url;
         }, 500);
       } else {
-        throw new Error('Link pembayaran DOKU tidak ditemukan dalam respon.');
+        throw new Error('Link pembayaran resmi DOKU belum tersedia dari server.');
       }
     } catch (err: any) {
       console.error('Pay cart error:', err);

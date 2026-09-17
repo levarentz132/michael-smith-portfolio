@@ -46,7 +46,8 @@ import {
   fetchCart,
   removeFromCart,
   refreshCartCheckout,
-  getOrCreateCartToken
+  getOrCreateCartToken,
+  isValidCheckoutUrl
 } from '../api';
 
 interface TenantProfileModalProps {
@@ -171,7 +172,7 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
     try {
       // Selalu verifikasi ketersediaan kamar ke backend sebelum redirect
       const res = await refreshCartCheckout(item.id);
-      if (res?.checkout_url) {
+      if (isValidCheckoutUrl(res?.checkout_url)) {
         sessionStorage.setItem('pending_doku_checkout', JSON.stringify({
           orderId: item.id,
           reference: item.reference,
@@ -179,9 +180,9 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
           isCart: true,
           timestamp: Date.now()
         }));
-        window.location.href = res.checkout_url;
+        window.location.href = res.checkout_url!;
       } else {
-        throw new Error('Tautan pembayaran DOKU tidak tersedia.');
+        throw new Error('Tautan pembayaran resmi DOKU belum tersedia dari server.');
       }
     } catch (err: any) {
       console.error('Pay cart error:', err);
@@ -348,10 +349,10 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
       }));
 
       const res = await createTenantInvoiceCheckout(inv.id, session.token);
-      if (res?.checkout_url) {
-        window.location.href = res.checkout_url;
+      if (isValidCheckoutUrl(res?.checkout_url)) {
+        window.location.href = res.checkout_url!;
       } else {
-        throw new Error(res?.message || 'URL checkout DOKU tidak ditemukan dalam respon server.');
+        throw new Error(res?.message || 'Tautan pembayaran resmi DOKU belum tersedia dari server.');
       }
     } catch (err: any) {
       console.error('DOKU Checkout error:', err);

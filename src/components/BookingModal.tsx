@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { createBooking, addToCart, getOrCreateCartToken, fetchSettings, refreshCartCheckout } from '../api';
+import { createBooking, addToCart, getOrCreateCartToken, fetchSettings, refreshCartCheckout, isValidCheckoutUrl } from '../api';
 import type { Property, UserSession, Booking } from '../api';
 
 interface BookingModalProps {
@@ -303,10 +303,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
           }
         }
 
-        // 5. Buka langsung halaman pembayaran DOKU Checkout (TANPA lewat WhatsApp)
-        if (checkoutUrl) {
+        // 5. Buka langsung halaman pembayaran DOKU Checkout jika link pembayaran valid
+        if (isValidCheckoutUrl(checkoutUrl)) {
           setIsSuccess(true);
-          window.location.href = checkoutUrl;
+          window.location.href = checkoutUrl!;
           return;
         }
 
@@ -499,19 +499,19 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                       type="button"
                       disabled={isPayingCheckout}
                       onClick={async () => {
-                        if (createdOrder.checkout_url) {
-                          window.location.href = createdOrder.checkout_url;
+                        if (isValidCheckoutUrl(createdOrder.checkout_url)) {
+                          window.location.href = createdOrder.checkout_url!;
                           return;
                         }
                         if (createdOrder.id) {
                           try {
                             setIsPayingCheckout(true);
                             const res = await refreshCartCheckout(createdOrder.id);
-                            if (res?.checkout_url) {
-                              window.location.href = res.checkout_url;
+                            if (isValidCheckoutUrl(res?.checkout_url)) {
+                              window.location.href = res.checkout_url!;
                               return;
                             }
-                            throw new Error('Tautan pembayaran DOKU belum tersedia.');
+                            throw new Error('Tautan pembayaran DOKU belum tersedia dari server.');
                           } catch (err: any) {
                             alert(err?.message || 'Gagal membuka halaman DOKU Checkout. Silakan coba kembali.');
                           } finally {
