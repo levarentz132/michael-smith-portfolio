@@ -11,14 +11,16 @@ import {
   ExternalLink,
   Building2,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  Zap
 } from 'lucide-react';
 import { 
   fetchCart, 
   removeFromCart, 
   refreshCartCheckout, 
   getOrCreateCartToken,
-  isValidCheckoutUrl
+  isValidCheckoutUrl,
+  simulatePaymentSuccess
 } from '../api';
 import type { CartItem, CartData } from '../api';
 
@@ -161,6 +163,23 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
       setActionLoadingId(null);
     }
   };
+
+  const handleSimulatePay = async (item: CartItem) => {
+    setActionLoadingId(item.id);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    try {
+      const res = await simulatePaymentSuccess(item.id);
+      setSuccessMessage(`Simulasi Sukses! Kontrak Sewa #${res.order.lease_id} aktif, unit terkunci occupied, & Invoice #${res.order.invoice_id} lunas.`);
+      await loadCart();
+    } catch (err: any) {
+      console.error('Simulate payment error:', err);
+      setErrorMessage(err?.message || 'Gagal melakukan simulasi pembayaran sandbox.');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
 
   if (!isOpen) return null;
 
@@ -317,13 +336,19 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
                             {unitName}
                           </h4>
                           {isAvailable ? (
+                          {item.status === "paid" || item.is_paid ? (
+                            <span className="px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                              <CheckCircle2 size={11} /> Lunas (Paid)
+                            </span>
+                          ) : isAvailable ? (
                             <span className="px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                              Belum Dibayar
+                              Menunggu Pembayaran
                             </span>
                           ) : (
                             <span className="px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30 flex items-center gap-1">
                               <AlertTriangle size={11} /> Sudah Diisi Orang Lain
                             </span>
+                          )}
                           )}
                         </div>
 
@@ -371,25 +396,43 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
                           </span>
                         </div>
 
-                        {isAvailable ? (
-                          <button
-                            onClick={() => handlePay(item)}
-                            disabled={actionLoadingId === item.id}
-                            className="px-3.5 py-1.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-bg rounded-full text-xs font-bold transition shadow flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                          >
-                            {actionLoadingId === item.id ? (
-                              <>
-                                <div className="w-3.5 h-3.5 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
-                                <span>Memverifikasi...</span>
-                              </>
-                            ) : (
-                              <>
-                                <CreditCard size={13} />
-                                <span>Bayar Sekarang</span>
-                                <ExternalLink size={12} />
-                              </>
-                            )}
-                          </button>
+                        {item.status === "paid" || item.is_paid ? (
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1.5 text-xs text-emerald-400 font-semibold px-3 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/25">
+                              <CheckCircle2 size={13} />
+                              <span>Sewa #{item.lease_id || "Aktif"} Terbit & Lunas</span>
+                            </span>
+                          </div>
+                        ) : isAvailable ? (
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => handleSimulatePay(item)}
+                              disabled={actionLoadingId === item.id}
+                              className="px-2.5 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-400 rounded-full text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                              title="Simulasikan pembayaran lunas di OpenKos Sandbox"
+                            >
+                              <Zap size={11} />
+                              <span>Simulasi</span>
+                            </button>
+                            <button
+                              onClick={() => handlePay(item)}
+                              disabled={actionLoadingId === item.id}
+                              className="px-3.5 py-1.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-bg rounded-full text-xs font-bold transition shadow flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                            >
+                              {actionLoadingId === item.id ? (
+                                <>
+                                  <div className="w-3.5 h-3.5 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
+                                  <span>Memverifikasi...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <CreditCard size={13} />
+                                  <span>Bayar</span>
+                                  <ExternalLink size={12} />
+                                </>
+                              )}
+                            </button>
+                          </div>
                         ) : (
                           <span className="text-xs text-rose-400/80 font-medium px-2.5 py-1 bg-rose-500/10 rounded-full border border-rose-500/20">
                             Tidak Tersedia
@@ -414,24 +457,46 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
               </div>
 
               {activeItem ? (
-                <button
-                  onClick={() => handlePay(activeItem)}
-                  disabled={actionLoadingId !== null}
-                  className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-bg font-bold text-xs sm:text-sm rounded-xl transition shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                >
-                  {actionLoadingId === activeItem.id ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
-                      <span>Mempersiapkan Pembayaran DOKU...</span>
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard size={16} />
-                      <span>Bayar Sekarang dengan DOKU (QRIS/VA)</span>
-                      <ArrowRight size={15} />
-                    </>
-                  )}
-                </button>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => handlePay(activeItem)}
+                    disabled={actionLoadingId !== null}
+                    className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-bg font-bold text-xs sm:text-sm rounded-xl transition shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {actionLoadingId === activeItem.id ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
+                        <span>Mempersiapkan Pembayaran DOKU...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard size={16} />
+                        <span>Bayar Sekarang dengan DOKU (QRIS/VA)</span>
+                        <ArrowRight size={15} />
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSimulatePay(activeItem)}
+                    disabled={actionLoadingId !== null}
+                    className="w-full py-2.5 px-4 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-400 font-semibold text-xs tracking-wider text-center transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    title="Simulasikan pembayaran sukses (sandbox OpenKos) tanpa gateway DOKU"
+                  >
+                    {actionLoadingId === activeItem.id ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-amber-400/40 border-t-amber-400 rounded-full animate-spin" />
+                        <span>Memproses Simulasi...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Zap size={14} />
+                        <span>⚡ Simulasikan Sukses Bayar (Sandbox Test)</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               ) : (
                 <div className="p-3 bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs rounded-xl text-center flex items-center justify-center gap-2">
                   <AlertCircle size={15} className="shrink-0" />

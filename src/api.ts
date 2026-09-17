@@ -1542,6 +1542,65 @@ export async function refreshCartCheckout(orderId: number): Promise<RefreshCheck
   throw new Error('Tautan pembayaran DOKU belum tersedia dari server.');
 }
 
+// 5e. Sandbox / Payment Simulation API
+export const SANDBOX_API_PROXY = '/api/v1/sandbox';
+export const SANDBOX_API_BASE =
+  (import.meta as any).env?.VITE_SANDBOX_API_URL ||
+  'https://dashboard.highlanderstay.com/api/v1/sandbox';
+
+export interface SimulatePaymentResponse {
+  success: boolean;
+  status: string;
+  message: string;
+  order: {
+    id: number;
+    reference: string;
+    status: string;
+    lease_id: number;
+    invoice_id: number;
+    unit_id: number;
+    paid_at: string;
+  };
+}
+
+export async function simulatePaymentSuccess(orderIdOrRef: number | string): Promise<SimulatePaymentResponse> {
+  const payload = typeof orderIdOrRef === 'number'
+    ? { booking_order_id: orderIdOrRef }
+    : { reference: orderIdOrRef };
+
+  const headers = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json'
+  };
+
+  // 1. Try proxy first (express proxy on port 5000)
+  try {
+    const res = await fetch(`${SANDBOX_API_PROXY}/simulate-payment`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(() => null);
+    if (res.ok && data?.success) {
+      return data as SimulatePaymentResponse;
+    }
+  } catch {}
+
+  // 2. Try direct API base
+  const res = await fetch(`${SANDBOX_API_BASE}/simulate-payment`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json().catch(() => null);
+  if (res.ok && data?.success) {
+    return data as SimulatePaymentResponse;
+  }
+
+  throw new Error(data?.message || 'Gagal melakukan simulasi pembayaran.');
+}
+
+
 // 6. Submit Invoice Payment Proof
 export async function submitInvoicePaymentProof(
   payload: SubmitPaymentPayload,

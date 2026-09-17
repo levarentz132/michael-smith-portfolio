@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { createBooking, addToCart, getOrCreateCartToken, fetchSettings, refreshCartCheckout, isValidCheckoutUrl } from '../api';
+import { 
+  createBooking, 
+  addToCart, 
+  getOrCreateCartToken, 
+  fetchSettings, 
+  refreshCartCheckout, 
+  isValidCheckoutUrl,
+  simulatePaymentSuccess,
+  type SimulatePaymentResponse
+} from '../api';
 import type { Property, UserSession, Booking } from '../api';
 
 interface BookingModalProps {
@@ -30,6 +39,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [isPayingCheckout, setIsPayingCheckout] = useState(false);
+  const [isSimulatingPayment, setIsSimulatingPayment] = useState(false);
+  const [simulationData, setSimulationData] = useState<SimulatePaymentResponse | null>(null);
   const [error, setError] = useState('');
   const [whatsappNumber, setWhatsappNumber] = useState('628123456789');
 
@@ -493,7 +504,42 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                   </div>
                 )}
 
-                {createdOrder ? (
+                {simulationData ? (
+                  <div className="w-full flex flex-col gap-3">
+                    <div className="w-full bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 text-left flex flex-col gap-2 text-xs">
+                      <div className="flex items-center gap-2 text-emerald-400 font-bold pb-2 border-b border-emerald-500/20">
+                        <span>✓</span>
+                        <span>Pembayaran Sukses Terverifikasi (Sandbox)</span>
+                      </div>
+                      <div className="flex justify-between items-center text-text-primary">
+                        <span className="text-muted">Kontrak Sewa (Lease):</span>
+                        <span className="font-mono font-bold text-emerald-400">ID #{simulationData.order.lease_id} (Active)</span>
+                      </div>
+                      <div className="flex justify-between items-center text-text-primary">
+                        <span className="text-muted">No. Tagihan (Invoice):</span>
+                        <span className="font-mono font-bold text-emerald-400">ID #{simulationData.order.invoice_id} (Paid)</span>
+                      </div>
+                      <div className="flex justify-between items-center text-text-primary">
+                        <span className="text-muted">Status Kamar:</span>
+                        <span className="font-semibold text-amber-400">Occupied (Terkunci)</span>
+                      </div>
+                      <p className="text-[11px] text-muted mt-1 leading-relaxed">
+                        Akun penghuni Anda telah otomatis dibuat untuk nomor HP <span className="font-mono text-text-primary">{phone}</span>. Anda kini dapat mengakses kontrak sewa dan tagihan lunas di portal penghuni.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        window.location.reload();
+                      }}
+                      className="w-full py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-bg font-bold text-xs uppercase tracking-wider text-center transition-colors shadow-lg cursor-pointer"
+                    >
+                      Selesai & Segarkan Halaman
+                    </button>
+                  </div>
+                ) : createdOrder ? (
                   <div className="w-full flex flex-col gap-2.5">
                     <button
                       type="button"
@@ -533,6 +579,36 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                         </>
                       )}
                     </button>
+
+                    <button
+                      type="button"
+                      disabled={isSimulatingPayment}
+                      onClick={async () => {
+                        try {
+                          setIsSimulatingPayment(true);
+                          const res = await simulatePaymentSuccess(createdOrder.id || createdOrder.reference);
+                          setSimulationData(res);
+                        } catch (err: any) {
+                          alert(err?.message || 'Gagal simulasi pembayaran sandbox.');
+                        } finally {
+                          setIsSimulatingPayment(false);
+                        }
+                      }}
+                      className="w-full py-2.5 px-4 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-400 font-semibold text-xs tracking-wider text-center transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                      title="Klik untuk mensimulasikan pembayaran lunas di OpenKos tanpa gateway eksternal"
+                    >
+                      {isSimulatingPayment ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-amber-400/40 border-t-amber-400 rounded-full animate-spin" />
+                          <span>Memproses Simulasi Pembayaran...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>⚡ Simulasikan Sukses Bayar (Sandbox Test)</span>
+                        </>
+                      )}
+                    </button>
+
                     <button
                       type="button"
                       onClick={onClose}

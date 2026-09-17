@@ -1706,6 +1706,66 @@ app.use('/api/v1/cart', async (req, res) => {
   }
 });
 
+// Proxy route for Sandbox / Simulation API (OpenKos)
+const SANDBOX_UPSTREAM_URL = process.env.OPENKOS_SANDBOX_URL || 'https://dashboard.highlanderstay.com/api/v1/sandbox';
+
+app.use('/api/v1/sandbox', async (req, res) => {
+  const targetSubPath = req.url.replace(/^\//, '');
+  const baseUrl = SANDBOX_UPSTREAM_URL.replace(/\/$/, '');
+  const targetUrl = targetSubPath 
+    ? (targetSubPath.startsWith('?') ? `${baseUrl}${targetSubPath}` : `${baseUrl}/${targetSubPath}`)
+    : baseUrl;
+
+  try {
+    const headers = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    };
+    const fetchOptions = {
+      method: req.method,
+      headers
+    };
+    if (req.method !== 'GET' && req.method !== 'HEAD' && req.body && Object.keys(req.body).length > 0) {
+      fetchOptions.body = JSON.stringify(req.body);
+    }
+
+    console.log(`\n--------------------------------------------------`);
+    console.log(`[Sandbox Proxy Request] ${req.method} ${targetUrl}`);
+    if (fetchOptions.body) console.log(`[Sandbox Proxy Body] ${fetchOptions.body}`);
+
+    let apiRes;
+    try {
+      apiRes = await fetch(targetUrl, fetchOptions);
+      if (apiRes.status === 404) {
+        throw new Error('Remote endpoint returned 404');
+      }
+    } catch (primaryErr) {
+      const isTargetLocal = targetUrl.includes('localhost') || targetUrl.includes('127.0.0.1');
+      const fallbackBase = isTargetLocal ? 'https://dashboard.highlanderstay.com/api/v1/sandbox' : 'http://localhost:8000/api/v1/sandbox';
+      const fallbackUrl = targetSubPath 
+        ? (targetSubPath.startsWith('?') ? `${fallbackBase}${targetSubPath}` : `${fallbackBase}/${targetSubPath}`)
+        : fallbackBase;
+      console.warn(`[Sandbox Proxy] Primary (${targetUrl}) failed: ${primaryErr.message}. Attempting fallback: ${fallbackUrl}`);
+      apiRes = await fetch(fallbackUrl, fetchOptions);
+    }
+
+    const data = await apiRes.text();
+    console.log(`[Sandbox Proxy Response Status] ${apiRes.status}`);
+    console.log(`[Sandbox Proxy Response Body]`, data);
+    console.log(`--------------------------------------------------\n`);
+
+    res.status(apiRes.status);
+    try {
+      res.json(JSON.parse(data));
+    } catch {
+      res.send(data);
+    }
+  } catch (err) {
+    console.error('[Sandbox Proxy Error]', err);
+    res.status(502).json({ message: 'Layanan sandbox OpenKos tidak dapat dihubungi: ' + err.message });
+  }
+});
+
 // 3. Authentication Routes
 
 // POST Admin Login
