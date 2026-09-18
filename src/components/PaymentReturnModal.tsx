@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, Clock, AlertCircle, RefreshCw, ArrowRight, X } from 'lucide-react';
-import { fetchTenantInvoiceDetails } from '../api';
-import type { TenantInvoice } from '../api';
+import { fetchTenantInvoiceDetails, fetchCart } from '../api';
+import type { TenantInvoice, CartItem } from '../api';
 
 interface PaymentReturnModalProps {
   isOpen: boolean;
   onClose: () => void;
   token?: string;
   invoiceId?: number | null;
-  onPaymentSuccess?: (invoice: TenantInvoice) => void;
+  orderId?: number | null;
+  reference?: string | null;
+  onPaymentSuccess?: (invoice?: TenantInvoice | CartItem) => void;
   onOpenTenantPortal?: () => void;
 }
 
@@ -18,57 +20,92 @@ export const PaymentReturnModal: React.FC<PaymentReturnModalProps> = ({
   onClose,
   token,
   invoiceId,
+  orderId,
+  reference,
   onPaymentSuccess,
   onOpenTenantPortal
 }) => {
   const [loading, setLoading] = useState(true);
   const [invoice, setInvoice] = useState<TenantInvoice | null>(null);
+  const [cartItem, setCartItem] = useState<CartItem | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pollingCount, setPollingCount] = useState(0);
 
   const checkStatus = useCallback(async (isManualRefresh = false) => {
-    if (!token || !invoiceId) {
-      // Check if we have saved context in sessionStorage
-      try {
-        const saved = sessionStorage.getItem('pending_doku_checkout');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed.invoiceId && token) {
-            return checkStatusForId(parsed.invoiceId);
-          }
-        }
-      } catch (e) {
-        // ignore
-      }
-      setLoading(false);
-      return;
-    }
-    await checkStatusForId(invoiceId, isManualRefresh);
-  }, [token, invoiceId]);
-
-  const checkStatusForId = async (id: number, isManual = false) => {
-    if (!token) return;
-    if (isManual) setLoading(true);
+    if (isManualRefresh) setLoading(true);
     setError(null);
 
+    // 1. Try resolving order context from props or sessionStorage
+    let targetOrderId = orderId;
+    let targetRef = reference;
+    let targetInvoiceId = invoiceId;
+
     try {
-      const res = await fetchTenantInvoiceDetails(id, token);
-      if (res?.invoice) {
-        setInvoice(res.invoice);
-        if (res.invoice.status === 'paid') {
-          sessionStorage.removeItem('pending_doku_checkout');
-          if (onPaymentSuccess) {
-            onPaymentSuccess(res.invoice);
+      const saved = sessionStorage.getItem('pending_doku_checkout');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.orderId && !targetOrderId) targetOrderId = parsed.orderId;
+        if (parsed.reference && !targetRef) targetRef = parsed.reference;
+        if (parsed.invoiceId && !targetInvoiceId) targetInvoiceId = parsed.invoiceId;
+      }
+    } catch {}
+
+    // 2. Check Cart Orders (Pre-lease booking orders)
+    try {
+      const cartRes = await fetchCart();
+      if (cartRes?.cart?.items && cartRes.cart.items.length > 0) {
+        let matchedItem: CartItem | undefined;
+        
+        // Priority 1: Exact target orderId
+        if (targetOrderId) {
+          matchedItem = cartRes.cart.items.find((i: CartItem) => i.id === Number(targetOrderId));
+        }
+        // Priority 2: Exact reference
+        if (!matchedItem && targetRef) {
+          matchedItem = cartRes.cart.items.find((i: CartItem) => i.reference === targetRef);
+        }
+        // Priority 3: Look for any paid item
+        if (!matchedItem) {
+          matchedItem = cartRes.cart.items.find((i: CartItem) => i.is_paid || i.status === 'paid');
+        }
+        // Priority 4: Fallback to first available item
+        if (!matchedItem) {
+          matchedItem = cartRes.cart.items[0];
+        }
+
+        if (matchedItem) {
+          setCartItem(matchedItem);
+          if (matchedItem.status === 'paid' || matchedItem.is_paid) {
+            sessionStorage.removeItem('pending_doku_checkout');
+            if (onPaymentSuccess) onPaymentSuccess(matchedItem);
+            setLoading(false);
+            return;
           }
         }
       }
-    } catch (err: any) {
-      console.error('Failed to verify DOKU payment status:', err);
-      setError(err?.message || 'Gagal memeriksa status pembayaran dari server.');
-    } finally {
-      setLoading(false);
+    } catch (cartErr) {
+      console.warn('Cart status lookup notice:', cartErr);
     }
-  };
+
+    // 3. Check Invoice if invoiceId & token exist
+    if (token && targetInvoiceId) {
+      try {
+        const res = await fetchTenantInvoiceDetails(targetInvoiceId, token);
+        if (res?.invoice) {
+          setInvoice(res.invoice);
+          if (res.invoice.status === 'paid') {
+            sessionStorage.removeItem('pending_doku_checkout');
+            if (onPaymentSuccess) onPaymentSuccess(res.invoice);
+          }
+        }
+      } catch (err: any) {
+        console.error('Failed to verify DOKU invoice status:', err);
+        setError(err?.message || 'Gagal memeriksa status pembayaran dari server.');
+      }
+    }
+
+    setLoading(false);
+  }, [token, invoiceId, orderId, reference, onPaymentSuccess]);
 
   useEffect(() => {
     if (isOpen) {
@@ -78,23 +115,29 @@ export const PaymentReturnModal: React.FC<PaymentReturnModalProps> = ({
 
   // Auto poll once after 3 seconds if status is still pending (giving webhook time to process)
   useEffect(() => {
-    if (isOpen && invoice && invoice.status !== 'paid' && pollingCount < 2) {
+    const isSettled = (invoice && invoice.status === 'paid') || (cartItem && (cartItem.status === 'paid' || cartItem.is_paid));
+    if (isOpen && !isSettled && pollingCount < 3) {
       const timer = setTimeout(() => {
         setPollingCount(prev => prev + 1);
         checkStatus();
       }, 3500);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, invoice, pollingCount, checkStatus]);
+  }, [isOpen, invoice, cartItem, pollingCount, checkStatus]);
 
   if (!isOpen) return null;
 
-  const isPaid = invoice?.status === 'paid' || (invoice?.outstanding !== undefined && invoice.outstanding <= 0);
+  const isPaid = (invoice && (invoice.status === 'paid' || (invoice.outstanding !== undefined && invoice.outstanding <= 0))) || 
+                 (cartItem && (cartItem.status === 'paid' || cartItem.is_paid));
 
   const formatRupiah = (val?: number) => {
     if (!val && val !== 0) return 'Rp 0';
     return `Rp ${Number(val).toLocaleString('id-ID')}`;
   };
+
+  const displayRef = invoice?.reference || cartItem?.reference || reference || '-';
+  const displayUnit = invoice?.unit_name || cartItem?.unit_name || 'Unit Kamar';
+  const displayAmount = invoice?.total || cartItem?.amount || 0;
 
   return (
     <AnimatePresence>
@@ -150,36 +193,32 @@ export const PaymentReturnModal: React.FC<PaymentReturnModalProps> = ({
                   Pembayaran Berhasil! 🎉
                 </h3>
                 <p className="text-xs text-muted mt-1">
-                  Tagihan sewa Anda telah berhasil diselesaikan melalui DOKU Jokul Checkout.
+                  Kontrak sewa kamar Anda telah resmi terbit dan aktif melalui DOKU Jokul Checkout.
                 </p>
               </div>
 
-              {invoice && (
-                <div className="bg-bg/60 border border-stroke rounded-2xl p-4 text-left space-y-2 text-xs">
-                  <div className="flex justify-between items-center text-muted">
-                    <span>No. Referensi</span>
-                    <span className="font-mono font-bold text-text-primary">{invoice.reference}</span>
-                  </div>
-                  {invoice.unit_name && (
-                    <div className="flex justify-between items-center text-muted">
-                      <span>Unit Kamar</span>
-                      <span className="font-semibold text-text-primary">{invoice.unit_name}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between items-center text-muted">
-                    <span>Total Tagihan</span>
-                    <span className="font-bold text-emerald-400 text-sm">
-                      {formatRupiah(invoice.total)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center text-muted pt-1 border-t border-stroke/40">
-                    <span>Status</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                      Lunas (Paid)
-                    </span>
-                  </div>
+              <div className="bg-bg/60 border border-stroke rounded-2xl p-4 text-left space-y-2 text-xs">
+                <div className="flex justify-between items-center text-muted">
+                  <span>No. Referensi</span>
+                  <span className="font-mono font-bold text-text-primary">{displayRef}</span>
                 </div>
-              )}
+                <div className="flex justify-between items-center text-muted">
+                  <span>Unit Kamar</span>
+                  <span className="font-semibold text-text-primary">{displayUnit}</span>
+                </div>
+                <div className="flex justify-between items-center text-muted">
+                  <span>Total Tagihan</span>
+                  <span className="font-bold text-emerald-400 text-sm">
+                    {formatRupiah(displayAmount)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-muted pt-1 border-t border-stroke/40">
+                  <span>Status</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                    Lunas (Paid)
+                  </span>
+                </div>
+              </div>
 
               <div className="flex flex-col gap-2 pt-2">
                 <button
@@ -213,26 +252,24 @@ export const PaymentReturnModal: React.FC<PaymentReturnModalProps> = ({
                 </p>
               </div>
 
-              {invoice && (
-                <div className="bg-bg/60 border border-stroke rounded-2xl p-4 text-left space-y-2 text-xs">
-                  <div className="flex justify-between items-center text-muted">
-                    <span>No. Referensi</span>
-                    <span className="font-mono font-bold text-text-primary">{invoice.reference}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-muted">
-                    <span>Nominal Pembayaran</span>
-                    <span className="font-bold text-text-primary text-sm">
-                      {formatRupiah(invoice.outstanding || invoice.total)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center text-muted pt-1 border-t border-stroke/40">
-                    <span>Status Terkini</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-500/10 text-amber-400 border border-amber-500/30">
-                      {invoice.status}
-                    </span>
-                  </div>
+              <div className="bg-bg/60 border border-stroke rounded-2xl p-4 text-left space-y-2 text-xs">
+                <div className="flex justify-between items-center text-muted">
+                  <span>No. Referensi</span>
+                  <span className="font-mono font-bold text-text-primary">{displayRef}</span>
                 </div>
-              )}
+                <div className="flex justify-between items-center text-muted">
+                  <span>Nominal Pembayaran</span>
+                  <span className="font-bold text-text-primary text-sm">
+                    {formatRupiah(displayAmount)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-muted pt-1 border-t border-stroke/40">
+                  <span>Status Terkini</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                    Menunggu Pembayaran
+                  </span>
+                </div>
+              </div>
 
               {error && (
                 <div className="p-3 text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-2">

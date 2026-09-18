@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Clock, Calendar, Share2, Sparkles } from 'lucide-react';
-import { fetchArticle, fetchSettings, type Article, type WebsiteSettings, type UserSession } from '../api';
+import { fetchArticle, fetchSettings, logoutTenant, clearCartToken, type Article, type WebsiteSettings, type UserSession } from '../api';
 import { Navbar } from './Navbar';
 import { Footer } from './Footer';
 import { useSEO } from '../hooks/useSEO';
@@ -80,8 +80,19 @@ export const ArticlePage: React.FC = () => {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        await logoutTenant(token);
+      }
+    } catch (e) {
+      console.warn('Logout API error:', e);
+    }
+    clearCartToken(userSession);
     localStorage.removeItem('userSession');
+    localStorage.removeItem('authToken');
+    sessionStorage.removeItem('pending_doku_checkout');
     setUserSession(null);
     navigate('/');
   };

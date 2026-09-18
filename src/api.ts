@@ -117,6 +117,13 @@ export interface UserSession {
   username?: string;
 }
 
+export interface CaptchaData {
+  captcha_key: string;
+  question: string;
+  svg: string;
+  expires_in_seconds: number;
+}
+
 export interface RegisterPayload {
   phone: string;
   password: string;
@@ -126,6 +133,8 @@ export interface RegisterPayload {
   otp_channel?: 'whatsapp' | 'email';
   device_name?: string;
   otp?: string;
+  captcha_key?: string;
+  captcha_answer?: string;
 }
 
 export interface RegisterResponse {
@@ -143,6 +152,8 @@ export interface RegisterResponse {
 export interface ForgotPasswordPayload {
   login: string;
   channel?: 'whatsapp' | 'email';
+  captcha_key?: string;
+  captcha_answer?: string;
 }
 
 export interface ForgotPasswordResponse {
@@ -176,6 +187,8 @@ export interface ResetPasswordResponse {
 export interface SendOtpPayload {
   registration_token?: string;
   login?: string;
+  phone?: string;
+  email?: string;
   channel?: 'whatsapp' | 'email';
 }
 
@@ -189,6 +202,9 @@ export interface SendOtpResponse {
 export interface VerifyOtpPayload {
   registration_token?: string;
   login?: string;
+  phone?: string;
+  email?: string;
+  channel?: 'whatsapp' | 'email';
   code: string;
   device_name?: string;
 }
@@ -524,13 +540,17 @@ export interface AddToCartResponse {
 }
 
 export interface RefreshCheckoutResponse {
+  code?: string;
   message: string;
-  checkout_url: string;
+  checkout_url?: string;
   order?: {
     id: number;
     reference: string;
-    amount: number;
+    amount?: number;
     status: string;
+    is_paid?: boolean;
+    lease_id?: number | null;
+    invoice_id?: number | null;
   };
 }
 
@@ -847,7 +867,14 @@ async function callAuthApi<T>(path: string, options: RequestInit = {}): Promise<
   }
 }
 
-// 1. Register a new tenant account (Staged Anti-Spam Registration with phone & password)
+// 0. Fetch Anti-Bot Security Captcha Challenge
+export async function fetchCaptcha(): Promise<CaptchaData> {
+  return await callAuthApi<CaptchaData>('/captcha', {
+    method: 'GET'
+  });
+}
+
+// 1. Register a new tenant account (Staged Anti-Spam Registration with phone, password & captcha)
 export async function registerTenant(payload: RegisterPayload): Promise<RegisterResponse> {
   const phone = payload.phone.trim();
   const password = payload.password;
@@ -863,7 +890,9 @@ export async function registerTenant(payload: RegisterPayload): Promise<Register
       password,
       password_confirmation,
       otp_channel: payload.otp_channel || 'whatsapp',
-      device_name: payload.device_name || 'highlanderstay-web'
+      device_name: payload.device_name || 'highlanderstay-web',
+      captcha_key: payload.captcha_key,
+      captcha_answer: payload.captcha_answer
     })
   });
 }
@@ -997,7 +1026,9 @@ export async function forgotPassword(payload: ForgotPasswordPayload): Promise<Fo
     method: 'POST',
     body: JSON.stringify({
       login: payload.login.trim(),
-      channel: payload.channel || 'whatsapp'
+      channel: payload.channel || 'whatsapp',
+      captcha_key: payload.captcha_key,
+      captcha_answer: payload.captcha_answer
     })
   });
 }
@@ -1275,17 +1306,61 @@ export const CART_API_BASE =
   (import.meta as any).env?.VITE_API_BASE_URL?.replace(/\/auth$/, '/cart') ||
   'http://localhost:8000/api/v1/cart';
 
-export function getOrCreateCartToken(): string {
-  let token = localStorage.getItem('openkos_cart_token');
+export function getStoredUserSession(): UserSession | null {
+  try {
+    const raw = localStorage.getItem('userSession');
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+export function getUserCartStorageKey(user?: UserSession | null): string {
+  const session = user !== undefined ? user : getStoredUserSession();
+  if (session?.id) {
+    return `openkos_cart_token_user_${session.id}`;
+  }
+  return 'openkos_cart_token_guest';
+}
+
+export function getCartToken(user?: UserSession | null): string | null {
+  const key = getUserCartStorageKey(user);
+  return localStorage.getItem(key) || null;
+}
+
+export function getOrCreateCartToken(user?: UserSession | null): string {
+  const key = getUserCartStorageKey(user);
+  let token = localStorage.getItem(key);
   if (!token) {
     token = 'cart-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    localStorage.setItem('openkos_cart_token', token);
+    localStorage.setItem(key, token);
   }
   return token;
 }
 
+export function clearCartToken(user?: UserSession | null): void {
+  if (user?.id) {
+    localStorage.removeItem(`openkos_cart_token_user_${user.id}`);
+  }
+  localStorage.removeItem('openkos_cart_token');
+  localStorage.removeItem('openkos_cart_token_guest');
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith('openkos_cart_token') || k === 'pending_doku_checkout')) {
+        keysToRemove.push(k);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+  } catch {}
+}
+
 export async function addToCart(payload: AddToCartPayload, customCartToken?: string): Promise<AddToCartResponse> {
-  const cartToken = customCartToken || getOrCreateCartToken();
+  const session = getStoredUserSession();
+  const token = localStorage.getItem('authToken');
+  const cartToken = customCartToken || getOrCreateCartToken(session);
   const reqBody = {
     unit_id: payload.unit_id,
     name: payload.name.trim(),
@@ -1293,13 +1368,24 @@ export async function addToCart(payload: AddToCartPayload, customCartToken?: str
     email: payload.email?.trim() || undefined,
     start_date: payload.start_date,
     duration_months: payload.duration_months || 1,
-    notes: payload.notes?.trim() || undefined
+    notes: payload.notes?.trim() || undefined,
+    cart_token: cartToken
   };
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
     'X-Cart-Token': cartToken
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const saveCartToken = (returnedToken?: string) => {
+    if (returnedToken) {
+      const storageKey = getUserCartStorageKey(session);
+      localStorage.setItem(storageKey, returnedToken);
+    }
   };
 
   // 1. Try direct URL first
@@ -1312,9 +1398,7 @@ export async function addToCart(payload: AddToCartPayload, customCartToken?: str
     const data = await res.json().catch(() => null);
 
     if (res.ok && data?.order) {
-      if (data.order.cart_token) {
-        localStorage.setItem('openkos_cart_token', data.order.cart_token);
-      }
+      saveCartToken(data.order.cart_token);
       return data as AddToCartResponse;
     }
 
@@ -1343,9 +1427,7 @@ export async function addToCart(payload: AddToCartPayload, customCartToken?: str
     const data = await res.json().catch(() => null);
 
     if (res.ok && data?.order) {
-      if (data.order.cart_token) {
-        localStorage.setItem('openkos_cart_token', data.order.cart_token);
-      }
+      saveCartToken(data.order.cart_token);
       return data as AddToCartResponse;
     }
 
@@ -1373,9 +1455,7 @@ export async function addToCart(payload: AddToCartPayload, customCartToken?: str
     });
     const data = await res.json().catch(() => null);
     if (res.ok && data?.order) {
-      if (data.order.cart_token) {
-        localStorage.setItem('openkos_cart_token', data.order.cart_token);
-      }
+      saveCartToken(data.order.cart_token);
       return data as AddToCartResponse;
     }
     if (data?.message) {
@@ -1391,40 +1471,82 @@ export async function addToCart(payload: AddToCartPayload, customCartToken?: str
 }
 
 export async function fetchCart(customCartToken?: string): Promise<{ cart: CartData }> {
-  const cartToken = customCartToken || getOrCreateCartToken();
-  const query = `?cart_token=${encodeURIComponent(cartToken)}`;
-  const headers = { 'Accept': 'application/json', 'X-Cart-Token': cartToken };
+  const session = getStoredUserSession();
+  const token = localStorage.getItem('authToken');
+  const cartToken = customCartToken || getCartToken(session) || (session ? getOrCreateCartToken(session) : null);
+
+  // If user is not logged in and has no active guest cart token, return empty cart immediately
+  if (!session && !token && !cartToken) {
+    return {
+      cart: {
+        cart_token: '',
+        count: 0,
+        total: 0,
+        items: []
+      }
+    };
+  }
+
+  const queryParams = new URLSearchParams();
+  if (cartToken) queryParams.append('cart_token', cartToken);
+  if (session?.phone) queryParams.append('phone', session.phone);
+
+  const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
+
+  const headers: Record<string, string> = {
+    'Accept': 'application/json'
+  };
+  if (cartToken) headers['X-Cart-Token'] = cartToken;
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const sanitizeCart = (cart: CartData): { cart: CartData } => {
+    const rawItems = Array.isArray(cart?.items) ? cart.items : [];
+    const items = rawItems.filter((i) => i.status !== 'cancelled');
+    const count = items.length;
+    const total = items
+      .filter((i) => i.status === 'pending' || !i.status)
+      .reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+
+    return {
+      cart: {
+        ...cart,
+        items,
+        count,
+        total
+      }
+    };
+  };
 
   // 1. Try direct URL
   try {
-    const res = await fetch(`${CART_API_BASE}${query}`, { headers });
+    const res = await fetch(`${CART_API_BASE}${queryString}`, { headers });
     const data = await res.json().catch(() => null);
     if (res.ok && data?.cart) {
-      return data as { cart: CartData };
+      return sanitizeCart(data.cart);
     }
   } catch {}
 
   // 2. Try proxy URL
   try {
-    const res = await fetch(`${CART_API_PROXY}${query}`, { headers });
+    const res = await fetch(`${CART_API_PROXY}${queryString}`, { headers });
     const data = await res.json().catch(() => null);
     if (res.ok && data?.cart) {
-      return data as { cart: CartData };
+      return sanitizeCart(data.cart);
     }
   } catch {}
 
   // 3. Fallback to local
   try {
-    const res = await fetch(`http://localhost:8000/api/v1/cart${query}`, { headers });
+    const res = await fetch(`http://localhost:8000/api/v1/cart${queryString}`, { headers });
     const data = await res.json().catch(() => null);
     if (res.ok && data?.cart) {
-      return data as { cart: CartData };
+      return sanitizeCart(data.cart);
     }
   } catch {}
 
   return {
     cart: {
-      cart_token: cartToken,
+      cart_token: cartToken || '',
       count: 0,
       total: 0,
       items: []
@@ -1433,8 +1555,21 @@ export async function fetchCart(customCartToken?: string): Promise<{ cart: CartD
 }
 
 export async function removeFromCart(orderId: number): Promise<{ message: string }> {
-  const cartToken = getOrCreateCartToken();
-  const headers = { 'Accept': 'application/json', 'X-Cart-Token': cartToken };
+  const session = getStoredUserSession();
+  const token = localStorage.getItem('authToken');
+  const cartToken = getCartToken(session) || getOrCreateCartToken(session);
+  const headers: Record<string, string> = {
+    'Accept': 'application/json'
+  };
+  if (cartToken) {
+    headers['X-Cart-Token'] = cartToken;
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  let success = false;
+  let responseData: any = null;
 
   // 1. Try direct URL
   try {
@@ -1443,30 +1578,47 @@ export async function removeFromCart(orderId: number): Promise<{ message: string
       headers
     });
     const data = await res.json().catch(() => null);
-    if (res.ok) return data || { message: 'Booking item removed from cart.' };
+    if (res.ok) {
+      success = true;
+      responseData = data;
+    }
   } catch {}
 
   // 2. Try proxy URL
-  try {
-    const res = await fetch(`${CART_API_PROXY}/${orderId}`, {
-      method: 'DELETE',
-      headers
-    });
-    const data = await res.json().catch(() => null);
-    if (res.ok) return data || { message: 'Booking item removed from cart.' };
-  } catch {}
+  if (!success) {
+    try {
+      const res = await fetch(`${CART_API_PROXY}/${orderId}`, {
+        method: 'DELETE',
+        headers
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok) {
+        success = true;
+        responseData = data;
+      }
+    } catch {}
+  }
 
   // 3. Fallback to local
-  try {
-    const res = await fetch(`http://localhost:8000/api/v1/cart/${orderId}`, {
-      method: 'DELETE',
-      headers
-    });
-    const data = await res.json().catch(() => null);
-    if (res.ok) return data || { message: 'Booking item removed from cart.' };
-  } catch {}
+  if (!success) {
+    try {
+      const res = await fetch(`http://localhost:8000/api/v1/cart/${orderId}`, {
+        method: 'DELETE',
+        headers
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok) {
+        success = true;
+        responseData = data;
+      }
+    } catch {}
+  }
 
-  return { message: 'Booking item removed from cart.' };
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('cart-updated'));
+  }
+
+  return responseData || { message: 'Booking item removed from cart.' };
 }
 
 export function isValidCheckoutUrl(url?: string | null): boolean {
@@ -1493,14 +1645,18 @@ export function isOnlinePaymentEnabled(): boolean {
   return true;
 }
 
-
 export async function refreshCartCheckout(orderId: number): Promise<RefreshCheckoutResponse> {
-  const cartToken = getOrCreateCartToken();
-  const headers = {
+  const session = getStoredUserSession();
+  const token = localStorage.getItem('authToken');
+  const cartToken = getOrCreateCartToken(session);
+  const headers: Record<string, string> = {
     'Accept': 'application/json',
     'Content-Type': 'application/json',
     'X-Cart-Token': cartToken
   };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
 
   // 1. Try proxy URL first (goes through local Express server with error interceptor)
   try {

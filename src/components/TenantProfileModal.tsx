@@ -46,7 +46,6 @@ import {
   fetchCart,
   removeFromCart,
   refreshCartCheckout,
-  getOrCreateCartToken,
   isValidCheckoutUrl
 } from '../api';
 
@@ -148,8 +147,7 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
     setCartLoading(true);
     setCartErrorMessage(null);
     try {
-      const token = getOrCreateCartToken();
-      const res = await fetchCart(token);
+      const res = await fetchCart();
       if (res?.cart) {
         setCartData(res.cart);
       }
@@ -210,12 +208,27 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
   const handleRemoveCartItem = async (orderId: number) => {
     if (!window.confirm('Apakah Anda yakin ingin membatalkan dan menghapus pesanan kamar ini dari keranjang?')) return;
     setCartActionLoadingId(orderId);
+    setCartErrorMessage(null);
     try {
+      setCartData(prev => {
+        if (!prev) return null;
+        const remaining = (prev.items || []).filter(i => i.id !== orderId);
+        return {
+          ...prev,
+          items: remaining,
+          count: remaining.length,
+          total: remaining
+            .filter(i => i.status === 'pending' || !i.status)
+            .reduce((sum, i) => sum + (Number(i.amount) || 0), 0)
+        };
+      });
+
       await removeFromCart(orderId);
       await loadCartData();
     } catch (err: any) {
       console.error('Remove cart error:', err);
       setCartErrorMessage(err?.message || 'Gagal menghapus kamar dari keranjang.');
+      await loadCartData();
     } finally {
       setCartActionLoadingId(null);
     }
@@ -1035,7 +1048,11 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  {isAvailable ? (
+                                  {item.status === 'paid' || item.is_paid ? (
+                                    <span className="text-[10px] font-bold uppercase px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                                      <CheckCircle2 size={11} /> Lunas (Paid)
+                                    </span>
+                                  ) : isAvailable ? (
                                     <span className="text-[10px] font-bold uppercase px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center gap-1">
                                       <Clock size={11} /> Belum Dibayar
                                     </span>
@@ -1089,7 +1106,7 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                                     {formatRupiah(item.amount)}
                                   </strong>
                                   <span className="text-muted block text-[10px]">
-                                    {isAvailable ? 'Belum terbit kontrak resmi' : 'Tidak dapat dilanjutkan'}
+                                    {item.status === 'paid' || item.is_paid ? 'Kontrak sewa resmi aktif' : isAvailable ? 'Belum terbit kontrak resmi' : 'Tidak dapat dilanjutkan'}
                                   </span>
                                 </div>
                               </div>
@@ -1097,7 +1114,12 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                               {/* Footer Note & Actions */}
                               <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-stroke/30">
                                 <div className="text-[11px] text-muted flex items-center gap-1.5">
-                                  {isAvailable ? (
+                                  {item.status === 'paid' || item.is_paid ? (
+                                    <>
+                                      <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
+                                      <span className="text-emerald-400 font-medium">Pembayaran lunas terverifikasi. Kontrak sewa aktif.</span>
+                                    </>
+                                  ) : isAvailable ? (
                                     <>
                                       <AlertCircle size={13} className="text-amber-400 shrink-0" />
                                       <span>Kamar belum dikunci permanen hingga pembayaran diverifikasi DOKU.</span>
@@ -1120,7 +1142,12 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                                     <span>Hapus</span>
                                   </button>
 
-                                  {isAvailable ? (
+                                  {item.status === 'paid' || item.is_paid ? (
+                                    <span className="inline-flex items-center gap-1.5 text-xs text-emerald-400 font-semibold px-3.5 py-1.5 bg-emerald-500/10 rounded-full border border-emerald-500/25">
+                                      <CheckCircle2 size={13} />
+                                      <span>Sewa #{item.lease_id || 'Aktif'} Terbit & Lunas</span>
+                                    </span>
+                                  ) : isAvailable ? (
                                     <button
                                       onClick={() => handlePayCartItem(item)}
                                       disabled={cartActionLoadingId === item.id}

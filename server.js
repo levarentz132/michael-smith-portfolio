@@ -1635,12 +1635,15 @@ app.use('/api/v1/cart', async (req, res) => {
       headers
     };
 
-    if (effectiveMethod !== 'GET' && effectiveMethod !== 'HEAD') {
+    if (effectiveMethod !== 'GET' && effectiveMethod !== 'HEAD' && effectiveMethod !== 'DELETE') {
       if (req.body && Object.keys(req.body).length > 0) {
         fetchOptions.body = JSON.stringify(req.body);
       } else {
         fetchOptions.body = JSON.stringify({});
       }
+      headers['Content-Type'] = 'application/json';
+    } else if (effectiveMethod === 'DELETE' && req.body && Object.keys(req.body).length > 0) {
+      fetchOptions.body = JSON.stringify(req.body);
       headers['Content-Type'] = 'application/json';
     }
 

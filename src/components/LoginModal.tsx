@@ -6,21 +6,24 @@ import {
   verifyPhoneOtp, 
   sendPhoneOtp, 
   forgotPassword, 
-  resetPassword 
+  resetPassword,
+  fetchCaptcha,
+  type CaptchaData
 } from '../api';
 import type { UserSession } from '../api';
 import { 
   ShieldCheck, 
   Lock, 
   Phone, 
+  User,
   CheckCircle2, 
   AlertCircle, 
   ArrowRight, 
-  ArrowLeft,
+  ArrowLeft, 
   RefreshCw, 
   KeyRound, 
   Eye, 
-  EyeOff 
+  EyeOff
 } from 'lucide-react';
 
 interface LoginModalProps {
@@ -45,12 +48,18 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
 
-  // Register fields (Phone and Password only)
+  // Register fields (Name, Phone and Password)
+  const [regName, setRegName] = useState('');
   const [regPhone, setRegPhone] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regPasswordConfirm, setRegPasswordConfirm] = useState('');
   const [showRegPassword, setShowRegPassword] = useState(false);
   const [showRegPasswordConfirm, setShowRegPasswordConfirm] = useState(false);
+
+  // Captcha state (Anti-Bot Security Challenge)
+  const [captchaData, setCaptchaData] = useState<CaptchaData | null>(null);
+  const [captchaAnswer, setCaptchaAnswer] = useState('');
+  const [captchaLoading, setCaptchaLoading] = useState(false);
 
   // Registration OTP state
   const [registrationToken, setRegistrationToken] = useState('');
@@ -76,10 +85,24 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [successMsg, setSuccessMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const loadCaptcha = async () => {
+    try {
+      setCaptchaLoading(true);
+      const data = await fetchCaptcha();
+      setCaptchaData(data);
+      setCaptchaAnswer('');
+    } catch (err) {
+      console.warn('Captcha load error:', err);
+    } finally {
+      setCaptchaLoading(false);
+    }
+  };
+
   // Sync initial tab when opened
   useEffect(() => {
     if (isOpen) {
-      setMode(initialTab === 'register' ? 'register' : 'login');
+      const targetMode = initialTab === 'register' ? 'register' : 'login';
+      setMode(targetMode);
       setError('');
       setSuccessMsg('');
       setOtpCode('');
@@ -91,8 +114,18 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       setShowRegPasswordConfirm(false);
       setShowNewPassword(false);
       setShowNewPasswordConfirm(false);
+      setCaptchaAnswer('');
+      if (targetMode === 'register') {
+        loadCaptcha();
+      }
     }
   }, [isOpen, initialTab]);
+
+  useEffect(() => {
+    if (mode === 'register' || mode === 'forgot_request') {
+      loadCaptcha();
+    }
+  }, [mode]);
 
   // Registration countdown timer
   useEffect(() => {
@@ -123,7 +156,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     setSuccessMsg('');
 
     if (!loginIdentifier.trim() || !loginPassword) {
-      setError('Harap masukkan nomor WhatsApp / email dan kata sandi Anda.');
+      setError('Harap masukkan nomor WhatsApp dan kata sandi Anda.');
       return;
     }
 
@@ -144,19 +177,26 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       onClose();
     } catch (err: any) {
       console.error('Login error:', err);
-      setError(err.message || 'Login gagal. Periksa kembali nomor telepon / email dan kata sandi Anda.');
+      setError(err.message || 'Login gagal. Periksa kembali nomor WhatsApp dan kata sandi Anda.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // 2. Handle Tenant Registration (Phone and Password only)
+  // 2. Handle Tenant Registration (Name, Phone and Password)
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
 
+    const cleanName = regName.trim();
     const cleanPhone = regPhone.trim();
+
+    if (!cleanName) {
+      setError('Nama lengkap wajib diisi.');
+      return;
+    }
+
     if (!cleanPhone || !regPassword) {
       setError('Nomor WhatsApp dan kata sandi wajib diisi.');
       return;
@@ -177,14 +217,22 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       return;
     }
 
+    if (!captchaAnswer.trim()) {
+      setError('Harap hitung dan masukkan jawaban kode keamanan (Captcha).');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const regRes = await registerTenant({
+        name: cleanName,
         phone: cleanPhone,
         password: regPassword,
         password_confirmation: regPasswordConfirm,
         otp_channel: 'whatsapp',
-        device_name: 'highlanderstay-web'
+        device_name: 'highlanderstay-web',
+        captcha_key: captchaData?.captcha_key,
+        captcha_answer: captchaAnswer.trim()
       });
 
       setRegistrationToken(regRes.registration_token);
@@ -195,6 +243,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     } catch (err: any) {
       console.error('Register error:', err);
       setError(err.message || 'Pendaftaran gagal. Silakan periksa nomor WhatsApp Anda.');
+      loadCaptcha();
     } finally {
       setIsSubmitting(false);
     }
@@ -213,9 +262,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
     setIsSubmitting(true);
     try {
+      const activePhone = (pendingPhone || regPhone).trim();
       const { session, response } = await verifyPhoneOtp({
         registration_token: registrationToken || undefined,
-        login: !registrationToken ? (pendingPhone || regPhone.trim()) : undefined,
+        login: activePhone || undefined,
+        phone: activePhone || undefined,
+        channel: 'whatsapp',
         code: otpCode.trim(),
         device_name: 'highlanderstay-web'
       });
@@ -245,9 +297,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     setSuccessMsg('');
     setIsResendingRegOtp(true);
     try {
+      const activePhone = (pendingPhone || regPhone).trim();
       const res = await sendPhoneOtp({
         registration_token: registrationToken || undefined,
-        login: !registrationToken ? (pendingPhone || regPhone.trim()) : undefined,
+        login: activePhone || undefined,
+        phone: activePhone || undefined,
         channel: 'whatsapp'
       });
       setSuccessMsg(res.message || 'Kode OTP baru telah dikirimkan ke WhatsApp.');
@@ -267,7 +321,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
     const cleanLogin = forgotIdentifier.trim();
     if (!cleanLogin) {
-      setError('Harap masukkan nomor WhatsApp atau email yang terdaftar.');
+      setError('Harap masukkan nomor WhatsApp yang terdaftar.');
       return;
     }
 
@@ -471,14 +525,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                     <form onSubmit={handleLoginSubmit} className="flex flex-col gap-4">
                       <div className="flex flex-col gap-1.5">
                         <label className="text-xs text-muted uppercase tracking-wider font-medium flex items-center gap-1.5">
-                          <Phone size={12} /> Nomor WhatsApp atau Email
+                          <Phone size={12} /> Nomor WhatsApp
                         </label>
                         <input 
-                          type="text"
+                          type="tel"
                           required
                           value={loginIdentifier}
                           onChange={(e) => setLoginIdentifier(e.target.value)}
-                          placeholder="contoh: 08123456789 atau email@domain.com"
+                          placeholder="contoh: 081234567890"
                           className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-base sm:text-sm text-text-primary placeholder:text-muted/50 focus:outline-none focus:border-text-primary transition-colors duration-200 font-sans"
                         />
                       </div>
@@ -532,8 +586,22 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                       </button>
                     </form>
                   ) : (
-                    /* FORM B: REGISTER (Phone & Password only) */
+                    /* FORM B: REGISTER (Name, Phone & Password) */
                     <form onSubmit={handleRegisterSubmit} className="flex flex-col gap-3.5">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-muted uppercase tracking-wider font-medium flex items-center gap-1.5">
+                          <User size={12} /> Nama Lengkap
+                        </label>
+                        <input 
+                          type="text"
+                          required
+                          value={regName}
+                          onChange={(e) => setRegName(e.target.value)}
+                          placeholder="contoh: Budi Santoso"
+                          className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-base sm:text-sm text-text-primary placeholder:text-muted/50 focus:outline-none focus:border-text-primary font-sans"
+                        />
+                      </div>
+
                       <div className="flex flex-col gap-1">
                         <label className="text-xs text-muted uppercase tracking-wider font-medium flex items-center gap-1.5">
                           <Phone size={12} /> Nomor WhatsApp Aktif
@@ -599,9 +667,51 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                         </div>
                       </div>
 
+                      {/* Anti-Bot Security Captcha Challenge */}
+                      <div className="flex flex-col gap-2 p-3.5 rounded-2xl bg-surface/50 border border-stroke/70">
+                        <div className="flex items-center justify-between text-xs text-muted font-medium">
+                          <label className="flex items-center gap-1.5 uppercase tracking-wider text-[11px] text-sky-400 font-semibold">
+                            <ShieldCheck size={13} /> Verifikasi Keamanan (Anti-Bot)
+                          </label>
+                          <button
+                            type="button"
+                            onClick={loadCaptcha}
+                            disabled={captchaLoading}
+                            className="flex items-center gap-1 text-[11px] text-muted hover:text-text-primary transition-colors cursor-pointer"
+                            title="Ganti Kode Keamanan"
+                          >
+                            <RefreshCw size={11} className={captchaLoading ? 'animate-spin' : ''} />
+                            <span>Ganti Kode</span>
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {/* Visual Captcha Image / SVG Container */}
+                          <div 
+                            className="shrink-0 flex items-center justify-center rounded-xl bg-slate-900 border border-slate-700/80 px-2 py-1 select-none overflow-hidden"
+                            style={{ minHeight: '38px', minWidth: '130px' }}
+                            dangerouslySetInnerHTML={{ __html: captchaData?.svg || '<span class="text-xs text-slate-400">Memuat...</span>' }}
+                          />
+
+                          {/* Captcha Answer Input */}
+                          <input
+                            type="text"
+                            required
+                            inputMode="numeric"
+                            value={captchaAnswer}
+                            onChange={(e) => setCaptchaAnswer(e.target.value)}
+                            placeholder="Jawaban angka"
+                            className="w-full bg-bg border border-stroke rounded-xl px-3 py-2.5 text-center text-base sm:text-sm font-mono font-bold text-text-primary placeholder:text-muted/40 focus:outline-none focus:border-sky-400 transition-colors"
+                          />
+                        </div>
+                        <span className="text-[10px] text-muted">
+                          Hitung hasil persamaan di samping untuk verifikasi anti-spam OTP.
+                        </span>
+                      </div>
+
                       <button
                         type="submit"
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || !captchaAnswer.trim()}
                         className="w-full relative group rounded-full text-xs font-semibold uppercase tracking-wider py-3.5 bg-text-primary text-bg hover:bg-bg hover:text-text-primary transition-all duration-300 flex items-center justify-center gap-2 border border-transparent mt-2 shadow-lg disabled:opacity-50 cursor-pointer"
                       >
                         <span className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 p-[1px] accent-gradient" style={{ margin: '-1px' }} />
@@ -722,7 +832,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                       Lupa Kata Sandi?
                     </h3>
                     <p className="text-xs text-muted leading-relaxed mt-1">
-                      Masukkan nomor WhatsApp atau email Anda yang terdaftar. Kami akan mengirimkan 6-digit kode verifikasi OTP via WhatsApp.
+                      Masukkan nomor WhatsApp Anda yang terdaftar. Kami akan mengirimkan 6-digit kode verifikasi OTP via WhatsApp.
                     </p>
                   </div>
 
@@ -743,10 +853,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   <form onSubmit={handleForgotRequestSubmit} className="flex flex-col gap-4">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs text-muted uppercase tracking-wider font-medium flex items-center gap-1.5">
-                        <Phone size={12} /> Nomor WhatsApp atau Email
+                        <Phone size={12} /> Nomor WhatsApp Terdaftar
                       </label>
                       <input 
-                        type="text"
+                        type="tel"
                         required
                         autoFocus
                         value={forgotIdentifier}

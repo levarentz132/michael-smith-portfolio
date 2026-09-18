@@ -18,7 +18,6 @@ import {
   fetchCart, 
   removeFromCart, 
   refreshCartCheckout, 
-  getOrCreateCartToken,
   isValidCheckoutUrl,
   simulatePaymentSuccess,
   isOnlinePaymentEnabled
@@ -36,7 +35,6 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
   onClose,
   onSelectRooms
 }) => {
-  const [cartToken, setCartToken] = useState<string>('');
   const [cartData, setCartData] = useState<CartData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
@@ -68,24 +66,21 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
   };
 
   const loadCart = useCallback(async (tokenToUse?: string) => {
-    const token = tokenToUse || cartToken || getOrCreateCartToken();
     try {
       setLoading(true);
       setErrorMessage(null);
-      const res = await fetchCart(token);
+      const res = await fetchCart(tokenToUse);
       setCartData(res.cart);
     } catch (err: any) {
       console.warn('Gagal memuat data keranjang:', err);
     } finally {
       setLoading(false);
     }
-  }, [cartToken]);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
-      const token = getOrCreateCartToken();
-      setCartToken(token);
-      loadCart(token);
+      loadCart();
     }
   }, [isOpen, loadCart]);
 
@@ -107,19 +102,26 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
       // 1. Selalu verifikasi ketersediaan kamar ke backend sebelum redirect
       const res = await refreshCartCheckout(item.id);
 
-      if (isValidCheckoutUrl(res?.checkout_url)) {
+      if (res?.code === 'ORDER_ALREADY_PAID' || res?.order?.is_paid) {
+        setSuccessMessage('Pesanan ini sudah berhasil lunas! Memperbarui status kamar...');
+        await loadCart();
+        return;
+      }
+
+      if (isValidCheckoutUrl(res?.checkout_url) && res?.checkout_url) {
         // Simpan pending context di sessionStorage untuk validasi return callback
         sessionStorage.setItem('pending_doku_checkout', JSON.stringify({
           orderId: item.id,
-          reference: item.reference,
+          reference: res?.order?.reference || item.reference,
           amount: item.amount,
           isCart: true,
           timestamp: Date.now()
         }));
 
         setSuccessMessage('Membuka halaman pembayaran DOKU...');
+        const checkoutUrl = res.checkout_url;
         setTimeout(() => {
-          window.location.href = res.checkout_url;
+          window.location.href = checkoutUrl;
         }, 500);
       } else {
         throw new Error('Link pembayaran resmi DOKU belum tersedia dari server.');
@@ -156,10 +158,25 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
     setActionLoadingId(orderId);
     setErrorMessage(null);
     try {
+      // Optimistically remove from local state immediately
+      setCartData(prev => {
+        if (!prev) return null;
+        const remaining = (prev.items || []).filter(i => i.id !== orderId);
+        return {
+          ...prev,
+          items: remaining,
+          count: remaining.length,
+          total: remaining
+            .filter(i => i.status === 'pending' || !i.status)
+            .reduce((sum, i) => sum + (Number(i.amount) || 0), 0)
+        };
+      });
+
       await removeFromCart(orderId);
       await loadCart();
     } catch (err: any) {
       setErrorMessage(err?.message || 'Gagal menghapus item dari keranjang.');
+      await loadCart();
     } finally {
       setActionLoadingId(null);
     }

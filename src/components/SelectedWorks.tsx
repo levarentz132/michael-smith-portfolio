@@ -10,7 +10,6 @@ gsap.registerPlugin(ScrollTrigger);
 
 interface SelectedWorksProps {
   onPropertyClick: (id: number, title: string) => void;
-  initialBookingFilter?: 'all' | 'monthly' | 'transit';
 }
 
 function getPropertyArea(prop: Property): string {
@@ -307,30 +306,21 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ project, index, onPropertyC
   );
 };
 
-export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick, initialBookingFilter }) => {
+export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick }) => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [filter, setFilter] = useState<'all' | 'kos' | 'apartment'>('all');
-  const [bookingFilter, setBookingFilter] = useState<'all' | 'monthly' | 'transit'>('all');
   const [selectedArea, setSelectedArea] = useState<string>('all');
   const [selectedHotArea, setSelectedHotArea] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    if (initialBookingFilter) {
-      setBookingFilter(initialBookingFilter);
-    }
-  }, [initialBookingFilter]);
-
   const activeFiltersCount = 
     (filter !== 'all' ? 1 : 0) + 
-    (bookingFilter !== 'all' ? 1 : 0) + 
     (selectedArea !== 'all' ? 1 : 0);
 
   const resetFilters = () => {
     setFilter('all');
-    setBookingFilter('all');
     setSelectedArea('all');
     setSelectedHotArea('all');
     setSearchTerm('');
@@ -361,7 +351,7 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick, i
       }, 150);
       return () => clearTimeout(timer);
     }
-  }, [loading, properties, filter, bookingFilter, selectedArea, searchTerm]);
+  }, [loading, properties, filter, selectedArea, searchTerm]);
 
   // Available unique areas
   const uniqueAreas = useMemo(() => {
@@ -373,23 +363,19 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick, i
     return sorted;
   }, [properties]);
 
-  // Base filter (type, booking, search)
+  // Base filter (type, search)
   const baseFilteredProperties = useMemo(() => {
     return properties.filter(prop => {
       const matchesType = filter === 'all' ? true : prop.type === filter;
-      const matchesBooking = 
-        bookingFilter === 'all' ? true : 
-        bookingFilter === 'transit' ? !!(prop.transit3h || prop.transit6h || prop.transit12h || prop.transit24h) : 
-        true;
       const matchesSearch = searchTerm === '' ? true :
         prop.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         prop.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (prop.kecamatan && prop.kecamatan.toLowerCase().includes(searchTerm.toLowerCase())) ||
         getPropertyArea(prop).toLowerCase().includes(searchTerm.toLowerCase()) ||
         (prop.description && prop.description.toLowerCase().includes(searchTerm.toLowerCase()));
-      return matchesType && matchesBooking && matchesSearch;
+      return matchesType && matchesSearch;
     });
-  }, [properties, filter, bookingFilter, searchTerm]);
+  }, [properties, filter, searchTerm]);
 
   // HOT Properties (Available Rooms > 0)
   const hotProperties = useMemo(() => {
@@ -550,12 +536,6 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick, i
                     <button onClick={() => setFilter('all')} className="hover:text-rose-400 font-bold ml-1">✕</button>
                   </span>
                 )}
-                {bookingFilter !== 'all' && (
-                  <span className="text-[9px] font-semibold uppercase bg-stroke/50 text-text-primary px-2.5 py-1 rounded-full border border-stroke flex items-center gap-1">
-                    {bookingFilter === 'monthly' ? 'Sewa Bulanan' : 'Sewa Transit'}
-                    <button onClick={() => setBookingFilter('all')} className="hover:text-rose-400 font-bold ml-1">✕</button>
-                  </span>
-                )}
                 {selectedArea !== 'all' && (
                   <span className="text-[9px] font-semibold uppercase bg-orange-500/20 text-orange-300 px-2.5 py-1 rounded-full border border-orange-500/30 flex items-center gap-1">
                     Area: {selectedArea}
@@ -634,7 +614,7 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick, i
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="overflow-hidden w-full bg-surface/30 border border-stroke rounded-[32px] p-5 md:p-8 flex flex-col md:grid md:grid-cols-2 gap-5 md:gap-8 mb-10 shadow-lg text-left backdrop-blur-md"
+              className="overflow-hidden w-full bg-surface/30 border border-stroke rounded-[32px] p-5 md:p-8 flex flex-col gap-5 md:gap-8 mb-10 shadow-lg text-left backdrop-blur-md"
             >
               {/* Category Filter */}
               <div className="flex flex-col gap-2">
@@ -651,26 +631,6 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick, i
                       }`}
                     >
                       {type === 'all' ? 'Semua Tipe' : type === 'kos' ? 'Kamar Kos' : 'Apartemen'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Booking Type Filter */}
-              <div className="flex flex-col gap-2">
-                <span className="text-[10px] text-muted uppercase tracking-widest font-bold">Durasi Sewa:</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {(['all', 'monthly', 'transit'] as const).map((bType) => (
-                    <button
-                      key={bType}
-                      onClick={() => setBookingFilter(bType)}
-                      className={`text-[10px] font-semibold uppercase tracking-wider rounded-full px-4 py-2 transition-all duration-200 ${
-                        bookingFilter === bType 
-                          ? 'text-bg bg-text-primary' 
-                          : 'text-text-primary border border-stroke bg-bg/40 hover:bg-stroke/40'
-                      }`}
-                    >
-                      {bType === 'all' ? 'Semua Durasi' : bType === 'monthly' ? 'Sewa Bulanan' : 'Sewa Transit'}
                     </button>
                   ))}
                 </div>

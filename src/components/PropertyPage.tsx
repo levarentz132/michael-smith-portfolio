@@ -6,7 +6,7 @@ import {
   Tv, Wind, ChevronRight, Sparkles, 
   CheckCircle2, Key, Info, DoorOpen, X
 } from 'lucide-react';
-import { fetchPropertyById, fetchSettings, type Property, type UserSession, type WebsiteSettings } from '../api';
+import { fetchPropertyById, fetchSettings, logoutTenant, clearCartToken, type Property, type UserSession, type WebsiteSettings } from '../api';
 import { BookingModal } from './BookingModal';
 import { Navbar } from './Navbar';
 import { LoginModal } from './LoginModal';
@@ -164,8 +164,19 @@ export const PropertyPage: React.FC = () => {
     }, 150);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        await logoutTenant(token);
+      }
+    } catch (e) {
+      console.warn('Logout API error:', e);
+    }
+    clearCartToken(userSession);
     localStorage.removeItem('userSession');
+    localStorage.removeItem('authToken');
+    sessionStorage.removeItem('pending_doku_checkout');
     setUserSession(null);
     navigate('/');
   };

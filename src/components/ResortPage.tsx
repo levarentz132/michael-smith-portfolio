@@ -6,7 +6,7 @@ import {
   Sparkles, Phone, Clock, X, ChevronLeft, ChevronRight,
   Waves, Car, Trees, Dumbbell, ShowerHead, Tv
 } from 'lucide-react';
-import { fetchSettings, fetchProperties, type Property, type UserSession, type WebsiteSettings } from '../api';
+import { fetchSettings, fetchProperties, logoutTenant, clearCartToken, type Property, type UserSession, type WebsiteSettings } from '../api';
 import { Navbar } from './Navbar';
 import { Footer } from './Footer';
 import { useSEO } from '../hooks/useSEO';
@@ -139,8 +139,19 @@ export const ResortPage: React.FC = () => {
     loadData();
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        await logoutTenant(token);
+      }
+    } catch (e) {
+      console.warn('Logout API error:', e);
+    }
+    clearCartToken(userSession);
     localStorage.removeItem('userSession');
+    localStorage.removeItem('authToken');
+    sessionStorage.removeItem('pending_doku_checkout');
     setUserSession(null);
     navigate('/');
   };
