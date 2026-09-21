@@ -815,14 +815,14 @@ export async function deleteBooking(id: number): Promise<{ id: number }> {
 
 export const AUTH_API_PROXY = '/api/v1/auth';
 export const AUTH_API_BASE = 
+  (import.meta as any).env?.VITE_AUTH_API_URL || 
   (import.meta as any).env?.VITE_API_BASE_URL || 
   (import.meta as any).env?.API_BASE_URL || 
-  (import.meta as any).env?.VITE_AUTH_API_URL || 
-  'http://localhost:8000/api/v1/auth';
+  '/api/v1/auth';
 
 async function callAuthApi<T>(path: string, options: RequestInit = {}): Promise<T> {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  const directUrl = `${AUTH_API_BASE}${normalizedPath}`;
+  const directUrl = AUTH_API_BASE.startsWith('/') ? `${AUTH_API_BASE}${normalizedPath}` : `${AUTH_API_BASE.replace(/\/$/, '')}${normalizedPath}`;
   const proxyUrl = `${AUTH_API_PROXY}${normalizedPath}`;
 
   const defaultHeaders: Record<string, string> = {
@@ -840,31 +840,10 @@ async function callAuthApi<T>(path: string, options: RequestInit = {}): Promise<
     headers: mergedHeaders
   };
 
-  // Try directUrl first
-  try {
-    const res = await fetch(directUrl, reqOptions);
-    const data = await res.json().catch(() => null);
-
-    if (!res.ok) {
-      const errorMsg = data?.message || 
-        (data?.errors ? Object.values(data.errors).flat().join(', ') : null) ||
-        `Request failed with status ${res.status}`;
-      throw new Error(errorMsg);
-    }
-
-    return data as T;
-  } catch (err: any) {
-    if (err?.message && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError') && !err.message.includes('fetch failed')) {
-      throw err;
-    }
-
-    if (directUrl === proxyUrl) {
-      throw err;
-    }
-
-    // Try proxy fallback
+  // 1. If directUrl is different from proxyUrl (e.g. custom remote API configured), try directUrl
+  if (directUrl !== proxyUrl) {
     try {
-      const res = await fetch(proxyUrl, reqOptions);
+      const res = await fetch(directUrl, reqOptions);
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
@@ -875,9 +854,30 @@ async function callAuthApi<T>(path: string, options: RequestInit = {}): Promise<
       }
 
       return data as T;
-    } catch (proxyErr: any) {
-      throw new Error(err?.message || proxyErr?.message || 'Gagal terhubung ke server autentikasi.');
+    } catch (err: any) {
+      if (err?.message && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError') && !err.message.includes('fetch failed')) {
+        throw err;
+      }
+      // Otherwise fall through to proxyUrl
     }
+  }
+
+  // 2. Call relative proxyUrl (/api/v1/auth/...)
+  try {
+    const res = await fetch(proxyUrl, reqOptions);
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok) {
+      const errorMsg = data?.message || 
+        (data?.errors ? Object.values(data.errors).flat().join(', ') : null) ||
+        data?.error ||
+        `Request failed with status ${res.status}`;
+      throw new Error(errorMsg);
+    }
+
+    return data as T;
+  } catch (proxyErr: any) {
+    throw new Error(proxyErr?.message || 'Gagal terhubung ke server autentikasi.');
   }
 }
 
@@ -1098,11 +1098,11 @@ export const TENANT_API_PROXY = '/api/v1/tenant';
 export const TENANT_API_BASE = 
   (import.meta as any).env?.VITE_TENANT_API_URL || 
   (import.meta as any).env?.VITE_API_BASE_URL?.replace(/\/auth$/, '/tenant') || 
-  'http://localhost:8000/api/v1/tenant';
+  '/api/v1/tenant';
 
 async function callTenantApi<T>(path: string, token: string, options: RequestInit = {}): Promise<T> {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  const directUrl = `${TENANT_API_BASE}${normalizedPath}`;
+  const directUrl = TENANT_API_BASE.startsWith('/') ? `${TENANT_API_BASE}${normalizedPath}` : `${TENANT_API_BASE.replace(/\/$/, '')}${normalizedPath}`;
   const proxyUrl = `${TENANT_API_PROXY}${normalizedPath}`;
 
   const headers: Record<string, string> = {
@@ -1125,30 +1125,10 @@ async function callTenantApi<T>(path: string, token: string, options: RequestIni
     headers: mergedHeaders
   };
 
-  try {
-    const res = await fetch(directUrl, reqOptions);
-    const data = await res.json().catch(() => null);
-
-    if (!res.ok) {
-      const errorMsg = data?.message || 
-        (data?.errors ? Object.values(data.errors).flat().join(', ') : null) ||
-        `Request failed with status ${res.status}`;
-      throw new Error(errorMsg);
-    }
-
-    return data as T;
-  } catch (err: any) {
-    if (err?.message && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError') && !err.message.includes('fetch failed')) {
-      throw err;
-    }
-
-    if (directUrl === proxyUrl) {
-      throw err;
-    }
-
-    // Try proxy fallback
+  // 1. If directUrl is different from proxyUrl, try directUrl
+  if (directUrl !== proxyUrl) {
     try {
-      const res = await fetch(proxyUrl, reqOptions);
+      const res = await fetch(directUrl, reqOptions);
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
@@ -1159,9 +1139,29 @@ async function callTenantApi<T>(path: string, token: string, options: RequestIni
       }
 
       return data as T;
-    } catch (proxyErr: any) {
-      throw new Error(err?.message || proxyErr?.message || 'Gagal terhubung ke server portal penyewa.');
+    } catch (err: any) {
+      if (err?.message && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError') && !err.message.includes('fetch failed')) {
+        throw err;
+      }
     }
+  }
+
+  // 2. Call relative proxyUrl (/api/v1/tenant/...)
+  try {
+    const res = await fetch(proxyUrl, reqOptions);
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok) {
+      const errorMsg = data?.message || 
+        (data?.errors ? Object.values(data.errors).flat().join(', ') : null) ||
+        data?.error ||
+        `Request failed with status ${res.status}`;
+      throw new Error(errorMsg);
+    }
+
+    return data as T;
+  } catch (proxyErr: any) {
+    throw new Error(proxyErr?.message || 'Gagal terhubung ke layanan tenant portal.');
   }
 }
 
