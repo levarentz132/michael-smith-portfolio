@@ -126,10 +126,23 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
     }).format(amount);
   };
 
-  // Format date helper
+  // Format date helper (Timezone-safe YYYY-MM-DD parsing)
   const formatDate = (dateStr: string | undefined | null) => {
     if (!dateStr) return '-';
     try {
+      const match = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (match) {
+        const [, y, m, d] = match;
+        const monthNames = [
+          'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+          'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+        ];
+        const monthIndex = parseInt(m, 10) - 1;
+        const dayNum = parseInt(d, 10);
+        if (monthIndex >= 0 && monthIndex < 12) {
+          return `${dayNum} ${monthNames[monthIndex]} ${y}`;
+        }
+      }
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return dateStr;
       return d.toLocaleDateString('id-ID', {
@@ -204,9 +217,9 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
     }
   };
 
-  // Remove item from cart
+  // Cancel / Remove item from cart
   const handleRemoveCartItem = async (orderId: number) => {
-    if (!window.confirm('Apakah Anda yakin ingin membatalkan dan menghapus pesanan kamar ini dari keranjang?')) return;
+    if (!window.confirm('Apakah Anda yakin ingin membatalkan pesanan kamar ini?')) return;
     setCartActionLoadingId(orderId);
     setCartErrorMessage(null);
     try {
@@ -226,8 +239,8 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
       await removeFromCart(orderId);
       await loadCartData();
     } catch (err: any) {
-      console.error('Remove cart error:', err);
-      setCartErrorMessage(err?.message || 'Gagal menghapus kamar dari keranjang.');
+      console.error('Cancel cart error:', err);
+      setCartErrorMessage(err?.message || 'Gagal membatalkan pesanan kamar.');
       await loadCartData();
     } finally {
       setCartActionLoadingId(null);
@@ -693,15 +706,43 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
 
                     <div className="bg-bg/60 border border-stroke rounded-xl sm:rounded-2xl p-3 sm:p-4">
                       <div className="flex items-center justify-between text-muted mb-1.5 sm:mb-2">
-                        <span className="text-[10px] sm:text-[11px] uppercase tracking-wider font-semibold">Tagihan Belum Lunas</span>
-                        <CreditCard size={15} className="text-amber-400" />
+                        <span className="text-[10px] sm:text-[11px] uppercase tracking-wider font-semibold">
+                          {dashboardData?.account_summary?.is_due_soon ? 'Tagihan Jatuh Tempo' : 'Tagihan Berjalan'}
+                        </span>
+                        {dashboardData?.account_summary?.is_due_soon ? (
+                          <CreditCard size={15} className="text-amber-400" />
+                        ) : (
+                          <CheckCircle2 size={15} className="text-emerald-400" />
+                        )}
                       </div>
-                      <div className="text-sm sm:text-lg font-bold text-amber-400 truncate">
-                        {formatRupiah(dashboardData?.account_summary?.total_outstanding_amount || 0)}
-                      </div>
-                      <div className="text-[10px] sm:text-[11px] text-muted mt-0.5 truncate">
-                        {dashboardData?.account_summary?.total_unpaid_invoices || 0} tagihan menunggu
-                      </div>
+                      {dashboardData?.account_summary?.is_due_soon ? (
+                        <>
+                          <div className="text-sm sm:text-lg font-bold text-amber-400 truncate">
+                            {formatRupiah(dashboardData?.account_summary?.due_soon_outstanding_amount || dashboardData?.account_summary?.total_outstanding_amount || 0)}
+                          </div>
+                          <div className="text-[10px] sm:text-[11px] text-amber-300/80 mt-0.5 truncate">
+                            {dashboardData?.account_summary?.days_until_due !== null && dashboardData?.account_summary?.days_until_due !== undefined
+                              ? (dashboardData.account_summary.days_until_due < 0
+                                  ? `Terlambat ${Math.abs(dashboardData.account_summary.days_until_due)} hari`
+                                  : dashboardData.account_summary.days_until_due === 0
+                                  ? 'Jatuh tempo hari ini'
+                                  : `Jatuh tempo ${dashboardData.account_summary.days_until_due} hari lagi`)
+                              : 'Segera lakukan pembayaran'}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-sm sm:text-lg font-bold text-emerald-400 flex items-center gap-1">
+                            <span>Lunas</span>
+                            <span className="text-xs font-normal text-muted">✨</span>
+                          </div>
+                          <div className="text-[10px] sm:text-[11px] text-muted mt-0.5 truncate">
+                            {dashboardData?.account_summary?.next_due_date 
+                              ? `Tempo berikutnya: ${formatDate(dashboardData.account_summary.next_due_date)}`
+                              : 'Tidak ada tagihan tertunda'}
+                          </div>
+                        </>
+                      )}
                     </div>
 
                     <div className="bg-bg/60 border border-stroke rounded-xl sm:rounded-2xl p-3 sm:p-4">
@@ -763,19 +804,49 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                     </motion.div>
                   )}
 
-                  {/* NEXT ACTION CALLOUT (if any) */}
-                  {dashboardData?.next_action && (
+                  {/* NEXT ACTION CALLOUT (Smart Urgency Filter: >10 days = Calm & Early Pay Option, <=10 days = Due Alert) */}
+                  {dashboardData?.next_action && dashboardData.next_action.type !== 'none' && (
                     <motion.div 
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent border border-amber-500/30 rounded-2xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4"
+                      className={`border rounded-2xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 transition-all ${
+                        dashboardData.next_action.urgency === 'overdue'
+                          ? 'bg-gradient-to-r from-rose-500/15 via-rose-500/5 to-transparent border-rose-500/35'
+                          : dashboardData.next_action.urgency === 'due_soon'
+                          ? 'bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent border-amber-500/35'
+                          : 'bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent border-emerald-500/25'
+                      }`}
                     >
                       <div className="flex items-start gap-3.5">
-                        <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
-                          <Receipt size={20} />
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                          dashboardData.next_action.urgency === 'overdue'
+                            ? 'bg-rose-500/20 text-rose-400'
+                            : dashboardData.next_action.urgency === 'due_soon'
+                            ? 'bg-amber-500/20 text-amber-400'
+                            : 'bg-emerald-500/15 text-emerald-400'
+                        }`}>
+                          {dashboardData.next_action.urgency === 'overdue' ? (
+                            <AlertTriangle size={20} />
+                          ) : dashboardData.next_action.urgency === 'due_soon' ? (
+                            <Receipt size={20} />
+                          ) : (
+                            <CheckCircle2 size={20} />
+                          )}
                         </div>
                         <div>
-                          <div className="text-[10px] uppercase font-bold tracking-wider text-amber-400">Pemberitahuan Penting</div>
+                          <div className={`text-[10px] uppercase font-bold tracking-wider ${
+                            dashboardData.next_action.urgency === 'overdue'
+                              ? 'text-rose-400'
+                              : dashboardData.next_action.urgency === 'due_soon'
+                              ? 'text-amber-400'
+                              : 'text-emerald-400'
+                          }`}>
+                            {dashboardData.next_action.urgency === 'overdue'
+                              ? 'Tagihan Terlambat'
+                              : dashboardData.next_action.urgency === 'due_soon'
+                              ? 'Jatuh Tempo Segera'
+                              : 'Status Sewa Aktif & Lancar'}
+                          </div>
                           <h4 className="text-sm sm:text-base font-semibold text-text-primary mt-0.5">
                             {dashboardData.next_action.title}
                           </h4>
@@ -784,32 +855,54 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                           </p>
                         </div>
                       </div>
-                      {dashboardData.next_action.type === 'pay_invoice' && dashboardData.next_action.invoice_id && (
-                        <button
-                          onClick={() => {
-                            const inv = invoices.find(i => i.id === dashboardData.next_action?.invoice_id);
-                            if (inv) {
-                              handleDokuOnlinePayment(inv);
-                            } else {
-                              setActiveTab('invoices');
-                            }
-                          }}
-                          disabled={dokuLoadingInvoiceId === dashboardData.next_action.invoice_id}
-                          className="px-4 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 text-bg hover:from-amber-300 hover:to-amber-400 rounded-full text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                        >
-                          {dokuLoadingInvoiceId === dashboardData.next_action.invoice_id ? (
-                            <>
-                              <div className="w-3.5 h-3.5 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
-                              <span>Mempersiapkan DOKU...</span>
-                            </>
-                          ) : (
-                            <>
-                              <CreditCard size={13} />
-                              <span>Bayar Online ({formatRupiah(dashboardData.next_action.amount)})</span>
-                              <ArrowRight size={13} />
-                            </>
-                          )}
-                        </button>
+
+                      {/* Action Button: Urgent vs Early Payment Option */}
+                      {dashboardData.next_action.invoice_id && (
+                        dashboardData.next_action.is_due_soon ? (
+                          <button
+                            onClick={() => {
+                              const inv = invoices.find(i => i.id === dashboardData.next_action?.invoice_id);
+                              if (inv) {
+                                handleDokuOnlinePayment(inv);
+                              } else {
+                                setActiveTab('invoices');
+                              }
+                            }}
+                            disabled={dokuLoadingInvoiceId === dashboardData.next_action.invoice_id}
+                            className="px-4 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 text-bg hover:from-amber-300 hover:to-amber-400 rounded-full text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                          >
+                            {dokuLoadingInvoiceId === dashboardData.next_action.invoice_id ? (
+                              <>
+                                <div className="w-3.5 h-3.5 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
+                                <span>Mempersiapkan DOKU...</span>
+                              </>
+                            ) : (
+                              <>
+                                <CreditCard size={13} />
+                                <span>Bayar Sekarang ({formatRupiah(dashboardData.next_action.amount)})</span>
+                                <ArrowRight size={13} />
+                              </>
+                            )}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              const inv = invoices.find(i => i.id === dashboardData.next_action?.invoice_id);
+                              if (inv) {
+                                handleDokuOnlinePayment(inv);
+                              } else {
+                                setActiveTab('invoices');
+                              }
+                            }}
+                            disabled={dokuLoadingInvoiceId === dashboardData.next_action.invoice_id}
+                            className="px-4 py-2 bg-surface hover:bg-stroke/60 border border-stroke hover:border-text-primary/40 text-text-primary rounded-full text-xs font-semibold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                            title="Opsi untuk membayar tagihan periode berikutnya lebih awal"
+                          >
+                            <CreditCard size={13} className="text-emerald-400" />
+                            <span>Bayar Tempo Berikutnya Sekarang ({formatRupiah(dashboardData.next_action.amount)})</span>
+                            <ArrowRight size={12} className="text-muted" />
+                          </button>
+                        )
                       )}
                     </motion.div>
                   )}
@@ -829,7 +922,7 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                     </div>
 
                     {dashboardData?.active_lease ? (
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="space-y-1">
                           <span className="text-[11px] text-muted uppercase tracking-wider">Properti</span>
                           <div className="text-base font-bold text-text-primary">
@@ -848,6 +941,16 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                           <p className="text-xs text-muted">
                             Biaya: {formatRupiah(dashboardData.active_lease.rent_amount)} / {dashboardData.active_lease.billing_label || 'Bulan'}
                           </p>
+                        </div>
+
+                        <div className="space-y-1">
+                          <span className="text-[11px] text-muted uppercase tracking-wider">Deposit Jaminan</span>
+                          <div className="text-sm font-bold text-amber-400">
+                            {formatRupiah(dashboardData.active_lease.deposit_amount || 500000)}
+                          </div>
+                          <span className="inline-block text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-semibold">
+                            ✓ Lunas & Tersimpan
+                          </span>
                         </div>
 
                         <div className="space-y-1">
@@ -1127,7 +1230,7 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                                   ) : (
                                     <>
                                       <AlertTriangle size={13} className="text-rose-400 shrink-0" />
-                                      <span className="text-rose-400">Kamar sudah tidak tersedia. Silakan hapus item ini.</span>
+                                      <span className="text-rose-400">Kamar sudah tidak tersedia. Silakan batalkan pesanan ini.</span>
                                     </>
                                   )}
                                 </div>
@@ -1137,9 +1240,10 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                                     onClick={() => handleRemoveCartItem(item.id)}
                                     disabled={cartActionLoadingId === item.id}
                                     className="px-3.5 py-1.5 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border border-rose-500/20 rounded-full transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                    title="Batalkan pesanan kamar ini"
                                   >
                                     <Trash2 size={12} />
-                                    <span>Hapus</span>
+                                    <span>Batalkan</span>
                                   </button>
 
                                   {item.status === 'paid' || item.is_paid ? (
@@ -1243,7 +1347,7 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                             </span>
                           </div>
 
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-xs">
                             <div>
                               <span className="text-muted block text-[11px] uppercase">Properti</span>
                               <strong className="text-text-primary block mt-0.5">{lease.property?.name}</strong>
@@ -1253,6 +1357,11 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                               <span className="text-muted block text-[11px] uppercase">Sewa Bulanan</span>
                               <strong className="text-emerald-400 block mt-0.5 text-sm">{formatRupiah(lease.rent_amount)}</strong>
                               <span className="text-muted block text-[11px]">Siklus: {lease.billing_cycle || 'Bulanan'}</span>
+                            </div>
+                            <div>
+                              <span className="text-muted block text-[11px] uppercase">Deposit Jaminan</span>
+                              <strong className="text-amber-400 block mt-0.5 text-sm">{formatRupiah(lease.deposit_amount || 500000)}</strong>
+                              <span className="text-emerald-400 block text-[10px]">✓ Lunas</span>
                             </div>
                             <div>
                               <span className="text-muted block text-[11px] uppercase">Tanggal Mulai</span>
@@ -1342,90 +1451,136 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                   {/* Invoices List */}
                   {invoices.length > 0 ? (
                     <div className="grid grid-cols-1 gap-3.5">
-                      {invoices.map((inv) => (
-                        <div 
-                          key={inv.id} 
-                          className="bg-bg/50 border border-stroke rounded-2xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 hover:border-stroke/80 transition-all"
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
-                              <Receipt size={20} />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-mono text-sm font-bold text-text-primary">{inv.reference}</span>
-                                <span className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full ${
-                                  inv.status === 'paid'
-                                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                                    : inv.is_overdue || inv.status === 'overdue'
-                                    ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
-                                    : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
-                                }`}>
-                                  {inv.status === 'paid' ? 'Lunas' : inv.status === 'pending' ? 'Menunggu Pembayaran' : inv.status}
-                                </span>
-                              </div>
-                              <p className="text-xs text-muted mt-1">
-                                {inv.property_name || 'Kamar Kos'} • {inv.unit_name || ''}
-                              </p>
-                              <p className="text-[11px] text-muted flex items-center gap-2 mt-0.5">
-                                <Clock size={12} />
-                                Jatuh Tempo: <strong className="text-text-primary">{formatDate(inv.due_date)}</strong>
-                              </p>
-                            </div>
-                          </div>
+                      {invoices.map((inv) => {
+                        const isPaid = inv.status === 'paid';
+                        let daysUntilDue: number | null = null;
+                        if (inv.due_date) {
+                          try {
+                            const match = String(inv.due_date).match(/^(\d{4})-(\d{2})-(\d{2})/);
+                            if (match) {
+                              const target = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+                              const today = new Date();
+                              today.setHours(0, 0, 0, 0);
+                              daysUntilDue = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                            }
+                          } catch {}
+                        }
+                        const isOverdue = inv.is_overdue || (daysUntilDue !== null && daysUntilDue < 0);
+                        const isDueSoon = daysUntilDue !== null && daysUntilDue <= 10;
 
-                          <div className="flex items-center gap-4 text-right">
-                            <div>
-                              <div className="text-[11px] text-muted uppercase tracking-wider">Total Tagihan</div>
-                              <div className="text-base font-bold text-text-primary">{formatRupiah(inv.total)}</div>
-                              {inv.outstanding > 0 && inv.status !== 'paid' && (
-                                <div className="text-[11px] text-rose-400 font-medium">
-                                  Sisa: {formatRupiah(inv.outstanding)}
+                        return (
+                          <div 
+                            key={inv.id} 
+                            className="bg-bg/50 border border-stroke rounded-2xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 hover:border-stroke/80 transition-all"
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                                isPaid
+                                  ? 'bg-emerald-500/10 text-emerald-400'
+                                  : isOverdue
+                                  ? 'bg-rose-500/10 text-rose-400'
+                                  : isDueSoon
+                                  ? 'bg-amber-500/10 text-amber-400'
+                                  : 'bg-teal-500/10 text-teal-400'
+                              }`}>
+                                <Receipt size={20} />
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-sm font-bold text-text-primary">{inv.reference}</span>
+                                  <span className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full ${
+                                    isPaid
+                                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                                      : isOverdue
+                                      ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
+                                      : isDueSoon
+                                      ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                                      : 'bg-teal-500/10 text-teal-300 border border-teal-500/30'
+                                  }`}>
+                                    {isPaid
+                                      ? 'Lunas'
+                                      : isOverdue
+                                      ? 'Terlambat'
+                                      : isDueSoon
+                                      ? 'Jatuh Tempo Segera'
+                                      : 'Periode Berikutnya'}
+                                  </span>
                                 </div>
+                                <p className="text-xs text-muted mt-1">
+                                  {inv.property_name || 'Kamar Kos'} • {inv.unit_name || ''}
+                                </p>
+                                <p className="text-[11px] text-muted flex items-center gap-2 mt-0.5">
+                                  <Clock size={12} />
+                                  Jatuh Tempo: <strong className="text-text-primary">{formatDate(inv.due_date)}</strong>
+                                  {!isPaid && daysUntilDue !== null && (
+                                    <span className={`text-[10px] ${
+                                      isOverdue ? 'text-rose-400 font-semibold' : isDueSoon ? 'text-amber-400 font-semibold' : 'text-teal-300/80'
+                                    }`}>
+                                      ({isOverdue ? `Lewat ${Math.abs(daysUntilDue)} hari` : daysUntilDue === 0 ? 'Hari ini' : `${daysUntilDue} hari lagi`})
+                                    </span>
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-4 text-right">
+                              <div>
+                                <div className="text-[11px] text-muted uppercase tracking-wider">Total Tagihan</div>
+                                <div className="text-base font-bold text-text-primary">{formatRupiah(inv.total)}</div>
+                                {inv.outstanding > 0 && !isPaid && (
+                                  <div className="text-[11px] text-rose-400 font-medium">
+                                    Sisa: {formatRupiah(inv.outstanding)}
+                                  </div>
+                                )}
+                              </div>
+
+                              {!isPaid ? (
+                                <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
+                                  <button
+                                    onClick={() => handleDokuOnlinePayment(inv)}
+                                    disabled={dokuLoadingInvoiceId === inv.id}
+                                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all shadow-md flex items-center gap-1.5 disabled:opacity-50 cursor-pointer ${
+                                      isDueSoon || isOverdue
+                                        ? 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-bg'
+                                        : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-bg'
+                                    }`}
+                                    title={!isDueSoon && !isOverdue ? 'Bayar tagihan periode berikutnya lebih awal' : 'Bayar tagihan sekarang'}
+                                  >
+                                    {dokuLoadingInvoiceId === inv.id ? (
+                                      <>
+                                        <div className="w-3.5 h-3.5 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
+                                        <span>Mempersiapkan...</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <CreditCard size={13} />
+                                        <span>{!isDueSoon && !isOverdue ? 'Bayar Lebih Awal (DOKU)' : 'Bayar Online (DOKU)'}</span>
+                                      </>
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setPayingInvoice(inv);
+                                      setPaymentAmount(inv.outstanding || inv.total);
+                                      setPaymentMethod('bank_transfer');
+                                      setPaymentMessage(null);
+                                    }}
+                                    className="px-3 py-1.5 border border-stroke hover:border-text-primary text-text-primary rounded-full text-[11px] font-semibold transition-colors flex items-center gap-1 cursor-pointer"
+                                    title="Upload bukti transfer bank / tunai manual"
+                                  >
+                                    <Upload size={12} />
+                                    <span>Bukti Manual</span>
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-xs text-emerald-400 font-semibold px-3 py-1.5 bg-emerald-500/10 rounded-full">
+                                  <CheckCircle2 size={14} /> Terbayar
+                                </span>
                               )}
                             </div>
-
-                            {inv.status !== 'paid' ? (
-                              <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
-                                <button
-                                  onClick={() => handleDokuOnlinePayment(inv)}
-                                  disabled={dokuLoadingInvoiceId === inv.id}
-                                  className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-bg rounded-full text-xs font-bold transition-all shadow-md flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
-                                >
-                                  {dokuLoadingInvoiceId === inv.id ? (
-                                    <>
-                                      <div className="w-3.5 h-3.5 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
-                                      <span>Mempersiapkan...</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <CreditCard size={13} />
-                                      <span>Bayar Online (DOKU)</span>
-                                    </>
-                                  )}
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setPayingInvoice(inv);
-                                    setPaymentAmount(inv.outstanding || inv.total);
-                                    setPaymentMethod('bank_transfer');
-                                    setPaymentMessage(null);
-                                  }}
-                                  className="px-3 py-1.5 border border-stroke hover:border-text-primary text-text-primary rounded-full text-[11px] font-semibold transition-colors flex items-center gap-1 cursor-pointer"
-                                  title="Upload bukti transfer bank / tunai manual"
-                                >
-                                  <Upload size={12} />
-                                  <span>Bukti Manual</span>
-                                </button>
-                              </div>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 text-xs text-emerald-400 font-semibold px-3 py-1.5 bg-emerald-500/10 rounded-full">
-                                <CheckCircle2 size={14} /> Terbayar
-                              </span>
-                            )}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="bg-bg/30 border border-stroke rounded-2xl p-8 text-center text-muted">

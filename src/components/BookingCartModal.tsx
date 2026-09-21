@@ -53,6 +53,19 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
   const formatDate = (dateStr: string | undefined | null) => {
     if (!dateStr) return '-';
     try {
+      const match = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (match) {
+        const [, y, m, d] = match;
+        const monthNames = [
+          'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+          'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+        ];
+        const monthIndex = parseInt(m, 10) - 1;
+        const dayNum = parseInt(d, 10);
+        if (monthIndex >= 0 && monthIndex < 12) {
+          return `${dayNum} ${monthNames[monthIndex]} ${y}`;
+        }
+      }
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return dateStr;
       return d.toLocaleDateString('id-ID', {
@@ -154,7 +167,7 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
   };
 
   const handleRemove = async (orderId: number) => {
-    if (!window.confirm('Hapus pesanan kamar ini dari keranjang Anda?')) return;
+    if (!window.confirm('Batalkan pesanan kamar ini dari keranjang Anda?')) return;
     setActionLoadingId(orderId);
     setErrorMessage(null);
     try {
@@ -175,7 +188,7 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
       await removeFromCart(orderId);
       await loadCart();
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Gagal menghapus item dari keranjang.');
+      setErrorMessage(err?.message || 'Gagal membatalkan pesanan kamar dari keranjang.');
       await loadCart();
     } finally {
       setActionLoadingId(null);
@@ -373,9 +386,10 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
                           onClick={() => handleRemove(item.id)}
                           disabled={actionLoadingId === item.id}
                           className="text-xs text-rose-400 hover:text-rose-300 underline cursor-pointer disabled:opacity-50 flex items-center gap-1"
+                          title="Batalkan pesanan kamar ini"
                         >
                           <Trash2 size={12} />
-                          <span>Hapus</span>
+                          <span>Batalkan</span>
                         </button>
                       </div>
 
@@ -405,12 +419,17 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
                       {/* Item Bottom Bar */}
                       <div className="flex items-center justify-between pt-2 border-t border-stroke/30">
                         <div>
-                          <span className="text-[10px] text-muted uppercase tracking-wider block">Biaya Sewa</span>
+                          <span className="text-[10px] text-muted uppercase tracking-wider block">Total Tagihan Awal</span>
                           <span className={`text-sm sm:text-base font-bold font-mono ${
                             isAvailable ? 'text-amber-400' : 'text-muted line-through'
                           }`}>
                             {formatRupiah(item.amount)}
                           </span>
+                          {Boolean(item.deposit_amount && item.deposit_amount > 0) && (
+                            <span className="text-[10px] text-muted block mt-0.5">
+                              (Sewa: {formatRupiah(item.rent_amount || (item.amount - (item.deposit_amount || 0)))} + Deposit: {formatRupiah(item.deposit_amount)})
+                            </span>
+                          )}
                         </div>
 
                         {item.status === "paid" || item.is_paid ? (

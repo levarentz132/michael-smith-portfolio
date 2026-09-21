@@ -51,6 +51,7 @@ export interface Property {
   available?: number | boolean;
   branchId?: number | null;
   deposit?: number | null;
+  deposit_amount?: number | null;
 }
 
 export interface Booking {
@@ -326,6 +327,7 @@ export interface TenantLease {
   end_date: string;
   rent_amount: number;
   deposit_amount?: number;
+  deposit_paid_at?: string | null;
   billing_label?: string;
   billing_cycle?: string;
   status: string;
@@ -338,7 +340,12 @@ export interface TenantLease {
 export interface TenantAccountSummary {
   total_unpaid_invoices: number;
   total_outstanding_amount: number;
+  due_soon_invoices_count?: number;
+  due_soon_outstanding_amount?: number;
+  is_due_soon?: boolean;
+  days_until_due?: number | null;
   next_due_date?: string | null;
+  next_invoice_id?: number | null;
   open_maintenance_tickets: number;
 }
 
@@ -350,6 +357,10 @@ export interface TenantNextAction {
   reference?: string;
   amount?: number;
   due_date?: string;
+  urgency?: 'overdue' | 'due_soon' | 'relaxed' | 'normal' | string;
+  is_due_soon?: boolean;
+  days_until_due?: number | null;
+  allow_early_payment?: boolean;
 }
 
 export interface MaintenanceTicket {
@@ -472,6 +483,8 @@ export interface CartItem {
   end_date?: string;
   duration_months?: number;
   amount: number;
+  rent_amount?: number;
+  deposit_amount?: number;
   currency?: string;
   status: string;
   is_available?: boolean;
@@ -681,7 +694,8 @@ export async function fetchProperties(): Promise<Property[]> {
             availableRoomDetails: item.available_room_details || [],
             availabilityStatus: status,
             status: roomsCount > 0 ? 'available' : 'booked',
-            deposit: 0
+            deposit: item.deposit_amount !== undefined && item.deposit_amount !== null ? Number(item.deposit_amount) : 500000,
+            deposit_amount: item.deposit_amount !== undefined && item.deposit_amount !== null ? Number(item.deposit_amount) : 500000
           } as Property;
         });
       }
@@ -1355,6 +1369,9 @@ export function clearCartToken(user?: UserSession | null): void {
     }
     keysToRemove.forEach(k => localStorage.removeItem(k));
   } catch {}
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('cart-updated', { detail: { count: 0 } }));
+  }
 }
 
 export async function addToCart(payload: AddToCartPayload, customCartToken?: string): Promise<AddToCartResponse> {
@@ -1385,6 +1402,9 @@ export async function addToCart(payload: AddToCartPayload, customCartToken?: str
     if (returnedToken) {
       const storageKey = getUserCartStorageKey(session);
       localStorage.setItem(storageKey, returnedToken);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('cart-updated'));
+      }
     }
   };
 
@@ -1399,6 +1419,9 @@ export async function addToCart(payload: AddToCartPayload, customCartToken?: str
 
     if (res.ok && data?.order) {
       saveCartToken(data.order.cart_token);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('cart-updated', { detail: { order: data.order } }));
+      }
       return data as AddToCartResponse;
     }
 
@@ -1428,6 +1451,9 @@ export async function addToCart(payload: AddToCartPayload, customCartToken?: str
 
     if (res.ok && data?.order) {
       saveCartToken(data.order.cart_token);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('cart-updated', { detail: { order: data.order } }));
+      }
       return data as AddToCartResponse;
     }
 
@@ -1456,6 +1482,9 @@ export async function addToCart(payload: AddToCartPayload, customCartToken?: str
     const data = await res.json().catch(() => null);
     if (res.ok && data?.order) {
       saveCartToken(data.order.cart_token);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('cart-updated', { detail: { order: data.order } }));
+      }
       return data as AddToCartResponse;
     }
     if (data?.message) {

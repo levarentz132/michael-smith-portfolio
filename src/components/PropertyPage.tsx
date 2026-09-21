@@ -6,8 +6,9 @@ import {
   Tv, Wind, ChevronRight, Sparkles, 
   CheckCircle2, Key, Info, DoorOpen, X
 } from 'lucide-react';
-import { fetchPropertyById, fetchSettings, logoutTenant, clearCartToken, type Property, type UserSession, type WebsiteSettings } from '../api';
+import { fetchPropertyById, fetchSettings, logoutTenant, clearCartToken, fetchCart, type Property, type UserSession, type WebsiteSettings } from '../api';
 import { BookingModal } from './BookingModal';
+import { BookingCartModal } from './BookingCartModal';
 import { Navbar } from './Navbar';
 import { LoginModal } from './LoginModal';
 import { useSEO } from '../hooks/useSEO';
@@ -45,9 +46,34 @@ export const PropertyPage: React.FC = () => {
   const [isHovered, setIsHovered] = useState(false);
   const [spotlightPos, setSpotlightPos] = useState({ x: 50, y: 50 });
 
-  // Booking Modal State
+  // Booking & Cart Modal State
   const [bookingOpen, setBookingOpen] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+
+  const refreshCartCount = async (e?: any) => {
+    if (e?.detail?.count !== undefined && typeof e.detail.count === 'number') {
+      setCartCount(e.detail.count);
+      return;
+    }
+    try {
+      const res = await fetchCart();
+      setCartCount(res.cart?.count || 0);
+    } catch {}
+  };
+
+  useEffect(() => {
+    refreshCartCount();
+    window.addEventListener('cart-updated', refreshCartCount);
+    window.addEventListener('storage', refreshCartCount);
+    window.addEventListener('focus', refreshCartCount);
+    return () => {
+      window.removeEventListener('cart-updated', refreshCartCount);
+      window.removeEventListener('storage', refreshCartCount);
+      window.removeEventListener('focus', refreshCartCount);
+    };
+  }, []);
 
   const handleBookClick = () => {
     if (!userSession) {
@@ -249,6 +275,8 @@ export const PropertyPage: React.FC = () => {
         session={userSession}
         onLogout={handleLogout}
         onLoginClick={() => navigate('/')} // Redirect to home for logins
+        onCartClick={() => setCartOpen(true)}
+        cartCount={cartCount}
         settings={settings}
       />
 
@@ -775,6 +803,25 @@ export const PropertyPage: React.FC = () => {
         onClose={() => {
           setBookingOpen(false);
           setSelectedRoomName('');
+          refreshCartCount();
+        }}
+        onOpenCart={() => {
+          setBookingOpen(false);
+          setSelectedRoomName('');
+          setCartOpen(true);
+        }}
+      />
+
+      {/* Standalone Booking Cart Modal */}
+      <BookingCartModal
+        isOpen={cartOpen}
+        onClose={() => {
+          setCartOpen(false);
+          refreshCartCount();
+        }}
+        onSelectRooms={() => {
+          setCartOpen(false);
+          navigate('/');
         }}
       />
 

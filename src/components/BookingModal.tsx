@@ -18,9 +18,10 @@ interface BookingModalProps {
   onClose: () => void;
   property: Property | null;
   initialRoomName?: string;
+  onOpenCart?: () => void;
 }
 
-export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, property, initialRoomName }) => {
+export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, property, initialRoomName, onOpenCart }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -144,7 +145,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
     (property?.promoPrice ? property.promoPrice : (property?.rawPrice || 1500000));
 
   const totalRent = effectiveMonthlyRate * durationMonths;
-  const deposit = Number(property?.deposit || 0);
+  const deposit = Number(property?.deposit_amount !== undefined && property?.deposit_amount !== null 
+    ? property.deposit_amount 
+    : (property?.deposit !== undefined && property?.deposit !== null ? property.deposit : 500000));
   const totalInitialPayment = totalRent + deposit;
 
   const handleRoomSelect = (roomVal: string) => {
@@ -265,6 +268,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
 
         const orderData = cartRes.order;
         setCreatedOrder(orderData);
+
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('cart-updated', { detail: { order: orderData } }));
+        }
 
         // 2. Simpan data transaksi ke sessionStorage untuk verifikasi saat kembali dari DOKU
         sessionStorage.setItem('pending_doku_checkout', JSON.stringify({
@@ -650,12 +657,38 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                       </button>
                     )}
 
+                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-left text-[11px] text-muted leading-relaxed">
+                      <div className="flex items-center gap-1.5 font-bold text-amber-400 mb-1">
+                        <span>ℹ️</span>
+                        <span>Informasi Status Keranjang:</span>
+                      </div>
+                      <p>
+                        Pesanan ini tersimpan di <strong>Keranjang Pemesanan</strong> selama 48 jam dengan status <em>Menunggu Pembayaran</em>. Kamar baru akan terkunci permanen setelah Anda menyelesaikan pembayaran.
+                      </p>
+                      <p className="mt-1">
+                        Anda dapat melanjutkan pembayaran atau membatalkan pesanan kapan saja melalui menu <strong>Keranjang 🛒</strong> di bagian atas.
+                      </p>
+                    </div>
+
+                    {onOpenCart && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onOpenCart();
+                        }}
+                        className="w-full py-2.5 px-4 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-bold text-xs text-center transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        <span>🛒 Lihat di Keranjang Pemesanan</span>
+                      </button>
+                    )}
+
                     <button
                       type="button"
                       onClick={onClose}
                       className="w-full py-2.5 px-4 rounded-xl bg-surface border border-stroke hover:border-text-primary/30 text-text-primary text-xs font-medium text-center transition-colors cursor-pointer"
                     >
-                      Tutup
+                      Tutup & Bayar Nanti
                     </button>
                   </div>
                 ) : (

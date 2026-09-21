@@ -174,7 +174,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           {onCartClick && (
             <button
               onClick={onCartClick}
-              className="relative p-2 text-text-primary hover:text-amber-400 rounded-full border border-white/10 hover:border-amber-500/40 bg-stroke/30 transition-all mr-2 cursor-pointer flex items-center justify-center"
+              className={`relative p-2 rounded-full border transition-all mr-2 cursor-pointer flex items-center justify-center ${
+                (cartCount ?? 0) > 0
+                  ? 'text-amber-400 border-amber-500/50 bg-amber-500/10 shadow-[0_0_12px_rgba(245,158,11,0.25)] hover:bg-amber-500/20'
+                  : 'text-text-primary hover:text-amber-400 border-white/10 hover:border-amber-500/40 bg-stroke/30'
+              }`}
               title="Keranjang Pemesanan Kamar"
               aria-label="Keranjang Pemesanan"
             >
@@ -226,13 +230,17 @@ export const Navbar: React.FC<NavbarProps> = ({
           {onCartClick && (
             <button
               onClick={onCartClick}
-              className="relative p-2.5 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full border border-white/10 bg-stroke/30 text-text-primary active:scale-95 transition-transform"
+              className={`relative p-2.5 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full border active:scale-95 transition-all ${
+                (cartCount ?? 0) > 0
+                  ? 'text-amber-400 border-amber-500/50 bg-amber-500/10 shadow-[0_0_12px_rgba(245,158,11,0.25)]'
+                  : 'text-text-primary border-white/10 bg-stroke/30'
+              }`}
               title="Keranjang Pemesanan"
               aria-label="Keranjang Pemesanan"
             >
               <ShoppingCart size={17} />
               {(cartCount ?? 0) > 0 && (
-                <span className="absolute top-0.5 right-0.5 min-w-[17px] h-[17px] px-1 text-[9px] font-bold font-mono bg-amber-500 text-bg rounded-full flex items-center justify-center shadow-md">
+                <span className="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 text-[9px] font-bold font-mono bg-amber-500 text-bg rounded-full flex items-center justify-center shadow-md animate-pulse">
                   {cartCount}
                 </span>
               )}

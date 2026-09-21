@@ -19,6 +19,7 @@ import { PropertyPage } from './components/PropertyPage';
 import { ArticlePage } from './components/ArticlePage';
 import { ResortPage } from './components/ResortPage';
 import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
+import { ShoppingCart } from 'lucide-react';
 import { fetchSettings, slugify, logoutTenant, fetchCart, clearCartToken } from './api';
 import type { UserSession, Property, WebsiteSettings } from './api';
 import { useSEO } from './hooks/useSEO';
@@ -76,7 +77,11 @@ function App() {
   }, []);
 
   // Sync Cart Count
-  const refreshCartCount = useCallback(async () => {
+  const refreshCartCount = useCallback(async (e?: any) => {
+    if (e?.detail?.count !== undefined && typeof e.detail.count === 'number') {
+      setCartCount(e.detail.count);
+      return;
+    }
     try {
       const res = await fetchCart();
       setCartCount(res.cart?.count || 0);
@@ -88,13 +93,15 @@ function App() {
   useEffect(() => {
     refreshCartCount();
 
-    // Listen to focus and custom events to keep cart count always updated
+    // Listen to focus, custom, and storage events to keep cart count instantly updated everywhere
     window.addEventListener('focus', refreshCartCount);
     window.addEventListener('cart-updated', refreshCartCount);
+    window.addEventListener('storage', refreshCartCount);
 
     return () => {
       window.removeEventListener('focus', refreshCartCount);
       window.removeEventListener('cart-updated', refreshCartCount);
+      window.removeEventListener('storage', refreshCartCount);
     };
   }, [userSession, refreshCartCount]);
 
@@ -313,6 +320,11 @@ function App() {
                   setSelectedProperty(null);
                   refreshCartCount();
                 }} 
+                onOpenCart={() => {
+                  setBookingOpen(false);
+                  setSelectedProperty(null);
+                  setCartOpen(true);
+                }}
               />
 
               {/* Standalone Booking Cart Modal */}
@@ -372,6 +384,51 @@ function App() {
       {showFloatingWhatsApp && (
         <FloatingWhatsApp whatsappNumber={settings?.whatsapp_number || '628123456789'} />
       )}
+
+      {/* Unpaid Cart Floating Reminder Toast */}
+      <AnimatePresence>
+        {cartCount > 0 && !cartOpen && !bookingOpen && !paymentReturnOpen && !loginOpen && !profileOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 30, scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            className="fixed bottom-24 sm:bottom-6 left-4 right-4 sm:left-auto sm:right-24 z-40 max-w-sm"
+          >
+            <div 
+              onClick={() => setCartOpen(true)}
+              className="group flex items-center justify-between gap-3 bg-surface/95 backdrop-blur-xl border border-amber-500/50 rounded-2xl p-3 shadow-2xl shadow-black/60 cursor-pointer hover:border-amber-400 hover:scale-[1.02] transition-all duration-200"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="relative flex size-9 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40 shrink-0">
+                  <ShoppingCart size={17} />
+                  <span className="absolute -top-1 -right-1 size-4 rounded-full bg-amber-500 text-bg text-[10px] font-bold flex items-center justify-center animate-pulse">
+                    {cartCount}
+                  </span>
+                </div>
+                <div className="text-left min-w-0">
+                  <p className="text-xs font-bold text-text-primary truncate">
+                    {cartCount} Kamar di Keranjang Belum Dibayar
+                  </p>
+                  <p className="text-[10px] text-muted truncate">
+                    Klik untuk selesaikan pembayaran
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCartOpen(true);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-bg font-bold text-[11px] uppercase tracking-wider shrink-0 hover:from-amber-400 hover:to-amber-500 transition-all shadow"
+              >
+                Bayar →
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }
