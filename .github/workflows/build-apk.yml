@@ -33,6 +33,11 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
+      - name: Accept Android Licenses
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses 2>/dev/null || true
+          yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses 2>/dev/null || true
+
       - name: Grant Execute Permission to Gradle
         run: chmod +x ./android/gradlew
 
