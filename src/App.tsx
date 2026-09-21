@@ -19,10 +19,12 @@ import { PropertyPage } from './components/PropertyPage';
 import { ArticlePage } from './components/ArticlePage';
 import { ResortPage } from './components/ResortPage';
 import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
+import { MobileBottomNav } from './components/MobileBottomNav';
 import { ShoppingCart } from 'lucide-react';
 import { fetchSettings, slugify, logoutTenant, fetchCart, clearCartToken } from './api';
 import type { UserSession, Property, WebsiteSettings } from './api';
 import { useSEO } from './hooks/useSEO';
+import { useCapacitor } from './hooks/useCapacitor';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -51,6 +53,18 @@ function App() {
   });
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Handle native Android hardware back button
+  const handleNativeBackPress = useCallback(() => {
+    if (paymentReturnOpen) { setPaymentReturnOpen(false); return true; }
+    if (profileOpen) { setProfileOpen(false); return true; }
+    if (loginOpen) { setLoginOpen(false); return true; }
+    if (cartOpen) { setCartOpen(false); return true; }
+    if (bookingOpen) { setBookingOpen(false); return true; }
+    return false;
+  }, [paymentReturnOpen, profileOpen, loginOpen, cartOpen, bookingOpen]);
+
+  useCapacitor(handleNativeBackPress);
 
   const showFloatingWhatsApp = true;
 
@@ -381,6 +395,17 @@ function App() {
         </AnimatePresence>
       } />
       </Routes>
+
+      {/* Mobile App Bottom Navigation Bar */}
+      <MobileBottomNav
+        cartCount={cartCount}
+        userSession={userSession}
+        onCartClick={() => setCartOpen(true)}
+        onProfileClick={() => setProfileOpen(true)}
+        onLoginClick={() => setLoginOpen(true)}
+        onCatalogClick={() => handleNavClick('work')}
+      />
+
       {showFloatingWhatsApp && (
         <FloatingWhatsApp whatsappNumber={settings?.whatsapp_number || '628123456789'} />
       )}
@@ -442,7 +467,7 @@ function FloatingWhatsApp({ whatsappNumber }: { whatsappNumber: string }) {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="fixed bottom-6 right-6 z-50 flex items-center justify-center w-14 h-14 bg-[#25D366] text-white rounded-full shadow-[0_8px_30px_rgb(37,211,102,0.4)] hover:shadow-[0_8px_30px_rgb(37,211,102,0.6)] border border-[#34eb74]/30 focus:outline-none transition-all duration-300"
+      className="fixed bottom-20 md:bottom-6 right-5 md:right-6 z-40 flex items-center justify-center w-12 h-12 md:w-14 md:h-14 bg-[#25D366] text-white rounded-full shadow-[0_8px_30px_rgb(37,211,102,0.4)] hover:shadow-[0_8px_30px_rgb(37,211,102,0.6)] border border-[#34eb74]/30 focus:outline-none transition-all duration-300"
       initial={{ scale: 0, opacity: 0 }}
       animate={{ 
         scale: 1, 
