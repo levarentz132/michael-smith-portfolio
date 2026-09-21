@@ -579,7 +579,8 @@ async function fetchPropertiesFromApi(forceRefresh = false) {
         availabilityStatus: availabilityStatus,
         branchId: null,
         status: isAvailable ? 'available' : 'booked',
-        deposit: 0
+        deposit: item.deposit_amount !== undefined && item.deposit_amount !== null ? Number(item.deposit_amount) : 500000,
+        deposit_amount: item.deposit_amount !== undefined && item.deposit_amount !== null ? Number(item.deposit_amount) : 500000
       };
     });
 

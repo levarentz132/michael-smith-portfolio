@@ -627,6 +627,17 @@ export const PropertyPage: React.FC = () => {
                     <span className="text-[10px] text-muted font-light mt-1">
                       {property.type === 'resort' || property.type === 'villa' ? 'Harga untuk satu malam menginap' : 'Termasuk biaya pemeliharaan gedung'}
                     </span>
+                    {Boolean(property.deposit_amount || property.deposit) && (
+                      <div className="mt-2.5 pt-2 border-t border-stroke/30 flex justify-between items-center text-[11px]">
+                        <span className="text-muted flex items-center gap-1">
+                          <Shield size={12} className="text-amber-400" />
+                          <span>Deposit Jaminan:</span>
+                        </span>
+                        <span className="font-semibold text-text-primary">
+                          Rp {Number(property.deposit_amount || property.deposit || 500000).toLocaleString('id-ID')}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Transit (Package) Pricing */}
