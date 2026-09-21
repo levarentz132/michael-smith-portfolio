@@ -14,8 +14,12 @@ dist-ssr
 
 # Environment variables
 .env
+.env.*
 .env.local
 .env.production
+.env.staging
+.env.development
+
 
 # Deployment
 deploy_package/
