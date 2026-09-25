@@ -331,16 +331,28 @@ export const DEFAULT_FALLBACK_PROPERTIES: Property[] = [
 // Known coordinates mapping for Highlanderstay properties
 export const KNOWN_PROPERTY_COORDINATES: Record<string, Coordinates & { defaultArea: string; addressSnippet: string }> = {
   greenville: {
-    lat: -6.16852,
-    lng: 106.77254,
+    lat: -6.1742293,
+    lng: 106.7781881,
     defaultArea: 'Kebon Jeruk',
-    addressSnippet: 'Komplek Green Ville, Kebon Jeruk, Jakarta Barat'
+    addressSnippet: 'Highlanderstay Transit Greenville Mangga, Jl. Mangga 14, Kebon Jeruk, Jakarta Barat'
   },
   green_ville: {
-    lat: -6.16852,
-    lng: 106.77254,
+    lat: -6.1742293,
+    lng: 106.7781881,
     defaultArea: 'Kebon Jeruk',
-    addressSnippet: 'Komplek Green Ville, Kebon Jeruk, Jakarta Barat'
+    addressSnippet: 'Highlanderstay Transit Greenville Mangga, Jl. Mangga 14, Kebon Jeruk, Jakarta Barat'
+  },
+  mangga: {
+    lat: -6.1742293,
+    lng: 106.7781881,
+    defaultArea: 'Kebon Jeruk',
+    addressSnippet: 'Highlanderstay Transit Greenville Mangga, Jl. Mangga 14, Kebon Jeruk, Jakarta Barat'
+  },
+  greenville_mangga: {
+    lat: -6.1742293,
+    lng: 106.7781881,
+    defaultArea: 'Kebon Jeruk',
+    addressSnippet: 'Highlanderstay Transit Greenville Mangga, Jl. Mangga 14, Kebon Jeruk, Jakarta Barat'
   },
   td795: {
     lat: -6.17351,
@@ -457,6 +469,14 @@ export const KNOWN_PROPERTY_COORDINATES: Record<string, Coordinates & { defaultA
  */
 export function extractCoordsFromUrl(url?: string | null): Coordinates | null {
   if (!url) return null;
+
+  // Match Google Maps !3d-6.1234!4d106.1234 (exact pin coordinate)
+  const pinMatch = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+  if (pinMatch) {
+    const lat = parseFloat(pinMatch[1]);
+    const lng = parseFloat(pinMatch[2]);
+    if (!isNaN(lat) && !isNaN(lng)) return { lat, lng };
+  }
 
   // Match @-6.1234,106.1234
   const atMatch = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
