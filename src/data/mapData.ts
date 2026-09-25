@@ -379,10 +379,16 @@ export const KNOWN_PROPERTY_COORDINATES: Record<string, Coordinates & { defaultA
     addressSnippet: 'Jl. Tanjung Duren Barat No. 647, Grogol, Jakarta Barat'
   },
   alpukat: {
-    lat: -6.17405,
-    lng: 106.78912,
+    lat: -6.1704046,
+    lng: 106.7859687,
     defaultArea: 'Grogol',
-    addressSnippet: 'Jl. Alpukat, Tanjung Duren Utara, Jakarta Barat'
+    addressSnippet: 'Highlander Kost Alpukat, Tanjung Duren Utara, Grogol, Jakarta Barat'
+  },
+  alpukat_tanjung_duren: {
+    lat: -6.1704046,
+    lng: 106.7859687,
+    defaultArea: 'Grogol',
+    addressSnippet: 'Highlander Kost Alpukat, Tanjung Duren Utara, Grogol, Jakarta Barat'
   },
   td_guest: {
     lat: -6.17652,
