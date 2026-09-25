@@ -440,10 +440,10 @@ app.use('/api/v1/tenant', async (req, res) => {
 
 // 1. Properties Routes (100% External Available Rooms API - Direct & Live, Zero Local DB)
 
-const EXTERNAL_AVAILABLE_ROOMS_API = process.env.OPENKOS_ROOMS_URL || 'http://localhost:8000/api/v1/available-rooms';
+const EXTERNAL_AVAILABLE_ROOMS_API = process.env.OPENKOS_ROOMS_URL || 'https://dashboard.highlanderstay.com/api/v1/available-rooms';
 let propertiesCache = null;
 let propertiesCacheTimestamp = 0;
-const CACHE_TTL_MS = 60 * 1000; // 60s in-memory cache
+const CACHE_TTL_MS = 30 * 1000; // 30s in-memory cache
 
 const FALLBACK_PROPERTY_IMAGES = {
   apartemen: 'uploads/properties/prop_1779423502137-894949747.png',
@@ -494,8 +494,13 @@ async function fetchPropertiesFromApi(forceRefresh = false) {
   }
 
   try {
+    const apiKey = process.env.OPENKOS_API_SECRET || 'hs_sec_live_9a7d3f82e1';
     const apiRes = await fetch(EXTERNAL_AVAILABLE_ROOMS_API, {
-      headers: { 'Accept': 'application/json' },
+      headers: { 
+        'Accept': 'application/json',
+        'X-API-Key': apiKey,
+        'X-OpenKos-Secret': apiKey
+      },
       signal: AbortSignal.timeout(8000)
     });
 
@@ -539,6 +544,9 @@ async function fetchPropertiesFromApi(forceRefresh = false) {
       const colSpan = index % 3 === 0 ? 'md:col-span-7' : 'md:col-span-5';
       const aspectRatio = index % 3 === 0 ? 'aspect-[4/3] md:aspect-[1.5/1]' : 'aspect-[4/3] md:aspect-[1.1/1]';
 
+      const lat = (item.latitude !== undefined && item.latitude !== null && !isNaN(Number(item.latitude))) ? Number(item.latitude) : null;
+      const lng = (item.longitude !== undefined && item.longitude !== null && !isNaN(Number(item.longitude))) ? Number(item.longitude) : null;
+
       return {
         id: index + 1,
         title: item.name,
@@ -552,9 +560,11 @@ async function fetchPropertiesFromApi(forceRefresh = false) {
         rawPrice: minPrice,
         location: item.kecamatan || 'Jakarta',
         kecamatan: item.kecamatan || null,
-        address: item.kecamatan || 'Jakarta',
+        address: item.address || item.kecamatan || 'Jakarta',
         phone: item.phone || null,
         addressUrl: item.address_url || null,
+        latitude: lat,
+        longitude: lng,
         rating: (index % 2 === 0 ? '4.9 ★' : '4.8 ★'),
         image: imageUrl,
         imageUrls: imageUrls,
