@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Home, ShoppingCart, LogIn, Building2 } from 'lucide-react';
+import { Home, ShoppingCart, LogIn, Building2, MapPin } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { UserSession } from '../api';
 
@@ -26,6 +26,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
 
   const isHome = location.pathname === '/' && !location.hash;
   const isCatalog = location.hash === '#portfolio' || location.pathname.startsWith('/kost/') || location.pathname.startsWith('/apartemen/');
+  const isMap = location.pathname === '/map' || location.pathname === '/lokasi' || location.pathname === '/peta';
 
   const handleHomeClick = () => {
     if (location.pathname !== '/') {
@@ -48,6 +49,10 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         el.scrollIntoView({ behavior: 'smooth' });
       }
     }
+  };
+
+  const handleMapClick = () => {
+    navigate('/map');
   };
 
   return (
@@ -113,7 +118,35 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           </span>
         </button>
 
-        {/* Tab 3: Keranjang Booking */}
+        {/* Tab 3: Peta & Lokasi */}
+        <button
+          type="button"
+          onClick={handleMapClick}
+          className="relative flex-1 flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all duration-200 active:scale-95 cursor-pointer"
+        >
+          {isMap && (
+            <motion.div
+              layoutId="mobileNavPill"
+              className="absolute inset-0 bg-white/[0.08] rounded-xl border border-white/10"
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+            />
+          )}
+          <MapPin
+            size={19}
+            className={`transition-colors duration-200 ${
+              isMap ? 'text-amber-400' : 'text-neutral-400'
+            }`}
+          />
+          <span
+            className={`text-[10px] font-medium mt-1 tracking-tight transition-colors duration-200 ${
+              isMap ? 'text-white font-semibold' : 'text-neutral-400'
+            }`}
+          >
+            Peta
+          </span>
+        </button>
+
+        {/* Tab 4: Keranjang Booking */}
         <button
           type="button"
           onClick={onCartClick}

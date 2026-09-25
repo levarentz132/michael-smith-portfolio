@@ -45,6 +45,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const navLinks = [
     { label: 'Beranda', target: 'home' },
     { label: 'Ruangan', target: 'work' },
+    { label: 'Peta Lokasi', target: 'map' },
     { label: 'Fasilitas', target: 'resume' },
     { label: 'Resort', target: 'resort' },
   ];

@@ -181,3 +181,208 @@ video:focus {
   transform: translateY(-50%);
   animation: strike-draw 0.7s cubic-bezier(0.65, 0, 0.35, 1) 0.3s forwards;
 }
+
+/* --- LEAFLET MAP CUSTOM STYLES & MARKER PINS --- */
+.leaflet-container {
+  background-color: #e5e7eb !important;
+  font-family: 'Inter', sans-serif !important;
+}
+
+.hs-leaflet-marker-wrapper {
+  background: transparent !important;
+  border: none !important;
+}
+
+.custom-property-pin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.7));
+}
+
+.custom-property-pin:hover {
+  transform: scale(1.1) translateY(-4px);
+  z-index: 9999 !important;
+}
+
+.custom-property-pin.is-selected {
+  transform: scale(1.15) translateY(-6px);
+  z-index: 10000 !important;
+}
+
+.custom-property-pin.is-nearest .pin-pill {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.5) !important;
+}
+
+.custom-property-pin .pin-pill {
+  position: relative;
+  background: rgba(18, 19, 21, 0.95);
+  backdrop-filter: blur(8px);
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  border-radius: 9999px;
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: all 0.25s ease;
+}
+
+.custom-property-pin.is-selected .pin-pill {
+  background: #f59e0b;
+  color: #0c0d0e;
+  border-color: #fbbf24;
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.6);
+}
+
+.custom-property-pin.is-selected .pin-pill .price-text {
+  color: #0c0d0e !important;
+  font-weight: 800;
+}
+
+.custom-property-pin .nearest-badge {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, #f59e0b, #d97706);
+  color: #0c0d0e;
+  font-size: 8px;
+  font-weight: 900;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  animation: bounce 1.5s infinite;
+}
+
+.custom-property-pin .pin-content {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.custom-property-pin .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.custom-property-pin .status-dot.ready {
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+}
+
+.custom-property-pin .status-dot.full {
+  background: #f43f5e;
+}
+
+.custom-property-pin .distance-chip {
+  font-size: 9px;
+  font-family: monospace;
+  background: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+  padding: 1px 5px;
+  border-radius: 6px;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.custom-property-pin.is-selected .distance-chip {
+  background: rgba(0, 0, 0, 0.25);
+  color: #0c0d0e;
+  border-color: rgba(0, 0, 0, 0.4);
+}
+
+.custom-property-pin .pin-pointer {
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 7px solid rgba(18, 19, 21, 0.95);
+  margin-top: -1px;
+}
+
+.custom-property-pin.is-selected .pin-pointer {
+  border-top-color: #f59e0b;
+}
+
+/* Landmark custom marker */
+.hs-landmark-marker-wrapper {
+  background: transparent !important;
+  border: none !important;
+}
+
+.custom-landmark-pin {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+}
+
+.landmark-pulse {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
+  background: rgba(244, 63, 94, 0.35);
+  border-radius: 50%;
+  animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.landmark-icon-box {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f43f5e, #e11d48);
+  border: 2.5px solid #ffffff;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(244, 63, 94, 0.5);
+  z-index: 2;
+}
+
+.landmark-label {
+  position: absolute;
+  top: 38px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(12, 13, 14, 0.92);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(244, 63, 94, 0.4);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+  z-index: 3;
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 158, 11, 0.4);
+}
+

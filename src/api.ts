@@ -52,6 +52,8 @@ export interface Property {
   branchId?: number | null;
   deposit?: number | null;
   deposit_amount?: number | null;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface Booking {
@@ -653,7 +655,13 @@ export async function fetchProperties(): Promise<Property[]> {
 
   // Fallback: fetch directly from OpenKos API if backend is unreachable
   try {
-    const directRes = await fetch('http://localhost:8000/api/v1/available-rooms');
+    const apiKey = import.meta.env.VITE_OPENKOS_API_SECRET || 'hs_sec_live_9a7d3f82e1';
+    const directRes = await fetch('http://localhost:8000/api/v1/available-rooms', {
+      headers: {
+        'X-API-Key': apiKey,
+        'X-OpenKos-Secret': apiKey
+      }
+    });
     if (directRes.ok) {
       const json = await directRes.json();
       if (Array.isArray(json.data)) {

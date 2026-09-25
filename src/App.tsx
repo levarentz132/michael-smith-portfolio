@@ -18,6 +18,7 @@ import { PaymentReturnModal } from './components/PaymentReturnModal';
 import { PropertyPage } from './components/PropertyPage';
 import { ArticlePage } from './components/ArticlePage';
 import { ResortPage } from './components/ResortPage';
+import { MapSelectorPage } from './components/MapSelectorPage';
 import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { ShoppingCart } from 'lucide-react';
@@ -194,6 +195,11 @@ function App() {
       return;
     }
 
+    if (sectionId === 'map' || sectionId === 'lokasi' || sectionId === 'peta') {
+      navigate('/map');
+      return;
+    }
+
     if (location.pathname !== '/') {
       navigate('/');
       setTimeout(() => {
@@ -212,7 +218,6 @@ function App() {
       setActiveSection(sectionId);
     }
   };
-
 
   const handleLogout = async () => {
     try {
@@ -247,6 +252,11 @@ function App() {
   return (
     <>
       <Routes>
+        {/* Map & Nearest Property Selector Route */}
+        <Route path="/map" element={<MapSelectorPage settings={settings} />} />
+        <Route path="/peta" element={<Navigate to="/map" replace />} />
+        <Route path="/lokasi" element={<Navigate to="/map" replace />} />
+
         {/* Property Details Route */}
         <Route path="/property/:idSlug" element={<PropertyPage />} />
 
@@ -396,17 +406,19 @@ function App() {
       } />
       </Routes>
 
-      {/* Mobile App Bottom Navigation Bar */}
-      <MobileBottomNav
-        cartCount={cartCount}
-        userSession={userSession}
-        onCartClick={() => setCartOpen(true)}
-        onProfileClick={() => setProfileOpen(true)}
-        onLoginClick={() => setLoginOpen(true)}
-        onCatalogClick={() => handleNavClick('work')}
-      />
+      {/* Mobile App Bottom Navigation Bar (Hidden on map view for immersive full-screen map experience) */}
+      {location.pathname !== '/map' && location.pathname !== '/peta' && location.pathname !== '/lokasi' && (
+        <MobileBottomNav
+          cartCount={cartCount}
+          userSession={userSession}
+          onCartClick={() => setCartOpen(true)}
+          onProfileClick={() => setProfileOpen(true)}
+          onLoginClick={() => setLoginOpen(true)}
+          onCatalogClick={() => handleNavClick('work')}
+        />
+      )}
 
-      {showFloatingWhatsApp && (
+      {showFloatingWhatsApp && location.pathname !== '/map' && location.pathname !== '/peta' && location.pathname !== '/lokasi' && (
         <FloatingWhatsApp whatsappNumber={settings?.whatsapp_number || '628123456789'} />
       )}
 
