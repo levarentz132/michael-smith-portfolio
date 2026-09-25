@@ -36,7 +36,7 @@ export function useCapacitor(onBackPress?: () => boolean): CapacitorState {
     let listenerHandle: any = null;
     const registerBackButton = async () => {
       try {
-        listenerHandle = await CapApp.addListener('backButton', ({ canGoBack }) => {
+        listenerHandle = await CapApp.addListener('backButton', ({ canGoBack }: { canGoBack: boolean }) => {
           // If onBackPress callback returns true (handled), don't exit app
           if (onBackPress && onBackPress()) {
             return;
