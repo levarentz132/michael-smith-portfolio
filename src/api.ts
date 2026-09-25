@@ -654,23 +654,33 @@ export async function fetchProperties(): Promise<Property[]> {
     console.warn('Failed to fetch /api/properties, trying direct API:', err);
   }
 
-  // Fallback: fetch directly from OpenKos API (relative or local dev) if backend is unreachable
+  // Fallback: fetch directly from OpenKos API (configured URL, relative, live dashboard, or local dev)
   try {
     const apiKey = import.meta.env.VITE_OPENKOS_API_SECRET || 'hs_sec_live_9a7d3f82e1';
-    let directRes = await fetch('/api/v1/available-rooms', {
-      headers: {
-        'X-API-Key': apiKey,
-        'X-OpenKos-Secret': apiKey
-      }
-    }).catch(() => null);
+    const endpointsToTry = [
+      import.meta.env.VITE_OPENKOS_ROOMS_URL,
+      'https://dashboard.highlanderstay.com/api/v1/available-rooms',
+      '/api/v1/available-rooms',
+      'http://localhost:8000/api/v1/available-rooms'
+    ].filter(Boolean) as string[];
 
-    if (!directRes || !directRes.ok) {
-      directRes = await fetch('http://localhost:8000/api/v1/available-rooms', {
-        headers: {
-          'X-API-Key': apiKey,
-          'X-OpenKos-Secret': apiKey
+    let directRes: Response | null = null;
+    for (const url of endpointsToTry) {
+      try {
+        const r = await fetch(url, {
+          headers: {
+            'X-API-Key': apiKey,
+            'X-OpenKos-Secret': apiKey,
+            'Accept': 'application/json'
+          }
+        });
+        if (r.ok) {
+          directRes = r;
+          break;
         }
-      }).catch(() => null);
+      } catch {
+        // try next endpoint
+      }
     }
 
     if (directRes && directRes.ok) {
@@ -679,9 +689,14 @@ export async function fetchProperties(): Promise<Property[]> {
         return json.data.map((item: any, idx: number) => {
           const isApt = item.canonical_slug === 'apartemen' || item.slug?.includes('apartemen');
           const cleanImg = item.image_url ? item.image_url.replace(/^http:\/\//, 'https://') : (isApt ? 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80' : 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=1200&q=80');
-          const cleanImgs = Array.isArray(item.image_urls) ? item.image_urls.map((u: string) => u.replace(/^http:\/\//, 'https://')) : [cleanImg];
+          const cleanImgs = Array.isArray(item.image_urls) && item.image_urls.length > 0 
+            ? item.image_urls.map((u: string) => u.replace(/^http:\/\//, 'https://')) 
+            : [cleanImg];
           const roomsCount = item.available_rooms?.length || 0;
           const status = item.availability_status || (roomsCount > 0 ? `Ready ${roomsCount} kamar` : 'Kamar full');
+
+          const lat = typeof item.latitude === 'number' ? item.latitude : (item.latitude ? parseFloat(item.latitude) : undefined);
+          const lng = typeof item.longitude === 'number' ? item.longitude : (item.longitude ? parseFloat(item.longitude) : undefined);
 
           return {
             id: idx + 1,
@@ -696,11 +711,11 @@ export async function fetchProperties(): Promise<Property[]> {
             rawPrice: 1500000,
             location: item.kecamatan || 'Jakarta',
             kecamatan: item.kecamatan,
-            address: item.kecamatan || 'Jakarta',
+            address: item.address || item.kecamatan || 'Jakarta',
             phone: item.phone,
             addressUrl: item.address_url,
-            latitude: item.latitude !== undefined && item.latitude !== null ? Number(item.latitude) : undefined,
-            longitude: item.longitude !== undefined && item.longitude !== null ? Number(item.longitude) : undefined,
+            latitude: !isNaN(lat as number) ? lat : undefined,
+            longitude: !isNaN(lng as number) ? lng : undefined,
             rating: (idx % 2 === 0 ? '4.9 ★' : '4.8 ★'),
             image: cleanImg,
             imageUrls: cleanImgs,

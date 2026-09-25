@@ -66,11 +66,13 @@ export function resolvePropertyCoordinates(property: Property, _index = 0): Coor
   const mapUrl = property.addressUrl || property.mapUrl;
   const rawLat = (property as any).latitude;
   const rawLng = (property as any).longitude;
-  const hasCoords = typeof rawLat === 'number' && typeof rawLng === 'number' && !isNaN(rawLat) && !isNaN(rawLng);
+  const parsedLat = typeof rawLat === 'number' ? rawLat : (rawLat ? parseFloat(rawLat) : NaN);
+  const parsedLng = typeof rawLng === 'number' ? rawLng : (rawLng ? parseFloat(rawLng) : NaN);
+  const hasCoords = !isNaN(parsedLat) && !isNaN(parsedLng);
 
   // 1. Direct coordinates from API
   if (hasCoords) {
-    return { lat: rawLat, lng: rawLng };
+    return { lat: parsedLat, lng: parsedLng };
   }
 
   // 2. Extract coordinates dynamically from API map/address URL
