@@ -688,6 +688,8 @@ export async function fetchProperties(): Promise<Property[]> {
             address: item.kecamatan || 'Jakarta',
             phone: item.phone,
             addressUrl: item.address_url,
+            latitude: item.latitude !== undefined && item.latitude !== null ? Number(item.latitude) : undefined,
+            longitude: item.longitude !== undefined && item.longitude !== null ? Number(item.longitude) : undefined,
             rating: (idx % 2 === 0 ? '4.9 ★' : '4.8 ★'),
             image: cleanImg,
             imageUrls: cleanImgs,
