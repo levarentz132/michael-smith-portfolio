@@ -28,7 +28,7 @@ export interface PropertyWithDistance extends Property {
 export const DEFAULT_FALLBACK_PROPERTIES: Property[] = [
   {
     id: 1,
-    title: 'Highlander Greenville',
+    title: 'Highlander Greenville Mangga',
     slug: 'greenville',
     canonicalSlug: 'greenville',
     category: 'Premium Boarding Room',
@@ -38,6 +38,9 @@ export const DEFAULT_FALLBACK_PROPERTIES: Property[] = [
     rawPrice: 1650000,
     location: 'Kebon Jeruk',
     kecamatan: 'Kebon Jeruk',
+    address: 'JL. Mangga 2 Blok B No.34, Duri Kepa, Kebon Jeruk, Jakbar',
+    addressUrl: 'https://maps.app.goo.gl/jJhUASZEtzvJyvQT8',
+    phone: '+6285284572706',
     rating: '4.9 ★',
     image: 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=1200&q=80',
     available: true,
@@ -58,6 +61,9 @@ export const DEFAULT_FALLBACK_PROPERTIES: Property[] = [
     rawPrice: 1500000,
     location: 'Grogol',
     kecamatan: 'Grogol',
+    address: 'Jl. Tanjung Duren Barat No. 795, Grogol, Jakarta Barat',
+    addressUrl: 'https://maps.app.goo.gl/ucUNd2LYY6CjFDyDA',
+    phone: '+6282129971616',
     rating: '4.9 ★',
     image: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80',
     available: true,
@@ -78,6 +84,9 @@ export const DEFAULT_FALLBACK_PROPERTIES: Property[] = [
     rawPrice: 1450000,
     location: 'Grogol',
     kecamatan: 'Grogol',
+    address: 'JL. TANJUNG DUREN UTARA IX BLOK T NO.647 RT.01/03',
+    addressUrl: 'https://maps.app.goo.gl/yEpZi6ZJVjRGaGTYA',
+    phone: '+6282129971616',
     rating: '4.8 ★',
     image: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80',
     available: true,
@@ -98,6 +107,9 @@ export const DEFAULT_FALLBACK_PROPERTIES: Property[] = [
     rawPrice: 1550000,
     location: 'Grogol',
     kecamatan: 'Grogol',
+    address: 'Jl. Alpukat, Tanjung Duren Utara, Grogol, Jakarta Barat',
+    addressUrl: 'https://maps.app.goo.gl/YBVADLa7G7E2q9fW8',
+    phone: '+6285894999293',
     rating: '4.9 ★',
     image: 'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&w=1200&q=80',
     available: true,
@@ -118,6 +130,9 @@ export const DEFAULT_FALLBACK_PROPERTIES: Property[] = [
     rawPrice: 1800000,
     location: 'Grogol',
     kecamatan: 'Grogol',
+    address: 'JL. TANJUNG DUREN UTARA IX BLOK T NO.647 RT.01/03',
+    addressUrl: 'https://maps.app.goo.gl/zKTzJZ4XS9CJSWje8',
+    phone: '+6282129971616',
     rating: '4.9 ★',
     image: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80',
     available: true,
@@ -138,6 +153,9 @@ export const DEFAULT_FALLBACK_PROPERTIES: Property[] = [
     rawPrice: 1300000,
     location: 'Kebon Jeruk',
     kecamatan: 'Kebon Jeruk',
+    address: 'Ruko Jl. Pengairan Pesing Koneng / Kedoya Pesing No.17G, Kebon Jeruk',
+    addressUrl: 'https://maps.app.goo.gl/NkAYSEQgT6tFgbyc7',
+    phone: '+6285773577956',
     rating: '4.8 ★',
     image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=1200&q=80',
     available: true,
@@ -158,6 +176,9 @@ export const DEFAULT_FALLBACK_PROPERTIES: Property[] = [
     rawPrice: 1350000,
     location: 'Kebon Jeruk',
     kecamatan: 'Kebon Jeruk',
+    address: 'Jl. Kedoya Pesing No.17G, Kebon Jeruk, Jakarta Barat',
+    addressUrl: 'https://maps.app.goo.gl/NkAYSEQgT6tFgbyc7',
+    phone: '+6285773577956',
     rating: '4.8 ★',
     image: 'https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1200&q=80',
     available: true,
@@ -178,6 +199,9 @@ export const DEFAULT_FALLBACK_PROPERTIES: Property[] = [
     rawPrice: 1600000,
     location: 'Kebon Jeruk',
     kecamatan: 'Kebon Jeruk',
+    address: 'Komplek Ruko Green Garden, Kedoya Utara, Kebon Jeruk, Jakarta Barat',
+    addressUrl: 'https://maps.app.goo.gl/p1tmTWG4UgqtyaLE6',
+    phone: '+6281521753872',
     rating: '4.9 ★',
     image: 'https://images.unsplash.com/photo-1540518614846-7ede433c4570?auto=format&fit=crop&w=1200&q=80',
     available: true,
@@ -198,6 +222,9 @@ export const DEFAULT_FALLBACK_PROPERTIES: Property[] = [
     rawPrice: 1250000,
     location: 'Cengkareng',
     kecamatan: 'Cengkareng',
+    address: 'Jl. Sumur Bor Raya, Cengkareng Barat, Jakarta Barat',
+    addressUrl: 'https://maps.app.goo.gl/PdBnkExGndUhDQaW6',
+    phone: '+6283193389736',
     rating: '4.8 ★',
     image: 'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=1200&q=80',
     available: true,
@@ -218,6 +245,9 @@ export const DEFAULT_FALLBACK_PROPERTIES: Property[] = [
     rawPrice: 1200000,
     location: 'Cengkareng',
     kecamatan: 'Cengkareng',
+    address: 'Jl. Pedongkelan Raya, Cengkareng Timur, Jakarta Barat',
+    addressUrl: 'https://maps.app.goo.gl/tgCQL1KuLfF4TUJL8',
+    phone: '+6285932528041',
     rating: '4.7 ★',
     image: 'https://images.unsplash.com/photo-1502005229762-ee1b2b8ba98a?auto=format&fit=crop&w=1200&q=80',
     available: true,
@@ -238,6 +268,9 @@ export const DEFAULT_FALLBACK_PROPERTIES: Property[] = [
     rawPrice: 1400000,
     location: 'Tangerang',
     kecamatan: 'Tangerang',
+    address: 'Perumahan Taman Mahkota, Benda, Tangerang (Dekat Bandara Soetta)',
+    addressUrl: 'https://maps.app.goo.gl/e8r7HXXHk87gT2ME7',
+    phone: '+6282298697600',
     rating: '4.9 ★',
     image: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80',
     available: true,
@@ -258,6 +291,9 @@ export const DEFAULT_FALLBACK_PROPERTIES: Property[] = [
     rawPrice: 1350000,
     location: 'Grogol',
     kecamatan: 'Grogol',
+    address: 'Jelambar Utama, Grogol Petamburan, Jakarta Barat',
+    addressUrl: 'https://maps.app.goo.gl/51MHN2xQE8rdtcpH9',
+    phone: '+6285714209196',
     rating: '4.8 ★',
     image: 'https://images.unsplash.com/photo-1560185127-6ed189bf02f4?auto=format&fit=crop&w=1200&q=80',
     available: true,
@@ -278,6 +314,9 @@ export const DEFAULT_FALLBACK_PROPERTIES: Property[] = [
     rawPrice: 1750000,
     location: 'Kemayoran',
     kecamatan: 'Kemayoran',
+    address: 'Jl. Rajawali Selatan, Kemayoran, Jakarta Pusat',
+    addressUrl: 'https://maps.app.goo.gl/S11CpBdboki7hu837',
+    phone: '+6282247435024',
     rating: '4.9 ★',
     image: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80',
     available: true,
@@ -298,6 +337,9 @@ export const DEFAULT_FALLBACK_PROPERTIES: Property[] = [
     rawPrice: 1200000,
     location: 'Palembang',
     kecamatan: 'Palembang',
+    address: 'Jl. Inspektur Marzuki / Pakjo, Ilir Barat I, Palembang',
+    addressUrl: 'https://maps.app.goo.gl/cTsjLmxg7xaW2QPGA',
+    phone: '+628218165001',
     rating: '4.8 ★',
     image: 'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&w=1200&q=80',
     available: true,
@@ -318,6 +360,9 @@ export const DEFAULT_FALLBACK_PROPERTIES: Property[] = [
     rawPrice: 2800000,
     location: 'Jakarta Barat',
     kecamatan: 'Jakarta Barat',
+    address: 'Apartemen Grand Palm / Sedayu City, Daan Mogot, Jakarta Barat',
+    addressUrl: 'https://maps.google.com/?q=-6.16205,106.71508',
+    phone: '+628123456789',
     rating: '4.9 ★',
     image: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80',
     available: true,
@@ -329,144 +374,190 @@ export const DEFAULT_FALLBACK_PROPERTIES: Property[] = [
 ];
 
 // Known coordinates mapping for Highlanderstay properties
-export const KNOWN_PROPERTY_COORDINATES: Record<string, Coordinates & { defaultArea: string; addressSnippet: string }> = {
+export const KNOWN_PROPERTY_COORDINATES: Record<string, Coordinates & { defaultArea: string; addressSnippet: string; phone?: string; addressUrl?: string }> = {
   greenville: {
     lat: -6.1742293,
     lng: 106.7781881,
     defaultArea: 'Kebon Jeruk',
-    addressSnippet: 'Highlanderstay Transit Greenville Mangga, Jl. Mangga 14, Kebon Jeruk, Jakarta Barat'
+    addressSnippet: 'Highlanderstay Transit Greenville Mangga, JL. Mangga 2 Blok B No.34, Duri Kepa, Kebon Jeruk',
+    phone: '+6285284572706',
+    addressUrl: 'https://maps.app.goo.gl/jJhUASZEtzvJyvQT8'
   },
   green_ville: {
     lat: -6.1742293,
     lng: 106.7781881,
     defaultArea: 'Kebon Jeruk',
-    addressSnippet: 'Highlanderstay Transit Greenville Mangga, Jl. Mangga 14, Kebon Jeruk, Jakarta Barat'
+    addressSnippet: 'Highlanderstay Transit Greenville Mangga, JL. Mangga 2 Blok B No.34, Duri Kepa, Kebon Jeruk',
+    phone: '+6285284572706',
+    addressUrl: 'https://maps.app.goo.gl/jJhUASZEtzvJyvQT8'
   },
   mangga: {
     lat: -6.1742293,
     lng: 106.7781881,
     defaultArea: 'Kebon Jeruk',
-    addressSnippet: 'Highlanderstay Transit Greenville Mangga, Jl. Mangga 14, Kebon Jeruk, Jakarta Barat'
+    addressSnippet: 'Highlanderstay Transit Greenville Mangga, JL. Mangga 2 Blok B No.34, Duri Kepa, Kebon Jeruk',
+    phone: '+6285284572706',
+    addressUrl: 'https://maps.app.goo.gl/jJhUASZEtzvJyvQT8'
   },
   greenville_mangga: {
     lat: -6.1742293,
     lng: 106.7781881,
     defaultArea: 'Kebon Jeruk',
-    addressSnippet: 'Highlanderstay Transit Greenville Mangga, Jl. Mangga 14, Kebon Jeruk, Jakarta Barat'
+    addressSnippet: 'Highlanderstay Transit Greenville Mangga, JL. Mangga 2 Blok B No.34, Duri Kepa, Kebon Jeruk',
+    phone: '+6285284572706',
+    addressUrl: 'https://maps.app.goo.gl/jJhUASZEtzvJyvQT8'
   },
   td795: {
-    lat: -6.17351,
-    lng: 106.78453,
+    lat: -6.1704028,
+    lng: 106.781218,
     defaultArea: 'Grogol',
-    addressSnippet: 'Jl. Tanjung Duren Barat No. 795, Grogol, Jakarta Barat'
+    addressSnippet: 'Highlanderstay 795, Jl. Tanjung Duren Barat No. 795, Grogol, Jakarta Barat',
+    phone: '+6282129971616',
+    addressUrl: 'https://maps.app.goo.gl/ucUNd2LYY6CjFDyDA'
   },
   td_795: {
-    lat: -6.17351,
-    lng: 106.78453,
+    lat: -6.1704028,
+    lng: 106.781218,
     defaultArea: 'Grogol',
-    addressSnippet: 'Jl. Tanjung Duren Barat No. 795, Grogol, Jakarta Barat'
+    addressSnippet: 'Highlanderstay 795, Jl. Tanjung Duren Barat No. 795, Grogol, Jakarta Barat',
+    phone: '+6282129971616',
+    addressUrl: 'https://maps.app.goo.gl/ucUNd2LYY6CjFDyDA'
   },
   td647: {
-    lat: -6.17524,
-    lng: 106.78602,
+    lat: -6.1699142,
+    lng: 106.7814667,
     defaultArea: 'Grogol',
-    addressSnippet: 'Jl. Tanjung Duren Barat No. 647, Grogol, Jakarta Barat'
+    addressSnippet: 'Highlander Kost Tanjung Duren 647, JL. Tanjung Duren Utara IX Blok T No.647, Grogol',
+    phone: '+6282129971616',
+    addressUrl: 'https://maps.app.goo.gl/yEpZi6ZJVjRGaGTYA'
   },
   td_647: {
-    lat: -6.17524,
-    lng: 106.78602,
+    lat: -6.1699142,
+    lng: 106.7814667,
     defaultArea: 'Grogol',
-    addressSnippet: 'Jl. Tanjung Duren Barat No. 647, Grogol, Jakarta Barat'
+    addressSnippet: 'Highlander Kost Tanjung Duren 647, JL. Tanjung Duren Utara IX Blok T No.647, Grogol',
+    phone: '+6282129971616',
+    addressUrl: 'https://maps.app.goo.gl/yEpZi6ZJVjRGaGTYA'
   },
   alpukat: {
     lat: -6.1704046,
     lng: 106.7859687,
     defaultArea: 'Grogol',
-    addressSnippet: 'Highlander Kost Alpukat, Tanjung Duren Utara, Grogol, Jakarta Barat'
+    addressSnippet: 'Highlander Kost Alpukat, Tanjung Duren Utara, Grogol, Jakarta Barat',
+    phone: '+6285894999293',
+    addressUrl: 'https://maps.app.goo.gl/YBVADLa7G7E2q9fW8'
   },
   alpukat_tanjung_duren: {
     lat: -6.1704046,
     lng: 106.7859687,
     defaultArea: 'Grogol',
-    addressSnippet: 'Highlander Kost Alpukat, Tanjung Duren Utara, Grogol, Jakarta Barat'
+    addressSnippet: 'Highlander Kost Alpukat, Tanjung Duren Utara, Grogol, Jakarta Barat',
+    phone: '+6285894999293',
+    addressUrl: 'https://maps.app.goo.gl/YBVADLa7G7E2q9fW8'
   },
   td_guest: {
-    lat: -6.17652,
-    lng: 106.78505,
+    lat: -6.1699123,
+    lng: 106.7815205,
     defaultArea: 'Grogol',
-    addressSnippet: 'TD Guest House, Tanjung Duren, Jakarta Barat'
+    addressSnippet: 'Highlanderstay Kost 647 Guest House, JL. Tanjung Duren Utara IX Blok T No.647, Grogol',
+    phone: '+6282129971616',
+    addressUrl: 'https://maps.app.goo.gl/zKTzJZ4XS9CJSWje8'
   },
   pesing_lama: {
-    lat: -6.15904,
-    lng: 106.76812,
+    lat: -6.162815,
+    lng: 106.7659812,
     defaultArea: 'Kebon Jeruk',
-    addressSnippet: 'Jl. Pesing Poglar / Kedoya Utara, Jakarta Barat'
+    addressSnippet: 'Highlanderstay Kost Pesing Lama, Ruko Jl. Pengairan Pesing Koneng / Kedoya Pesing No.17G, Kebon Jeruk',
+    phone: '+6285773577956',
+    addressUrl: 'https://maps.app.goo.gl/NkAYSEQgT6tFgbyc7'
   },
   pesing_baru: {
-    lat: -6.15752,
-    lng: 106.76954,
+    lat: -6.162815,
+    lng: 106.7659812,
     defaultArea: 'Kebon Jeruk',
-    addressSnippet: 'Jl. Pesing Garden / Daan Mogot, Jakarta Barat'
+    addressSnippet: 'Highlanderstay Kost Pesing Baru, Jl. Kedoya Pesing No.17G, Kebon Jeruk, Jakarta Barat',
+    phone: '+6285773577956',
+    addressUrl: 'https://maps.app.goo.gl/NkAYSEQgT6tFgbyc7'
   },
   green_garden: {
-    lat: -6.16302,
-    lng: 106.76208,
+    lat: -6.1650974,
+    lng: 106.7627125,
     defaultArea: 'Kebon Jeruk',
-    addressSnippet: 'Komplek Green Garden, Kedoya Utara, Jakarta Barat'
+    addressSnippet: 'Highlander Kost Ruko Green Garden, Komplek Green Garden, Kedoya Utara, Kebon Jeruk',
+    phone: '+6281521753872',
+    addressUrl: 'https://maps.app.goo.gl/p1tmTWG4UgqtyaLE6'
   },
   sumur_bor: {
-    lat: -6.14805,
-    lng: 106.71802,
+    lat: -6.1482887,
+    lng: 106.7198408,
     defaultArea: 'Cengkareng',
-    addressSnippet: 'Jl. Sumur Bor Raya, Cengkareng Barat, Jakarta Barat'
+    addressSnippet: 'Highlander Kost Sumur Bor, Jl. Sumur Bor Raya, Cengkareng Barat, Jakarta Barat',
+    phone: '+6283193389736',
+    addressUrl: 'https://maps.app.goo.gl/PdBnkExGndUhDQaW6'
   },
   pedongkelan: {
-    lat: -6.15204,
-    lng: 106.73809,
+    lat: -6.1376412,
+    lng: 106.7444489,
     defaultArea: 'Cengkareng',
-    addressSnippet: 'Jl. Pedongkelan Raya, Cengkareng Timur, Jakarta Barat'
+    addressSnippet: 'HighlanderStay Kost Pedongkelan, Jl. Pedongkelan Raya, Cengkareng Timur, Jakarta Barat',
+    phone: '+6285932528041',
+    addressUrl: 'https://maps.app.goo.gl/tgCQL1KuLfF4TUJL8'
   },
   taman_mahkota: {
-    lat: -6.12608,
-    lng: 106.69205,
+    lat: -6.11765,
+    lng: 106.6873728,
     defaultArea: 'Tangerang',
-    addressSnippet: 'Perumahan Taman Mahkota, Benda, Tangerang (Dekat Bandara Soetta)'
+    addressSnippet: 'Highlanderstay Kost Taman Mahkota, Benda, Tangerang (Dekat Bandara Soetta)',
+    phone: '+6282298697600',
+    addressUrl: 'https://maps.app.goo.gl/e8r7HXXHk87gT2ME7'
   },
   jelambar: {
-    lat: -6.16105,
-    lng: 106.78712,
+    lat: -6.1622269,
+    lng: 106.7820011,
     defaultArea: 'Grogol',
-    addressSnippet: 'Jelambar Utama, Grogol Petamburan, Jakarta Barat'
+    addressSnippet: 'Highlander Kost Jelambar, Jelambar Utama, Grogol Petamburan, Jakarta Barat',
+    phone: '+6285714209196',
+    addressUrl: 'https://maps.app.goo.gl/51MHN2xQE8rdtcpH9'
   },
   rajawali: {
-    lat: -6.14702,
-    lng: 106.84305,
+    lat: -6.144346,
+    lng: 106.838272,
     defaultArea: 'Kemayoran',
-    addressSnippet: 'Jl. Rajawali Selatan, Kemayoran, Jakarta Pusat'
+    addressSnippet: 'Highlanderstay Rajawali Kemayoran, Jl. Rajawali Selatan, Kemayoran, Jakarta Pusat',
+    phone: '+6282247435024',
+    addressUrl: 'https://maps.app.goo.gl/S11CpBdboki7hu837'
   },
   pakjo: {
-    lat: -2.96805,
-    lng: 104.73502,
+    lat: -2.9635214,
+    lng: 104.734024,
     defaultArea: 'Palembang',
-    addressSnippet: 'Jl. Inspektur Marzuki / Pakjo, Ilir Barat I, Palembang'
+    addressSnippet: 'Highlander Stay Palembang, Jl. Inspektur Marzuki / Pakjo, Ilir Barat I, Palembang',
+    phone: '+628218165001',
+    addressUrl: 'https://maps.app.goo.gl/cTsjLmxg7xaW2QPGA'
   },
   sedayu: {
     lat: -6.16205,
     lng: 106.71508,
     defaultArea: 'Jakarta Barat',
-    addressSnippet: 'Apartemen Sedayu / Grand Palm, Daan Mogot, Jakarta Barat'
+    addressSnippet: 'Apartemen Sedayu / Grand Palm, Daan Mogot, Jakarta Barat',
+    phone: '+628123456789',
+    addressUrl: 'https://maps.google.com/?q=-6.16205,106.71508'
   },
   gpv: {
     lat: -6.16205,
     lng: 106.71508,
     defaultArea: 'Jakarta Barat',
-    addressSnippet: 'Grand Palm Villa, Daan Mogot, Jakarta Barat'
+    addressSnippet: 'Grand Palm Villa, Daan Mogot, Jakarta Barat',
+    phone: '+628123456789',
+    addressUrl: 'https://maps.google.com/?q=-6.16205,106.71508'
   },
   apartemen: {
     lat: -6.16205,
     lng: 106.71508,
     defaultArea: 'Jakarta Barat',
-    addressSnippet: 'Apartemen Grand Palm / Sedayu City, Jakarta Barat'
+    addressSnippet: 'Apartemen Grand Palm / Sedayu City, Jakarta Barat',
+    phone: '+628123456789',
+    addressUrl: 'https://maps.google.com/?q=-6.16205,106.71508'
   }
 };
 
