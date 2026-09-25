@@ -33,12 +33,14 @@ import {
   Droplets,
   Car,
   ArrowLeft,
-  Info
+  Info,
+  HelpCircle
 } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { fetchProperties, slugify } from '../api';
 import type { Property, WebsiteSettings } from '../api';
+import { MapUserGuideModal } from './MapUserGuideModal';
 import {
   resolvePropertyCoordinates,
   calculateDistanceKm,
@@ -46,8 +48,7 @@ import {
   estimateTravelTime,
   estimateWalkingTime,
   POPULAR_LANDMARKS,
-  searchNominatimLandmarks,
-  DEFAULT_FALLBACK_PROPERTIES
+  searchNominatimLandmarks
 } from '../data/mapData';
 import type { LandmarkItem, PropertyWithDistance } from '../data/mapData';
 import { useSEO } from '../hooks/useSEO';
@@ -144,6 +145,22 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
   const [selectedArea, setSelectedArea] = useState<string>('Semua Area');
   const [onlyAvailableHot, setOnlyAvailableHot] = useState<boolean>(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+
+  // Auto show guide on first visit
+  useEffect(() => {
+    try {
+      const hasSeenGuide = localStorage.getItem('has_seen_map_guide');
+      if (!hasSeenGuide) {
+        const timer = setTimeout(() => {
+          setIsGuideOpen(true);
+        }, 900);
+        return () => clearTimeout(timer);
+      }
+    } catch {
+      // localStorage may be disabled or in private mode
+    }
+  }, []);
 
   // Leaflet map refs
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -154,23 +171,20 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchAbortControllerRef = useRef<AbortController | null>(null);
 
-  // Load properties on mount with reliable fallback
+  // Load properties directly from API
   useEffect(() => {
     let isMounted = true;
     const load = async () => {
+      setLoading(true);
       try {
         const data = await fetchProperties();
         if (isMounted) {
-          if (Array.isArray(data) && data.length > 0) {
-            setProperties(data);
-          } else {
-            setProperties(DEFAULT_FALLBACK_PROPERTIES);
-          }
+          setProperties(Array.isArray(data) ? data : []);
         }
       } catch (err) {
-        console.warn('Failed to load properties from API, using default property dataset:', err);
+        console.error('Failed to load properties from API:', err);
         if (isMounted) {
-          setProperties(DEFAULT_FALLBACK_PROPERTIES);
+          setProperties([]);
         }
       } finally {
         if (isMounted) {
@@ -410,6 +424,7 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
             <div class="pin-content">
               <span class="status-dot ${isHot ? 'ready' : 'full'}"></span>
               <span class="price-text">${priceSnippet}</span>
+              <span class="pin-room-badge ${isHot ? 'ready' : 'full'}">${isHot ? `${prop.availableRooms} Kmr` : 'Full'}</span>
             </div>
             ${prop.distanceFormatted ? `<div class="distance-chip">${prop.distanceFormatted}</div>` : ''}
           </div>
@@ -421,8 +436,8 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
       const customIcon = L.divIcon({
         className: 'hs-leaflet-marker-wrapper',
         html: markerHtml,
-        iconSize: [120, 50],
-        iconAnchor: [60, 48]
+        iconSize: [140, 50],
+        iconAnchor: [70, 48]
       });
 
       const marker = L.marker([prop.coordinates.lat, prop.coordinates.lng], {
@@ -624,6 +639,21 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
             >
               <LocateFixed size={14} className={gpsLoading ? 'animate-spin' : ''} />
               <span className="hidden sm:inline">GPS</span>
+            </button>
+
+            {/* Guide Tutorial Button */}
+            <button
+              type="button"
+              onClick={() => setIsGuideOpen(true)}
+              className="p-2 sm:px-2.5 sm:py-2 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 text-xs font-bold shrink-0 flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer relative group"
+              title="Panduan Cara Pakai Peta"
+            >
+              <HelpCircle size={14} className="text-purple-400 group-hover:rotate-12 transition-transform" />
+              <span className="hidden sm:inline">Panduan</span>
+              <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-purple-500"></span>
+              </span>
             </button>
 
             {/* List Drawer Toggle Button */}
@@ -849,12 +879,33 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
                           {prop.title}
                         </h3>
 
-                        <p className="text-xs font-bold text-emerald-400 mt-0.5">
-                          {prop.priceRange || prop.price}
-                        </p>
+                        <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                          <p className="text-xs sm:text-sm font-bold text-emerald-400">
+                            {prop.priceRange || prop.price}
+                          </p>
+                          <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                            hasRooms ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${hasRooms ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
+                            <span>{prop.availabilityStatus || (hasRooms ? `Ready ${prop.availableRooms} Kamar` : 'Kamar Full')}</span>
+                          </span>
+                        </div>
+
+                        {prop.availableRoomsList && prop.availableRoomsList.length > 0 && (
+                          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar mt-1">
+                            {prop.availableRoomsList.slice(0, 3).map((r, i) => (
+                              <span key={i} className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-text-primary/90 shrink-0">
+                                {r}
+                              </span>
+                            ))}
+                            {prop.availableRoomsList.length > 3 && (
+                              <span className="text-[9px] text-muted">+{prop.availableRoomsList.length - 3}</span>
+                            )}
+                          </div>
+                        )}
 
                         {prop.travelTimeFormatted && (
-                          <div className="flex items-center gap-1 text-[10px] text-amber-300 mt-0.5 truncate">
+                          <div className="flex items-center gap-1 text-[10px] text-amber-300 mt-1 truncate">
                             <Clock size={11} className="shrink-0" />
                             <span>Motor: <strong>{prop.travelTimeFormatted}</strong></span>
                           </div>
@@ -1087,24 +1138,76 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
                       )}
                     </div>
 
-                    {/* 3. AVAILABLE ROOMS LIST (If available) */}
-                    {roomBadges.length > 0 && (
-                      <div className="space-y-2">
-                        <span className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-1.5">
-                          <BedDouble size={14} className="text-amber-400" />
-                          <span>Daftar Kamar Siap Huni ({roomBadges.length} Unit Ready)</span>
-                        </span>
-                        <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                          {roomBadges.map((roomName, i) => (
-                            <span
-                              key={i}
-                              className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center gap-1"
-                            >
-                              <CheckCircle2 size={12} className="text-emerald-400" />
-                              <span>{roomName}</span>
-                            </span>
-                          ))}
+                    {/* 3. AVAILABLE ROOMS & PRICES BREAKDOWN */}
+                    {hasRooms ? (
+                      <div className="space-y-2.5 p-3.5 sm:p-4 rounded-2xl bg-emerald-950/20 border border-emerald-500/30">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
+                            <BedDouble size={14} className="text-emerald-400" />
+                            <span>Kamar Kosong Ready ({prop.availableRooms} Kamar Siap Huni)</span>
+                          </span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                            Tersedia
+                          </span>
                         </div>
+
+                        {prop.availableRoomDetails && prop.availableRoomDetails.length > 0 ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {prop.availableRoomDetails.map((room, i) => {
+                              const roomPrice = room.monthly_rate
+                                ? `Rp ${Number(room.monthly_rate).toLocaleString('id-ID')} / bln`
+                                : prop.priceRange || prop.price;
+                              return (
+                                <div
+                                  key={room.id || i}
+                                  className="p-2.5 rounded-xl bg-surface/90 border border-emerald-500/25 hover:border-emerald-500/50 transition-colors flex items-center justify-between gap-2"
+                                >
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                      <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
+                                      <span className="text-xs font-bold text-text-primary truncate">{room.name}</span>
+                                    </div>
+                                    <div className="text-[10px] text-muted flex items-center gap-2 mt-0.5">
+                                      {room.floor && <span>Lt {room.floor}</span>}
+                                      {room.size_sqm && <span>• {room.size_sqm} m²</span>}
+                                      {room.bathroom_type && <span>• {room.bathroom_type}</span>}
+                                    </div>
+                                  </div>
+                                  <div className="text-right shrink-0">
+                                    <span className="text-xs font-bold text-emerald-400 block">{roomPrice}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : roomBadges.length > 0 ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {roomBadges.map((roomName, i) => (
+                              <div
+                                key={i}
+                                className="p-2.5 rounded-xl bg-surface/90 border border-emerald-500/25 flex items-center justify-between gap-2"
+                              >
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
+                                  <span className="text-xs font-bold text-text-primary truncate">{roomName}</span>
+                                </div>
+                                <span className="text-xs font-bold text-emerald-400 shrink-0">
+                                  {prop.priceRange || prop.price}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-2.5 rounded-xl bg-surface/90 border border-emerald-500/25 flex items-center justify-between gap-2">
+                            <span className="text-xs text-text-primary">Tersedia {prop.availableRooms} Unit Kamar Siap Huni</span>
+                            <span className="text-xs font-bold text-emerald-400">{prop.priceRange || prop.price}</span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="p-3 rounded-2xl bg-rose-950/20 border border-rose-500/30 flex items-center justify-between gap-2">
+                        <span className="text-xs text-rose-300 font-bold">Saat ini semua kamar di unit ini sedang penuh terisi</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-bold">Kamar Full</span>
                       </div>
                     )}
 
@@ -1235,9 +1338,18 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
                       className="w-14 h-14 rounded-xl object-cover shrink-0"
                     />
                     <div className="min-w-0 flex-1">
-                      <div className="text-[9px] font-bold text-amber-400 uppercase">{getPropertyArea(prop)}</div>
+                      <div className="flex items-center justify-between gap-1 mb-0.5">
+                        <span className="text-[9px] font-bold text-amber-400 uppercase truncate">{getPropertyArea(prop)}</span>
+                        <span className={`text-[8.5px] font-extrabold px-1.5 py-0.2 rounded-full shrink-0 ${
+                          prop.availableRooms && prop.availableRooms > 0
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                        }`}>
+                          {prop.availableRooms && prop.availableRooms > 0 ? `${prop.availableRooms} Kmr Ready` : 'Full'}
+                        </span>
+                      </div>
                       <div className="text-xs font-bold text-text-primary truncate">{prop.title}</div>
-                      <div className="text-xs font-bold text-emerald-400">{prop.priceRange || prop.price}</div>
+                      <div className="text-xs font-bold text-emerald-400 mt-0.5">{prop.priceRange || prop.price}</div>
                     </div>
                   </div>
 
@@ -1257,6 +1369,14 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* =========================================================================
+          ANIMATED USER GUIDE MODAL (Tutorial Onboarding)
+         ========================================================================= */}
+      <MapUserGuideModal
+        isOpen={isGuideOpen}
+        onClose={() => setIsGuideOpen(false)}
+      />
 
     </div>
   );

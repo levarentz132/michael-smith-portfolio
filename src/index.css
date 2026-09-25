@@ -283,6 +283,34 @@ video:focus {
   background: #f43f5e;
 }
 
+.custom-property-pin .pin-room-badge {
+  font-size: 8.5px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 9999px;
+  letter-spacing: 0.2px;
+  line-height: 1.2;
+}
+
+.custom-property-pin .pin-room-badge.ready {
+  background: rgba(16, 185, 129, 0.25);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.custom-property-pin .pin-room-badge.full {
+  background: rgba(244, 63, 94, 0.2);
+  color: #fb7185;
+  border: 1px solid rgba(244, 63, 94, 0.4);
+}
+
+.custom-property-pin.is-selected .pin-room-badge.ready {
+  background: rgba(0, 0, 0, 0.25);
+  color: #0c0d0e;
+  border-color: rgba(0, 0, 0, 0.3);
+  font-weight: 900;
+}
+
 .custom-property-pin .distance-chip {
   font-size: 9px;
   font-family: monospace;

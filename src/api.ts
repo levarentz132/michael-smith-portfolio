@@ -1,13 +1,14 @@
 export interface AvailableRoomDetail {
   id: number;
   name: string;
-  slug: string;
-  floor?: string | null;
+  slug?: string;
+  floor?: string | number | null;
   capacity?: number;
   size_sqm?: number | null;
   monthly_rate?: number | null;
   image_url?: string | null;
   video_url?: string | null;
+  bathroom_type?: string | null;
 }
 
 export interface Property {
@@ -653,16 +654,26 @@ export async function fetchProperties(): Promise<Property[]> {
     console.warn('Failed to fetch /api/properties, trying direct API:', err);
   }
 
-  // Fallback: fetch directly from OpenKos API if backend is unreachable
+  // Fallback: fetch directly from OpenKos API (relative or local dev) if backend is unreachable
   try {
     const apiKey = import.meta.env.VITE_OPENKOS_API_SECRET || 'hs_sec_live_9a7d3f82e1';
-    const directRes = await fetch('http://localhost:8000/api/v1/available-rooms', {
+    let directRes = await fetch('/api/v1/available-rooms', {
       headers: {
         'X-API-Key': apiKey,
         'X-OpenKos-Secret': apiKey
       }
-    });
-    if (directRes.ok) {
+    }).catch(() => null);
+
+    if (!directRes || !directRes.ok) {
+      directRes = await fetch('http://localhost:8000/api/v1/available-rooms', {
+        headers: {
+          'X-API-Key': apiKey,
+          'X-OpenKos-Secret': apiKey
+        }
+      }).catch(() => null);
+    }
+
+    if (directRes && directRes.ok) {
       const json = await directRes.json();
       if (Array.isArray(json.data)) {
         return json.data.map((item: any, idx: number) => {
