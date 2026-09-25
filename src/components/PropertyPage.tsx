@@ -547,20 +547,22 @@ export const PropertyPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Map Location Section */}
-            <div className="flex items-center gap-2 flex-wrap px-1">
-              <MapPin size={14} className="text-muted" />
-              <span className="text-xs text-muted">Peta Lokasi: <strong className="text-text-primary font-medium">{property.address || property.location || 'Jakarta, Indonesia'}</strong></span>
-              <span className="text-muted/40">•</span>
-              <a
-                href={property.mapUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(property.title + ' ' + (property.address || property.location || ''))}`}
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs text-blue-400 hover:text-blue-300 font-semibold hover:underline inline-flex items-center gap-1"
-              >
-                <span>Cari Lokasi di Google Maps ↗</span>
-              </a>
-            </div>
+            {/* Map Location Section (Only if property has a valid map link) */}
+            {(property.addressUrl || property.mapUrl) && (
+              <div className="flex items-center gap-2 flex-wrap px-1">
+                <MapPin size={14} className="text-muted" />
+                <span className="text-xs text-muted">Peta Lokasi: <strong className="text-text-primary font-medium">{property.address || property.location || 'Jakarta, Indonesia'}</strong></span>
+                <span className="text-muted/40">•</span>
+                <a
+                  href={property.addressUrl || property.mapUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-blue-400 hover:text-blue-300 font-semibold hover:underline inline-flex items-center gap-1"
+                >
+                  <span>Buka di Google Maps ↗</span>
+                </a>
+              </div>
+            )}
 
           </div>
 

@@ -595,55 +595,44 @@ export function extractCoordsFromUrl(url?: string | null): Coordinates | null {
 }
 
 /**
- * Resolve exact coordinates for a Property
+ * Resolve exact coordinates for a Property.
+ * Returns null if the property has no map link or coordinates (so it is excluded from the map).
  */
-export function resolvePropertyCoordinates(property: Property, index = 0): Coordinates {
-  // 1. Check if property already has lat/lng
-  if (typeof (property as any).latitude === 'number' && typeof (property as any).longitude === 'number') {
-    return { lat: (property as any).latitude, lng: (property as any).longitude };
+export function resolvePropertyCoordinates(property: Property, _index = 0): Coordinates | null {
+  const mapUrl = property.addressUrl || property.mapUrl;
+  const rawLat = (property as any).latitude;
+  const rawLng = (property as any).longitude;
+  const hasCoords = typeof rawLat === 'number' && typeof rawLng === 'number' && !isNaN(rawLat) && !isNaN(rawLng);
+
+  // If there is no map link and no coordinates, do NOT show on map
+  if (!mapUrl && !hasCoords) {
+    return null;
   }
 
-  // 2. Try extracting from addressUrl
-  const fromUrl = extractCoordsFromUrl(property.addressUrl);
+  // 1. Check if property already has lat/lng from API
+  if (hasCoords) {
+    return { lat: rawLat, lng: rawLng };
+  }
+
+  // 2. Try extracting from addressUrl / mapUrl
+  const fromUrl = extractCoordsFromUrl(mapUrl);
   if (fromUrl) {
     return fromUrl;
   }
 
-  // 3. Match against known dictionary
-  const lookupKey = `${property.canonicalSlug || ''} ${property.slug || ''} ${property.title || ''} ${property.location || ''} ${property.kecamatan || ''}`.toLowerCase();
+  // 3. Match against known dictionary only if property has a map link (e.g. short link)
+  if (mapUrl) {
+    const lookupKey = `${property.canonicalSlug || ''} ${property.slug || ''} ${property.title || ''} ${property.location || ''} ${property.kecamatan || ''}`.toLowerCase();
 
-  for (const [key, val] of Object.entries(KNOWN_PROPERTY_COORDINATES)) {
-    const cleanKey = key.replace(/_/g, ' ');
-    if (lookupKey.includes(key) || lookupKey.includes(cleanKey)) {
-      return { lat: val.lat, lng: val.lng };
+    for (const [key, val] of Object.entries(KNOWN_PROPERTY_COORDINATES)) {
+      const cleanKey = key.replace(/_/g, ' ');
+      if (lookupKey.includes(key) || lookupKey.includes(cleanKey)) {
+        return { lat: val.lat, lng: val.lng };
+      }
     }
   }
 
-  // 4. Area-based fallback with slight deterministic jitter so pins don't overlap exactly
-  const jitter = (index % 5) * 0.002 - 0.004;
-  const areaKey = (property.kecamatan || property.location || '').toLowerCase();
-
-  if (areaKey.includes('kebon jeruk') || areaKey.includes('kedoya')) {
-    return { lat: -6.1685 + jitter, lng: 106.7725 + jitter };
-  }
-  if (areaKey.includes('grogol') || areaKey.includes('tanjung duren')) {
-    return { lat: -6.1735 + jitter, lng: 106.7845 + jitter };
-  }
-  if (areaKey.includes('kemayoran')) {
-    return { lat: -6.1470 + jitter, lng: 106.8430 + jitter };
-  }
-  if (areaKey.includes('cengkareng')) {
-    return { lat: -6.1480 + jitter, lng: 106.7180 + jitter };
-  }
-  if (areaKey.includes('tangerang') || areaKey.includes('benda') || areaKey.includes('bandara')) {
-    return { lat: -6.1260 + jitter, lng: 106.6920 + jitter };
-  }
-  if (areaKey.includes('palembang')) {
-    return { lat: -2.9680 + jitter, lng: 104.7350 + jitter };
-  }
-
-  // Default Central Jakarta / Grogol center
-  return { lat: -6.1750 + jitter, lng: 106.7850 + jitter };
+  return null;
 }
 
 /**

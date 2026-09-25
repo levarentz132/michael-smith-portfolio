@@ -185,9 +185,14 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
   }, []);
 
   // Compute properties with coordinates & distance relative to selected landmark
-  const propertiesWithDistance: PropertyWithDistance[] = useMemo(() => {
-    return properties.map((prop, index) => {
+  // Compute properties with coordinates & distance relative to selected landmark (excluding properties without map link)
+  const propertiesWithDistance = useMemo<PropertyWithDistance[]>(() => {
+    const list: PropertyWithDistance[] = [];
+
+    properties.forEach((prop, index) => {
       const coords = resolvePropertyCoordinates(prop, index);
+      if (!coords) return;
+
       let distanceKm: number | undefined;
       let distanceFormatted: string | undefined;
       let travelTimeFormatted: string | undefined;
@@ -200,15 +205,17 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
         walkingTimeFormatted = estimateWalkingTime(distanceKm);
       }
 
-      return {
+      list.push({
         ...prop,
         coordinates: coords,
         distanceKm,
         distanceFormatted,
         travelTimeFormatted,
         walkingTimeFormatted
-      };
+      });
     });
+
+    return list;
   }, [properties, selectedLandmark]);
 
   // Filter & Sort properties
