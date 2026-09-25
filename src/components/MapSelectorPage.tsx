@@ -926,9 +926,9 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
       {/* Helper Floating Hint on Mobile (Only when no card is active) */}
       {!activeProperty && !selectedLandmark && (
         <div className="fixed bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
-          <div className="bg-surface/90 backdrop-blur-xl border border-white/20 px-3.5 py-1.5 rounded-full shadow-2xl text-[11px] font-medium text-text-primary/90 flex items-center gap-1.5 whitespace-nowrap">
-            <Info size={13} className="text-amber-400" />
-            <span>Ketuk pin di peta untuk info & foto kamar</span>
+          <div className="bg-white/95 backdrop-blur-xl border border-slate-300/80 px-4 py-2 rounded-full shadow-2xl text-xs font-bold text-slate-900 flex items-center gap-2 whitespace-nowrap">
+            <Info size={14} className="text-amber-600 shrink-0" />
+            <span className="text-slate-900 font-bold">Ketuk pin di peta untuk info & foto kamar</span>
           </div>
         </div>
       )}
@@ -952,19 +952,19 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
               const roomImages = prop.imageUrls && prop.imageUrls.length > 0 ? prop.imageUrls : [prop.image];
 
               return (
-                <div className="bg-surface/98 backdrop-blur-3xl border border-amber-500/50 rounded-3xl p-3 sm:p-4 shadow-2xl shadow-black text-left">
+                <div className="bg-[#111827] border-2 border-slate-700/80 rounded-3xl p-3.5 sm:p-4 shadow-2xl shadow-black text-left text-white">
                   {/* Mobile Drag Indicator */}
-                  <div className="w-8 h-1 bg-white/20 rounded-full mx-auto mb-2 sm:hidden" />
+                  <div className="w-8 h-1 bg-white/20 rounded-full mx-auto mb-2.5 sm:hidden" />
 
                   {/* Nearest Header Banner */}
                   {isNearest && selectedLandmark && (
-                    <div className="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-white/10">
-                      <div className="flex items-center gap-1.5 bg-amber-500 text-bg px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider truncate">
-                        <Sparkles size={11} className="fill-bg shrink-0" />
+                    <div className="flex items-center justify-between gap-2 pb-2 mb-2.5 border-b border-slate-700">
+                      <div className="flex items-center gap-1.5 bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider truncate">
+                        <Sparkles size={11} className="fill-slate-950 shrink-0" />
                         <span className="truncate">TERDEKAT DARI: {selectedLandmark.name}</span>
                       </div>
                       {prop.distanceFormatted && (
-                        <span className="text-[11px] font-mono font-bold text-amber-400 flex items-center gap-1 shrink-0">
+                        <span className="text-[11px] font-mono font-black text-amber-400 flex items-center gap-1 shrink-0">
                           <RouteIcon size={12} />
                           <span>{prop.distanceFormatted}</span>
                         </span>
@@ -978,7 +978,7 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
                       className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1 cursor-pointer group"
                     >
                       {/* Thumbnail with Gallery indicator */}
-                      <div className="relative w-16 h-16 sm:w-18 sm:h-18 rounded-2xl overflow-hidden shrink-0 border border-white/15 bg-black/40 group-hover:border-amber-400 transition-colors">
+                      <div className="relative w-16 h-16 sm:w-18 sm:h-18 rounded-2xl overflow-hidden shrink-0 border border-slate-700 bg-slate-900 group-hover:border-amber-400 transition-colors">
                         <img
                           src={prop.image}
                           alt={prop.title}
@@ -989,14 +989,14 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
                           }}
                         />
                         <div className="absolute top-1 left-1">
-                          <span className={`text-[7.5px] font-black px-1.5 py-0.2 rounded uppercase ${
-                            hasRooms ? 'bg-emerald-500 text-bg' : 'bg-rose-500 text-white'
+                          <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase shadow-sm ${
+                            hasRooms ? 'bg-emerald-400 text-slate-950' : 'bg-rose-500 text-white'
                           }`}>
                             {hasRooms ? `${prop.availableRooms} Kmr` : 'Full'}
                           </span>
                         </div>
                         {roomImages.length > 1 && (
-                          <div className="absolute bottom-1 right-1 bg-black/70 backdrop-blur-sm text-white text-[8px] font-mono px-1 rounded flex items-center gap-0.5">
+                          <div className="absolute bottom-1 right-1 bg-black/80 text-white text-[8px] font-mono font-bold px-1 rounded flex items-center gap-0.5">
                             <Eye size={9} />
                             <span>{roomImages.length}</span>
                           </div>
@@ -1004,45 +1004,45 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <span className="text-[8.5px] sm:text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 truncate">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 truncate">
                             {getPropertyArea(prop)}
                           </span>
-                          <span className="text-[10px] text-muted truncate">• {prop.category}</span>
+                          <span className="text-[11px] font-semibold text-slate-300 truncate">• {prop.category}</span>
                         </div>
 
-                        <h3 className="text-xs sm:text-sm font-bold text-text-primary group-hover:text-amber-300 transition-colors truncate">
+                        <h3 className="text-sm sm:text-base font-black text-white group-hover:text-amber-400 transition-colors truncate">
                           {prop.title}
                         </h3>
 
-                        <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                          <p className="text-xs sm:text-sm font-bold text-emerald-400">
+                        <div className="flex items-center gap-2 flex-wrap mt-1">
+                          <p className="text-sm sm:text-base font-black text-amber-400 tracking-tight">
                             {prop.priceRange || prop.price}
                           </p>
-                          <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1 ${
-                            hasRooms ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                          <span className={`text-[9px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm ${
+                            hasRooms ? 'bg-emerald-400 text-slate-950' : 'bg-rose-500 text-white'
                           }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${hasRooms ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
+                            <span className={`w-1.5 h-1.5 rounded-full ${hasRooms ? 'bg-slate-950' : 'bg-white'}`} />
                             <span>{prop.availabilityStatus || (hasRooms ? `Ready ${prop.availableRooms} Kamar` : 'Kamar Full')}</span>
                           </span>
                         </div>
 
                         {prop.availableRoomsList && prop.availableRoomsList.length > 0 && (
-                          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar mt-1">
+                          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar mt-1.5">
                             {prop.availableRoomsList.slice(0, 3).map((r, i) => (
-                              <span key={i} className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-text-primary/90 shrink-0">
+                              <span key={i} className="text-[9.5px] font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-200 border border-slate-700 shrink-0">
                                 {r}
                               </span>
                             ))}
                             {prop.availableRoomsList.length > 3 && (
-                              <span className="text-[9px] text-muted">+{prop.availableRoomsList.length - 3}</span>
+                              <span className="text-[9.5px] font-bold text-slate-400">+{prop.availableRoomsList.length - 3}</span>
                             )}
                           </div>
                         )}
 
                         {prop.travelTimeFormatted && (
-                          <div className="flex items-center gap-1 text-[10px] text-amber-300 mt-1 truncate">
-                            <Clock size={11} className="shrink-0" />
+                          <div className="flex items-center gap-1 text-[11px] text-amber-300 font-bold mt-1.5 truncate">
+                            <Clock size={12} className="shrink-0 text-amber-400" />
                             <span>Motor: <strong>{prop.travelTimeFormatted}</strong></span>
                           </div>
                         )}
@@ -1054,21 +1054,21 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
                         setActiveProperty(null);
                         setSelectedLandmark(null);
                       }}
-                      className="text-muted hover:text-text-primary p-1.5 rounded-full hover:bg-white/10 shrink-0"
+                      className="text-slate-400 hover:text-white p-1.5 rounded-full hover:bg-slate-800 transition-colors shrink-0"
                       title="Tutup"
                     >
-                      <X size={16} />
+                      <X size={18} />
                     </button>
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="mt-2.5 pt-2 border-t border-white/10 flex items-center justify-between gap-1.5 sm:gap-2">
+                  <div className="mt-3 pt-2.5 border-t border-slate-700 flex items-center justify-between gap-1.5 sm:gap-2">
                     <button
                       type="button"
                       onClick={() => handleOpenSummaryModal(prop)}
-                      className="px-2.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer active:scale-95 shrink-0"
+                      className="px-3 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 border border-amber-400 text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shrink-0 shadow-md shadow-amber-500/20"
                     >
-                      <Eye size={12} />
+                      <Eye size={13} className="text-slate-950" />
                       <span>Foto & Info</span>
                     </button>
 
@@ -1076,20 +1076,20 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
                       href={formatWaUrl(prop.phone, prop.title)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-2.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-[11px] font-bold flex items-center gap-1 shrink-0 active:scale-95 transition-all"
+                      className="px-3 py-2 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-slate-950 text-xs font-black flex items-center gap-1 shrink-0 active:scale-95 transition-all shadow-md"
                       title="Hubungi Penjaga via WhatsApp"
                     >
-                      <MessageCircle size={13} className="text-emerald-400" />
+                      <MessageCircle size={14} className="text-slate-950 fill-slate-950/20" />
                       <span>Hubungi Penjaga</span>
                     </a>
 
                     <button
                       type="button"
                       onClick={() => navigate(`/property/${prop.id}-${slugify(prop.title)}`)}
-                      className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-bg text-xs font-bold flex items-center justify-center gap-1 shadow active:scale-95 transition-all"
+                      className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-xs font-black flex items-center justify-center gap-1 shadow active:scale-95 transition-all"
                     >
                       <span>Booking</span>
-                      <ArrowRight size={12} />
+                      <ArrowRight size={13} />
                     </button>
 
                     <a
@@ -1099,10 +1099,10 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
                       }
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="py-2 px-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-text-primary border border-white/10 text-xs font-medium flex items-center gap-1 shrink-0 active:scale-95"
+                      className="py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold flex items-center gap-1 shrink-0 active:scale-95"
                       title="Buka rute di Google Maps"
                     >
-                      <ExternalLink size={12} />
+                      <ExternalLink size={13} />
                       <span className="hidden xs:inline">Rute</span>
                     </a>
                   </div>
@@ -1138,25 +1138,25 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
                   exit={{ opacity: 0, y: 80, scale: 0.95 }}
                   transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                   onClick={(e) => e.stopPropagation()}
-                  className="w-full max-w-2xl bg-surface border border-white/15 rounded-t-3xl sm:rounded-3xl max-h-[88dvh] sm:max-h-[85vh] overflow-y-auto flex flex-col shadow-2xl text-left custom-scrollbar pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)]"
+                  className="w-full max-w-2xl bg-[#111827] text-white border-2 border-slate-700/80 rounded-t-3xl sm:rounded-3xl max-h-[88dvh] sm:max-h-[85vh] overflow-y-auto flex flex-col shadow-2xl text-left custom-scrollbar pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)]"
                 >
                   {/* Modal Header Bar */}
-                  <div className="sticky top-0 bg-surface/98 backdrop-blur-2xl border-b border-white/10 p-3.5 sm:p-4 flex items-center justify-between z-20">
+                  <div className="sticky top-0 bg-[#111827] border-b border-slate-700 p-3.5 sm:p-4 flex items-center justify-between z-20">
                     <div className="min-w-0 pr-2">
-                      <div className="flex items-center gap-1.5 mb-0.5">
-                        <span className="text-[9px] font-black uppercase px-2 py-0.2 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-400 text-slate-950">
                           {getPropertyArea(prop)}
                         </span>
-                        <span className="text-xs text-muted">• {prop.category}</span>
+                        <span className="text-xs font-semibold text-slate-300">• {prop.category}</span>
                       </div>
-                      <h3 className="text-sm sm:text-lg font-bold text-text-primary truncate">
+                      <h3 className="text-base sm:text-xl font-black text-white truncate">
                         {prop.title}
                       </h3>
                     </div>
 
                     <button
                       onClick={() => setSummaryModalProperty(null)}
-                      className="p-2 rounded-full bg-white/5 hover:bg-white/15 text-muted hover:text-white transition-colors shrink-0"
+                      className="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors shrink-0"
                     >
                       <X size={18} />
                     </button>
@@ -1238,7 +1238,7 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
                         <span className="text-[10px] text-muted uppercase font-bold tracking-wider block mb-0.5">
                           Harga Sewa Bulanan
                         </span>
-                        <div className="text-base sm:text-xl font-bold text-emerald-400">
+                        <div className="text-base sm:text-xl font-bold text-amber-400">
                           {prop.priceRange || prop.price}
                         </div>
                         <span className="text-[10px] text-muted block mt-0.5">
@@ -1282,7 +1282,7 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
                             <BedDouble size={14} className="text-emerald-400" />
                             <span>Kamar Kosong Ready ({prop.availableRooms} Kamar Siap Huni)</span>
                           </span>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                          <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-400 text-slate-950 shadow-sm">
                             Tersedia
                           </span>
                         </div>
@@ -1310,7 +1310,7 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
                                     </div>
                                   </div>
                                   <div className="text-right shrink-0">
-                                    <span className="text-xs font-bold text-emerald-400 block">{roomPrice}</span>
+                                    <span className="text-xs font-black text-amber-400 block">{roomPrice}</span>
                                   </div>
                                 </div>
                               );
@@ -1327,7 +1327,7 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
                                   <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
                                   <span className="text-xs font-bold text-text-primary truncate">{roomName}</span>
                                 </div>
-                                <span className="text-xs font-bold text-emerald-400 shrink-0">
+                                <span className="text-xs font-black text-amber-400 shrink-0">
                                   {prop.priceRange || prop.price}
                                 </span>
                               </div>
@@ -1336,14 +1336,14 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
                         ) : (
                           <div className="p-2.5 rounded-xl bg-surface/90 border border-emerald-500/25 flex items-center justify-between gap-2">
                             <span className="text-xs text-text-primary">Tersedia {prop.availableRooms} Unit Kamar Siap Huni</span>
-                            <span className="text-xs font-bold text-emerald-400">{prop.priceRange || prop.price}</span>
+                            <span className="text-xs font-black text-amber-400">{prop.priceRange || prop.price}</span>
                           </div>
                         )}
                       </div>
                     ) : (
                       <div className="p-3 rounded-2xl bg-rose-950/20 border border-rose-500/30 flex items-center justify-between gap-2">
                         <span className="text-xs text-rose-300 font-bold">Saat ini semua kamar di unit ini sedang penuh terisi</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-bold">Kamar Full</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500 text-white font-black">Kamar Full</span>
                       </div>
                     )}
 
@@ -1476,16 +1476,16 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-1 mb-0.5">
                         <span className="text-[9px] font-bold text-amber-400 uppercase truncate">{getPropertyArea(prop)}</span>
-                        <span className={`text-[8.5px] font-extrabold px-1.5 py-0.2 rounded-full shrink-0 ${
+                        <span className={`text-[8.5px] font-black px-2 py-0.5 rounded-full shrink-0 shadow-sm ${
                           prop.availableRooms && prop.availableRooms > 0
-                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                            : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                            ? 'bg-emerald-400 text-slate-950'
+                            : 'bg-rose-500 text-white'
                         }`}>
                           {prop.availableRooms && prop.availableRooms > 0 ? `${prop.availableRooms} Kmr Ready` : 'Full'}
                         </span>
                       </div>
                       <div className="text-xs font-bold text-text-primary truncate">{prop.title}</div>
-                      <div className="text-xs font-bold text-emerald-400 mt-0.5">{prop.priceRange || prop.price}</div>
+                      <div className="text-xs font-black text-amber-400 mt-0.5">{prop.priceRange || prop.price}</div>
                     </div>
                   </div>
 
@@ -1494,10 +1494,10 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
-                    className="p-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs shrink-0 active:scale-90 transition-all"
+                    className="p-2.5 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-slate-950 text-xs shrink-0 active:scale-90 transition-all shadow-md"
                     title="Hubungi Penjaga"
                   >
-                    <MessageCircle size={15} className="text-emerald-400" />
+                    <MessageCircle size={15} className="text-slate-950 fill-slate-950/20" />
                   </a>
                 </div>
               ))}

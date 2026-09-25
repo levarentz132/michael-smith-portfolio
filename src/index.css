@@ -293,9 +293,10 @@ video:focus {
 }
 
 .custom-property-pin .pin-room-badge.ready {
-  background: rgba(16, 185, 129, 0.25);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.4);
+  background: #34d399;
+  color: #022c22;
+  font-weight: 900;
+  border: 1px solid #10b981;
 }
 
 .custom-property-pin .pin-room-badge.full {
