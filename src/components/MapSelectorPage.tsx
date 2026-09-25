@@ -34,7 +34,10 @@ import {
   Car,
   ArrowLeft,
   Info,
-  HelpCircle
+  HelpCircle,
+  Home,
+  Menu,
+  Palmtree
 } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -141,11 +144,12 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
 
-  // Filtering states
+  // Filtering & Navigation states
   const [selectedArea, setSelectedArea] = useState<string>('Semua Area');
   const [onlyAvailableHot, setOnlyAvailableHot] = useState<boolean>(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
 
   // Auto show guide on first visit
   useEffect(() => {
@@ -585,9 +589,156 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
       <div ref={mapContainerRef} className="absolute inset-0 w-full h-full z-0" />
 
       {/* =========================================================================
-          2. UNIFIED FLOATING TOP BAR (Clean, Compact on Mobile)
+          2. UNIFIED FLOATING TOP BAR & NAVIGATION
          ========================================================================= */}
-      <div className="absolute top-[calc(env(safe-area-inset-top,0px)+0.5rem)] sm:top-4 left-2.5 right-2.5 sm:left-4 sm:right-4 max-w-xl mx-auto z-40 pointer-events-auto space-y-1.5 sm:space-y-2">
+      <div className="absolute top-[calc(env(safe-area-inset-top,0px)+0.5rem)] sm:top-4 left-2.5 right-2.5 sm:left-4 sm:right-4 max-w-2xl mx-auto z-40 pointer-events-auto space-y-1.5 sm:space-y-2">
+        {/* Top Quick Navigation Pill */}
+        <div className="flex items-center justify-between gap-1.5 sm:gap-2 bg-surface/95 backdrop-blur-2xl border border-white/20 rounded-2xl px-3 py-1.5 shadow-2xl shadow-black/80">
+          {/* Brand & Home Link */}
+          <Link
+            to="/"
+            className="flex items-center gap-2 group shrink-0 active:scale-95 transition-transform"
+            title="Kembali ke Beranda Highlanderstay"
+          >
+            <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-400 flex items-center justify-center text-bg font-black text-xs shadow-md shadow-amber-500/20 group-hover:rotate-6 transition-transform">
+              HS
+            </div>
+            <span className="font-display font-bold text-xs sm:text-sm text-text-primary tracking-tight group-hover:text-amber-400 transition-colors">
+              Highlanderstay
+            </span>
+          </Link>
+
+          {/* Desktop & Tablet Navigation Links */}
+          <div className="hidden md:flex items-center gap-1 text-xs">
+            <Link
+              to="/"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-text-primary/90 hover:text-amber-400 hover:bg-white/10 transition-all font-medium"
+            >
+              <Home size={13} />
+              <span>Beranda</span>
+            </Link>
+            <Link
+              to="/resort"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-text-primary/90 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all font-medium"
+            >
+              <Palmtree size={13} className="text-emerald-400" />
+              <span>Resort & Villa</span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => setIsDrawerOpen(true)}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-text-primary/90 hover:text-amber-400 hover:bg-white/10 transition-all font-medium cursor-pointer"
+            >
+              <List size={13} />
+              <span>Daftar Unit</span>
+            </button>
+          </div>
+
+          {/* Right Navigation & Menu Trigger */}
+          <div className="flex items-center gap-1 shrink-0">
+            {/* Guide Tutorial Trigger */}
+            <button
+              type="button"
+              onClick={() => setIsGuideOpen(true)}
+              className="px-2 py-1 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 text-[11px] font-bold flex items-center gap-1 transition-all active:scale-95 cursor-pointer relative"
+              title="Panduan Cara Pakai Peta"
+            >
+              <HelpCircle size={12} className="text-purple-400" />
+              <span className="hidden sm:inline">Panduan</span>
+            </button>
+
+            {/* Mobile / Universal Menu Button */}
+            <button
+              type="button"
+              onClick={() => setIsNavMenuOpen(!isNavMenuOpen)}
+              className="p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-white/10 hover:bg-white/20 text-text-primary hover:text-amber-400 transition-all flex items-center gap-1 text-xs font-bold active:scale-95 cursor-pointer"
+              title="Menu Navigasi"
+            >
+              {isNavMenuOpen ? <X size={15} /> : <Menu size={15} />}
+              <span className="hidden sm:inline">Menu</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Navigation Dropdown Menu Modal */}
+        <AnimatePresence>
+          {isNavMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.98 }}
+              transition={{ duration: 0.15 }}
+              className="bg-surface/98 backdrop-blur-3xl border border-white/20 rounded-2xl p-3 shadow-2xl space-y-1.5 z-50 text-left"
+            >
+              <div className="text-[10px] uppercase font-bold text-muted px-2 py-0.5 tracking-wider border-b border-white/10 pb-1">
+                Navigasi Highlanderstay
+              </div>
+              <div className="grid grid-cols-2 gap-1.5 pt-1">
+                <Link
+                  to="/"
+                  onClick={() => setIsNavMenuOpen(false)}
+                  className="flex items-center gap-2 p-2.5 rounded-xl bg-white/5 hover:bg-amber-500/20 text-text-primary hover:text-amber-300 transition-all group"
+                >
+                  <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 group-hover:scale-110 transition-transform">
+                    <Home size={15} />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold">Beranda</div>
+                    <div className="text-[10px] text-muted">Halaman utama</div>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/resort"
+                  onClick={() => setIsNavMenuOpen(false)}
+                  className="flex items-center gap-2 p-2.5 rounded-xl bg-white/5 hover:bg-emerald-500/20 text-text-primary hover:text-emerald-300 transition-all group"
+                >
+                  <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 group-hover:scale-110 transition-transform">
+                    <Palmtree size={15} />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold">Resort & Villa</div>
+                    <div className="text-[10px] text-muted">Paket liburan</div>
+                  </div>
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsNavMenuOpen(false);
+                    setIsDrawerOpen(true);
+                  }}
+                  className="flex items-center gap-2 p-2.5 rounded-xl bg-white/5 hover:bg-sky-500/20 text-text-primary hover:text-sky-300 transition-all group text-left cursor-pointer"
+                >
+                  <div className="p-1.5 rounded-lg bg-sky-500/20 text-sky-400 group-hover:scale-110 transition-transform">
+                    <List size={15} />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold">Daftar Unit</div>
+                    <div className="text-[10px] text-muted">List semua kos</div>
+                  </div>
+                </button>
+
+                <a
+                  href={formatWaUrl(undefined, undefined)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setIsNavMenuOpen(false)}
+                  className="flex items-center gap-2 p-2.5 rounded-xl bg-green-500/10 hover:bg-green-500/20 text-green-300 transition-all group text-left"
+                >
+                  <div className="p-1.5 rounded-lg bg-green-500/30 text-green-400 group-hover:scale-110 transition-transform">
+                    <MessageCircle size={15} />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold">WhatsApp CS</div>
+                    <div className="text-[10px] text-green-400/80">Tanya Penjaga</div>
+                  </div>
+                </a>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Main Search & Action Bar Row */}
         <div className="relative">
           <div className="flex items-center gap-1.5 sm:gap-2 bg-surface/95 backdrop-blur-2xl border border-white/20 rounded-2xl p-1.5 sm:p-2 shadow-2xl shadow-black/80">
@@ -639,21 +790,6 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
             >
               <LocateFixed size={14} className={gpsLoading ? 'animate-spin' : ''} />
               <span className="hidden sm:inline">GPS</span>
-            </button>
-
-            {/* Guide Tutorial Button */}
-            <button
-              type="button"
-              onClick={() => setIsGuideOpen(true)}
-              className="p-2 sm:px-2.5 sm:py-2 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 text-xs font-bold shrink-0 flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer relative group"
-              title="Panduan Cara Pakai Peta"
-            >
-              <HelpCircle size={14} className="text-purple-400 group-hover:rotate-12 transition-transform" />
-              <span className="hidden sm:inline">Panduan</span>
-              <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-purple-500"></span>
-              </span>
             </button>
 
             {/* List Drawer Toggle Button */}
