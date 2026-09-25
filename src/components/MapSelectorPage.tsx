@@ -720,18 +720,18 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
                 </button>
 
                 <a
-                  href={formatWaUrl(undefined, undefined)}
+                  href={`https://wa.me/${adminWa}?text=${encodeURIComponent('Halo Admin Pusat Highlanderstay, saya ingin konsultasi mencari kamar kos & unit yang siap huni.')}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setIsNavMenuOpen(false)}
-                  className="flex items-center gap-2 p-2.5 rounded-xl bg-green-500/10 hover:bg-green-500/20 text-green-300 transition-all group text-left"
+                  className="flex items-center gap-2 p-2.5 rounded-xl bg-green-500/10 hover:bg-green-500/20 text-green-300 transition-all group text-left border border-green-500/20"
                 >
                   <div className="p-1.5 rounded-lg bg-green-500/30 text-green-400 group-hover:scale-110 transition-transform">
                     <MessageCircle size={15} />
                   </div>
                   <div>
-                    <div className="text-xs font-bold">WhatsApp CS</div>
-                    <div className="text-[10px] text-green-400/80">Tanya Penjaga</div>
+                    <div className="text-xs font-bold text-white">WA Admin Pusat</div>
+                    <div className="text-[10px] text-green-400/90 font-medium">Nomor Utama</div>
                   </div>
                 </a>
               </div>
@@ -899,16 +899,16 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
 
       {/* Recenter Map & Quick WA Help Floating Buttons */}
       <div className="absolute bottom-24 sm:bottom-8 right-3 sm:right-6 z-20 pointer-events-auto flex flex-col items-end gap-2">
-        {/* Quick WhatsApp Consultation Button */}
+        {/* Quick WhatsApp Admin Pusat (Nomor Utama) Button */}
         <a
-          href={formatWaUrl(undefined, undefined)}
+          href={`https://wa.me/${adminWa}?text=${encodeURIComponent('Halo Admin Pusat Highlanderstay, saya ingin konsultasi mencari kamar kos & unit yang siap huni.')}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="p-2.5 sm:px-3.5 sm:py-2.5 rounded-2xl bg-[#25D366] hover:bg-[#20bd5a] text-white shadow-xl shadow-green-500/30 transition-all active:scale-95 flex items-center gap-1.5 text-xs font-bold"
-          title="Hubungi Penjaga via WhatsApp"
+          className="px-3.5 py-2.5 rounded-2xl bg-[#25D366] hover:bg-[#20bd5a] text-slate-950 font-black shadow-xl shadow-green-500/30 transition-all active:scale-95 flex items-center gap-2 text-xs border border-green-400/40"
+          title="Chat WhatsApp Admin Pusat (Nomor Utama)"
         >
-          <MessageCircle size={16} className="fill-white/20 text-white" />
-          <span className="hidden sm:inline">Hubungi Penjaga</span>
+          <MessageCircle size={16} className="text-slate-950 fill-slate-950/20" />
+          <span className="font-extrabold">WA Admin Pusat</span>
         </a>
 
         {/* Recenter Map Button */}
