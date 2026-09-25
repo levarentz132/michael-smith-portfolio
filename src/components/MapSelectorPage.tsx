@@ -107,8 +107,8 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
     const rawNumber = (phone || adminWa).replace(/\D/g, '');
     const cleanNumber = rawNumber.startsWith('0') ? '62' + rawNumber.slice(1) : rawNumber.startsWith('62') ? rawNumber : '62' + rawNumber;
     const msg = propertyTitle
-      ? `Halo Admin / Penjaga Highlanderstay, saya tertarik dengan kamar di *${propertyTitle}*. Apakah masih tersedia unit kamar kosong?`
-      : `Halo Admin Highlanderstay, saya ingin bertanya seputar rekomendasi kamar kos & apartemen yang tersedia.`;
+      ? `Halo Penjaga ${propertyTitle}, saya tertarik dengan kamar di properti ini. Apakah masih tersedia unit kamar kosong?`
+      : `Halo Penjaga Highlanderstay, saya ingin bertanya tentang rekomendasi kamar kos & apartemen yang siap huni.`;
     return `https://wa.me/${cleanNumber}?text=${encodeURIComponent(msg)}`;
   }, [adminWa]);
 
@@ -732,10 +732,10 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
           target="_blank"
           rel="noopener noreferrer"
           className="p-2.5 sm:px-3.5 sm:py-2.5 rounded-2xl bg-[#25D366] hover:bg-[#20bd5a] text-white shadow-xl shadow-green-500/30 transition-all active:scale-95 flex items-center gap-1.5 text-xs font-bold"
-          title="Chat Admin via WhatsApp"
+          title="Hubungi Penjaga via WhatsApp"
         >
           <MessageCircle size={16} className="fill-white/20 text-white" />
-          <span className="hidden sm:inline">Tanya Admin WA</span>
+          <span className="hidden sm:inline">Hubungi Penjaga</span>
         </a>
 
         {/* Recenter Map Button */}
@@ -883,10 +883,10 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
                       target="_blank"
                       rel="noopener noreferrer"
                       className="px-2.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-[11px] font-bold flex items-center gap-1 shrink-0 active:scale-95 transition-all"
-                      title="Chat WhatsApp"
+                      title="Hubungi Penjaga via WhatsApp"
                     >
                       <MessageCircle size={13} className="text-emerald-400" />
-                      <span>Chat WA</span>
+                      <span>Hubungi Penjaga</span>
                     </a>
 
                     <button
@@ -1155,10 +1155,10 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
                       target="_blank"
                       rel="noopener noreferrer"
                       className="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 text-xs sm:text-sm font-bold flex items-center gap-1.5 sm:gap-2 transition-all shrink-0 active:scale-95"
-                      title="Chat WhatsApp"
+                      title="Hubungi Penjaga via WhatsApp"
                     >
                       <MessageCircle size={16} className="text-emerald-400" />
-                      <span>{prop.phone ? 'Chat WA Penjaga' : 'Chat WA Admin'}</span>
+                      <span>Hubungi Penjaga</span>
                     </a>
 
                     <button
@@ -1240,7 +1240,7 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
                     className="p-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs shrink-0 active:scale-90 transition-all"
-                    title="Chat WhatsApp Properti Ini"
+                    title="Hubungi Penjaga"
                   >
                     <MessageCircle size={15} className="text-emerald-400" />
                   </a>
