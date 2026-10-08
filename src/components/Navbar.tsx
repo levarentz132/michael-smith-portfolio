@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { UserSession, WebsiteSettings } from '../api';
-import { Menu, X, LogIn, LogOut, User, ShoppingCart } from 'lucide-react';
+import { Menu, X, LogIn, LogOut, User, ShoppingCart, MessageCircle, ArrowRight } from 'lucide-react';
+import { useLiveChat } from '../utils/liveChat';
 
 interface NavbarProps {
   activeSection: string;
@@ -28,6 +29,8 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { unreadCount, openChat, lastMessage } = useLiveChat();
+  const [showIncomingToast, setShowIncomingToast] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -40,6 +43,15 @@ export const Navbar: React.FC<NavbarProps> = ({
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Show incoming toast when admin responds
+  useEffect(() => {
+    if (lastMessage) {
+      setShowIncomingToast(true);
+      const timer = setTimeout(() => setShowIncomingToast(false), 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [lastMessage]);
 
   const startColor = settings?.logo_gradient_start || '#F59E0B';
   const endColor = settings?.logo_gradient_end || '#D97706';
@@ -54,6 +66,48 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 flex flex-col items-center pt-4 md:pt-6 px-4">
+      {/* Incoming Admin Message Alert Toast */}
+      <AnimatePresence>
+        {showIncomingToast && lastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+            className="mb-3 w-full max-w-md bg-surface/95 backdrop-blur-xl border border-emerald-500/50 rounded-2xl p-3.5 shadow-2xl shadow-black/60 z-50 flex items-center justify-between gap-3 cursor-pointer hover:border-emerald-400 transition-all"
+            onClick={() => {
+              openChat();
+              setShowIncomingToast(false);
+            }}
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="relative flex size-9 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shrink-0">
+                <MessageCircle size={18} />
+                <span className="absolute -top-1 -right-1 size-3 rounded-full bg-emerald-500 animate-ping" />
+              </div>
+              <div className="text-left min-w-0">
+                <p className="text-xs font-bold text-text-primary flex items-center gap-1.5 truncate">
+                  <span>{lastMessage.sender || 'Admin Highlanderstay'}</span>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-400 font-semibold">Balasan Baru</span>
+                </p>
+                <p className="text-[11px] text-muted truncate mt-0.5">
+                  {lastMessage.text}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                className="px-3 py-1.5 rounded-xl bg-emerald-500 text-bg font-bold text-xs flex items-center gap-1 shadow hover:bg-emerald-400 transition-all"
+              >
+                <span>Buka</span>
+                <ArrowRight size={12} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Dynamic Promo Bar */}
       {settings?.promo_enabled === 'true' && settings?.promo_text && (
         <motion.div 
@@ -126,6 +180,35 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Desktop Dividers and Buttons */}
         <div className="hidden sm:flex items-center">
           <div className="w-px h-5 bg-stroke mx-3" />
+
+          {/* Chat Admin Navigation Menu Button (Desktop) */}
+          <button
+            type="button"
+            onClick={openChat}
+            className={`relative group text-xs sm:text-sm font-medium rounded-full px-3.5 py-2 flex items-center gap-2 select-none transition-all duration-300 mr-2 ${
+              unreadCount > 0
+                ? 'bg-emerald-500/15 border border-emerald-500/50 text-emerald-400 shadow-[0_0_14px_rgba(16,185,129,0.3)] hover:bg-emerald-500/25'
+                : 'text-muted hover:text-text-primary hover:bg-stroke/30 border border-transparent'
+            }`}
+            title="Live Chat dengan Admin Highlanderstay"
+            aria-label="Chat Admin"
+          >
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <MessageCircle size={14} className={unreadCount > 0 ? 'text-emerald-400' : 'text-text-primary/80'} />
+            <span className="text-text-primary">Chat Admin</span>
+            {unreadCount > 0 && (
+              <motion.span 
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="min-w-[17px] h-[17px] px-1 text-[9px] font-bold font-mono bg-emerald-500 text-bg rounded-full flex items-center justify-center animate-bounce shadow"
+              >
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </motion.span>
+            )}
+          </button>
 
           {/* Book Now Button */}
           <a 
@@ -209,6 +292,30 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Mobile controls (Burger menu & Quick actions) */}
         <div className="flex sm:hidden items-center gap-2">
+          {/* Quick Chat Admin button on Mobile Top Pill */}
+          <button
+            type="button"
+            onClick={openChat}
+            className={`relative p-2.5 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full border active:scale-95 transition-all ${
+              unreadCount > 0
+                ? 'text-emerald-400 border-emerald-500/50 bg-emerald-500/15 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                : 'text-text-primary border-white/10 bg-stroke/30'
+            }`}
+            title="Chat Admin"
+            aria-label="Chat Admin"
+          >
+            <MessageCircle size={17} />
+            <span className="absolute top-1 right-1 flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 text-[9px] font-bold font-mono bg-emerald-500 text-bg rounded-full flex items-center justify-center shadow-md animate-pulse">
+                {unreadCount}
+              </span>
+            )}
+          </button>
+
           {onCartClick && (
             <button
               onClick={onCartClick}
@@ -286,6 +393,36 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {link.label}
                 </button>
               ))}
+
+              {/* Chat Admin Menu Item in Mobile Drawer */}
+              <button
+                type="button"
+                onClick={() => {
+                  openChat();
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`w-full text-left text-sm py-2.5 px-3.5 rounded-xl transition-colors flex justify-between items-center min-h-[44px] font-medium ${
+                  unreadCount > 0 ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'hover:bg-stroke/30 text-text-primary'
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                  </span>
+                  <MessageCircle size={16} className="text-emerald-400" />
+                  <span>Chat Admin (Live)</span>
+                </span>
+                {unreadCount > 0 ? (
+                  <span className="text-[10px] bg-emerald-500 text-bg px-2.5 py-0.5 rounded-full font-bold animate-pulse">
+                    {unreadCount} Pesan
+                  </span>
+                ) : (
+                  <span className="text-[9px] border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full font-semibold">
+                    Online
+                  </span>
+                )}
+              </button>
 
               {onCartClick && (
                 <button
@@ -375,3 +512,4 @@ export const Navbar: React.FC<NavbarProps> = ({
     </nav>
   );
 };
+
