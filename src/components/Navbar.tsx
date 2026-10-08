@@ -103,6 +103,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span>Buka</span>
                 <ArrowRight size={12} />
               </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowIncomingToast(false);
+                }}
+                className="p-1 rounded-lg text-muted hover:text-text-primary hover:bg-stroke/30 transition-colors"
+                aria-label="Tutup notifikasi"
+              >
+                <X size={14} />
+              </button>
             </div>
           </motion.div>
         )}

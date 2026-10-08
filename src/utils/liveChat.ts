@@ -18,87 +18,239 @@ declare global {
   }
 }
 
+export interface LiveChatMessage {
+  text: string;
+  sender?: string;
+  timestamp: number;
+}
+
+// Global shared state
+let globalUnreadCount = 0;
+let globalLastMessage: LiveChatMessage | null = null;
+let globalIsChatOpen = false;
+let globalIsReady = false;
+const listeners = new Set<() => void>();
+
+function notifyListeners() {
+  listeners.forEach((fn) => fn());
+}
+
+// Play pleasant notification sound via Web Audio API (Zero external assets needed)
+function playNotificationChime() {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    
+    // Note 1 (E6)
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(1318.51, ctx.currentTime);
+    gain1.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(ctx.currentTime);
+    osc1.stop(ctx.currentTime + 0.35);
+
+    // Note 2 (G#6)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(1661.22, ctx.currentTime + 0.12);
+    gain2.gain.setValueAtTime(0.18, ctx.currentTime + 0.12);
+    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(ctx.currentTime + 0.12);
+    osc2.stop(ctx.currentTime + 0.55);
+  } catch {
+    // Audio context not allowed before user gesture or unsupported
+  }
+}
+
+// Process an incoming chat message
+function handleIncomingMessageData(raw: any) {
+  if (!raw) return;
+
+  // Chatwoot message format handling
+  const content = typeof raw === 'string' ? raw : (raw.content || raw.text || raw.message || '');
+  const senderName = raw.sender?.name || (raw.sender?.type === 'user' ? 'Admin Highlanderstay' : 'Admin');
+  
+  // Ignore messages sent by the visitor themselves if sender is 'contact'
+  if (raw.sender?.type === 'contact' || raw.message_type === 1 || raw.message_type === 'outgoing') {
+    return;
+  }
+
+  if (content && typeof content === 'string') {
+    globalUnreadCount += 1;
+    globalLastMessage = {
+      text: content,
+      sender: senderName,
+      timestamp: Date.now(),
+    };
+
+    if (!globalIsChatOpen) {
+      playNotificationChime();
+    }
+
+    notifyListeners();
+  }
+}
+
+// Global initialization of listeners (runs once)
+let isInitialized = false;
+function initChatwootListeners() {
+  if (isInitialized || typeof window === 'undefined') return;
+  isInitialized = true;
+
+  // 1. Custom Chatwoot Events
+  window.addEventListener('chatwoot:ready', () => {
+    globalIsReady = true;
+    if (window.$chatwoot && typeof window.$chatwoot.unreadMessageCount === 'number') {
+      if (window.$chatwoot.unreadMessageCount > 0) {
+        globalUnreadCount = window.$chatwoot.unreadMessageCount;
+      }
+    }
+    notifyListeners();
+  });
+
+  window.addEventListener('chatwoot:on-unread-message-count-changed', (event: Event) => {
+    const customEvent = event as CustomEvent<{ unreadMessageCount?: number }>;
+    const count = customEvent.detail?.unreadMessageCount;
+    if (typeof count === 'number') {
+      globalUnreadCount = count;
+      notifyListeners();
+    }
+  });
+
+  window.addEventListener('chatwoot:on-message', (event: Event) => {
+    const customEvent = event as CustomEvent<any>;
+    handleIncomingMessageData(customEvent.detail);
+  });
+
+  window.addEventListener('chatwoot:opened', () => {
+    globalIsChatOpen = true;
+    globalUnreadCount = 0;
+    globalLastMessage = null;
+    notifyListeners();
+  });
+
+  window.addEventListener('chatwoot:closed', () => {
+    globalIsChatOpen = false;
+    notifyListeners();
+  });
+
+  // 2. PostMessage Listener for direct iframe communication
+  window.addEventListener('message', (event) => {
+    try {
+      let data = event.data;
+      if (typeof data === 'string') {
+        if (data.startsWith('chatwoot-widget:')) {
+          data = JSON.parse(data.replace('chatwoot-widget:', ''));
+        } else if (data.startsWith('{')) {
+          data = JSON.parse(data);
+        }
+      }
+
+      if (data && typeof data === 'object') {
+        const eventName = data.event || data.type;
+        if (eventName === 'on-message' || eventName === 'chatwoot:on-message') {
+          handleIncomingMessageData(data.data || data.message || data);
+        } else if (eventName === 'on-unread-message-count-changed') {
+          const count = data.data?.unreadMessageCount ?? data.unreadMessageCount;
+          if (typeof count === 'number') {
+            globalUnreadCount = count;
+            notifyListeners();
+          }
+        } else if (eventName === 'chatwoot:opened' || eventName === 'opened') {
+          globalIsChatOpen = true;
+          globalUnreadCount = 0;
+          globalLastMessage = null;
+          notifyListeners();
+        } else if (eventName === 'chatwoot:closed' || eventName === 'closed') {
+          globalIsChatOpen = false;
+          notifyListeners();
+        }
+      }
+    } catch {
+      // Non-JSON postMessage from other extensions/scripts
+    }
+  });
+
+  // 3. Periodic lightweight check for unread message count
+  setInterval(() => {
+    if (window.$chatwoot && typeof window.$chatwoot.unreadMessageCount === 'number') {
+      if (window.$chatwoot.unreadMessageCount !== globalUnreadCount && !globalIsChatOpen) {
+        globalUnreadCount = window.$chatwoot.unreadMessageCount;
+        notifyListeners();
+      }
+    }
+  }, 4000);
+}
+
 export function openLiveChat() {
   if (typeof window !== 'undefined' && window.$chatwoot) {
+    globalIsChatOpen = true;
+    globalUnreadCount = 0;
+    globalLastMessage = null;
+    notifyListeners();
     window.$chatwoot.toggle('open');
   }
 }
 
 export function closeLiveChat() {
   if (typeof window !== 'undefined' && window.$chatwoot) {
+    globalIsChatOpen = false;
+    notifyListeners();
     window.$chatwoot.toggle('close');
   }
 }
 
 export function toggleLiveChat() {
   if (typeof window !== 'undefined' && window.$chatwoot) {
-    window.$chatwoot.toggle();
+    if (globalIsChatOpen) {
+      closeLiveChat();
+    } else {
+      openLiveChat();
+    }
   }
 }
 
 export function useLiveChat() {
-  const [unreadCount, setUnreadCount] = useState<number>(0);
-  const [isReady, setIsReady] = useState<boolean>(false);
-  const [lastMessage, setLastMessage] = useState<{ text?: string; sender?: string } | null>(null);
+  const [, setTick] = useState(0);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    initChatwootListeners();
 
-    if (window.$chatwoot) {
-      setIsReady(true);
-      if (typeof window.$chatwoot.unreadMessageCount === 'number') {
-        setUnreadCount(window.$chatwoot.unreadMessageCount);
-      }
-    }
-
-    const handleReady = () => {
-      setIsReady(true);
-      if (window.$chatwoot && typeof window.$chatwoot.unreadMessageCount === 'number') {
-        setUnreadCount(window.$chatwoot.unreadMessageCount);
-      }
-    };
-
-    const handleUnreadCount = (event: Event) => {
-      const customEvent = event as CustomEvent<{ unreadMessageCount?: number }>;
-      const count = customEvent.detail?.unreadMessageCount ?? 0;
-      setUnreadCount(count);
-    };
-
-    const handleNewMessage = (event: Event) => {
-      const customEvent = event as CustomEvent<any>;
-      const message = customEvent.detail;
-      if (message && message.message_type === 0) { // incoming from agent/admin
-        setUnreadCount((prev) => prev + 1);
-        setLastMessage({
-          text: message.content || 'Pesan baru dari Admin',
-          sender: message.sender?.name || 'Admin Highlanderstay',
-        });
-      }
-    };
-
-    window.addEventListener('chatwoot:ready', handleReady);
-    window.addEventListener('chatwoot:on-unread-message-count-changed', handleUnreadCount);
-    window.addEventListener('chatwoot:on-message', handleNewMessage);
+    const update = () => setTick((t) => t + 1);
+    listeners.add(update);
 
     return () => {
-      window.removeEventListener('chatwoot:ready', handleReady);
-      window.removeEventListener('chatwoot:on-unread-message-count-changed', handleUnreadCount);
-      window.removeEventListener('chatwoot:on-message', handleNewMessage);
+      listeners.delete(update);
     };
   }, []);
 
   const handleOpen = useCallback(() => {
     openLiveChat();
-    setUnreadCount(0);
-    setLastMessage(null);
+  }, []);
+
+  const handleClose = useCallback(() => {
+    closeLiveChat();
+  }, []);
+
+  const handleToggle = useCallback(() => {
+    toggleLiveChat();
   }, []);
 
   return {
-    unreadCount,
-    isReady,
-    lastMessage,
+    unreadCount: globalUnreadCount,
+    isReady: globalIsReady,
+    isOpen: globalIsChatOpen,
+    lastMessage: globalLastMessage,
     openChat: handleOpen,
-    toggleChat: toggleLiveChat,
-    closeChat: closeLiveChat,
+    toggleChat: handleToggle,
+    closeChat: handleClose,
   };
 }
