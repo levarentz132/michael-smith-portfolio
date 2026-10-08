@@ -449,9 +449,7 @@ function App() {
 
       {/* Mobile App Bottom Navigation Bar (Sticky on all pages including Map) */}
       <MobileBottomNav
-        cartCount={cartCount}
         userSession={userSession}
-        onCartClick={() => navigate('/cart')}
         onProfileClick={() => navigate('/portal')}
         onLoginClick={() => navigate('/portal')}
         onCatalogClick={() => navigate('/katalog')}

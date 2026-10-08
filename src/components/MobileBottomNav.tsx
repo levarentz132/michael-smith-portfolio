@@ -6,12 +6,9 @@ import type { UserSession } from '../api';
 import { useLiveChat } from '../utils/liveChat';
 
 export interface MobileBottomNavProps {
-  cartCount?: number;
   userSession: UserSession | null;
-  isCartOpen?: boolean;
   isProfileOpen?: boolean;
   isLoginOpen?: boolean;
-  onCartClick?: () => void;
   onProfileClick: () => void;
   onLoginClick: () => void;
   onCatalogClick?: () => void;
@@ -20,12 +17,9 @@ export interface MobileBottomNavProps {
 export type MobileNavTab = 'home' | 'catalog' | 'map' | 'chat' | 'profile';
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
-  cartCount = 0,
   userSession,
-  isCartOpen = false,
   isProfileOpen = false,
   isLoginOpen = false,
-  onCartClick,
   onProfileClick,
   onLoginClick,
   onCatalogClick,
