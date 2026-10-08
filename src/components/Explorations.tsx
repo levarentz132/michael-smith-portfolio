@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -61,6 +62,7 @@ export const Explorations: React.FC<ExplorationsProps> = ({ settings }) => {
   const leftColRef = useRef<HTMLDivElement>(null);
   const rightColRef = useRef<HTMLDivElement>(null);
   
+  const navigate = useNavigate();
   const [activeImage, setActiveImage] = useState<string | null>(null);
 
   const items: FacilityItem[] = settings?.facilities_premium && settings.facilities_premium.length > 0
@@ -182,10 +184,7 @@ export const Explorations: React.FC<ExplorationsProps> = ({ settings }) => {
         
         {/* Schedule Visit button */}
         <button 
-          onClick={() => {
-            const contactSection = document.getElementById('contact');
-            if (contactSection) contactSection.scrollIntoView({ behavior: 'smooth' });
-          }}
+          onClick={() => navigate('/katalog')}
           className="relative group rounded-full text-xs font-semibold uppercase tracking-[0.15em] px-6 py-3.5 min-h-[44px] border border-stroke bg-bg hover:border-transparent text-text-primary transition-all duration-300 hover:scale-105"
         >
           <span className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 p-[1px] accent-gradient" style={{ margin: '-1px' }} />

@@ -352,11 +352,11 @@ function App() {
                 {/* Hero Section */}
                 <Hero 
                   onSeeWorksClick={() => handleNavClick('work')} 
-                  onReachOutClick={() => handleNavClick('contact')} 
+                  onReachOutClick={() => navigate('/katalog')} 
                 />
 
                 {/* Banner Section */}
-                <Banner onCtaClick={() => handleNavClick('contact')} settings={settings} />
+                <Banner onCtaClick={() => navigate('/katalog')} settings={settings} />
 
                 {/* Selected Works Section */}
                 <SelectedWorks 
