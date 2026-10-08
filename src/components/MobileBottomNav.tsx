@@ -7,15 +7,23 @@ import type { UserSession } from '../api';
 export interface MobileBottomNavProps {
   cartCount: number;
   userSession: UserSession | null;
+  isCartOpen?: boolean;
+  isProfileOpen?: boolean;
+  isLoginOpen?: boolean;
   onCartClick: () => void;
   onProfileClick: () => void;
   onLoginClick: () => void;
   onCatalogClick?: () => void;
 }
 
+export type MobileNavTab = 'home' | 'catalog' | 'map' | 'cart' | 'profile';
+
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   cartCount,
   userSession,
+  isCartOpen = false,
+  isProfileOpen = false,
+  isLoginOpen = false,
   onCartClick,
   onProfileClick,
   onLoginClick,
@@ -24,9 +32,43 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   const location = useLocation();
   const navigate = useNavigate();
 
-  const isHome = location.pathname === '/' && !location.hash;
-  const isCatalog = location.hash === '#portfolio' || location.pathname.startsWith('/kost/') || location.pathname.startsWith('/apartemen/');
-  const isMap = location.pathname === '/map' || location.pathname === '/lokasi' || location.pathname === '/peta';
+  // Determine active tab dynamically based on route and open modals
+  const activeTab: MobileNavTab = React.useMemo(() => {
+    if (isCartOpen || location.pathname === '/cart' || location.pathname === '/keranjang') {
+      return 'cart';
+    }
+    if (
+      isProfileOpen ||
+      isLoginOpen ||
+      location.pathname === '/portal' ||
+      location.pathname === '/login' ||
+      location.pathname === '/register' ||
+      location.pathname === '/akun' ||
+      location.pathname === '/profil'
+    ) {
+      return 'profile';
+    }
+    if (
+      location.pathname === '/map' ||
+      location.pathname === '/lokasi' ||
+      location.pathname === '/peta'
+    ) {
+      return 'map';
+    }
+    if (
+      location.pathname === '/katalog' ||
+      location.pathname === '/kamar' ||
+      location.pathname.startsWith('/kost/') ||
+      location.pathname.startsWith('/apartemen/') ||
+      location.pathname.startsWith('/property/')
+    ) {
+      return 'catalog';
+    }
+    if (location.pathname === '/' && !location.hash) {
+      return 'home';
+    }
+    return 'home';
+  }, [location.pathname, location.hash, isCartOpen, isProfileOpen, isLoginOpen]);
 
   const handleHomeClick = () => {
     if (location.pathname !== '/') {
@@ -41,158 +83,167 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       onCatalogClick();
       return;
     }
-    if (location.pathname !== '/') {
-      navigate('/#portfolio');
-    } else {
-      const el = document.getElementById('portfolio');
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth' });
-      }
-    }
+    navigate('/katalog');
   };
 
   const handleMapClick = () => {
-    navigate('/map');
+    if (location.pathname !== '/map') {
+      navigate('/map');
+    } else {
+      // Already on map -> trigger a refresh / center
+      window.dispatchEvent(new CustomEvent('hs-map-center'));
+    }
   };
+
+  const handleCartClick = () => {
+    if (onCartClick) {
+      onCartClick();
+      return;
+    }
+    navigate('/cart');
+  };
+
+  const handleProfileClick = () => {
+    if (userSession && onProfileClick) {
+      onProfileClick();
+      return;
+    }
+    if (!userSession && onLoginClick) {
+      onLoginClick();
+      return;
+    }
+    navigate('/portal');
+  };
+
+  const navItems = [
+    {
+      id: 'home' as MobileNavTab,
+      label: 'Beranda',
+      icon: Home,
+      onClick: handleHomeClick,
+    },
+    {
+      id: 'catalog' as MobileNavTab,
+      label: 'Katalog',
+      icon: Building2,
+      onClick: handleCatalog,
+    },
+    {
+      id: 'map' as MobileNavTab,
+      label: 'Peta',
+      icon: MapPin,
+      onClick: handleMapClick,
+    },
+    {
+      id: 'cart' as MobileNavTab,
+      label: 'Keranjang',
+      icon: ShoppingCart,
+      onClick: handleCartClick,
+      badge: cartCount > 0 ? (cartCount > 9 ? '9+' : cartCount) : null,
+    },
+    {
+      id: 'profile' as MobileNavTab,
+      label: userSession ? 'Portal' : 'Masuk',
+      icon: LogIn,
+      onClick: handleProfileClick,
+      isUserAvatar: Boolean(userSession),
+    },
+  ];
 
   return (
     <nav
-      aria-label="Mobile Navigation"
-      className="md:hidden fixed bottom-0 left-0 right-0 z-50 select-none pb-[env(safe-area-inset-bottom,0px)]"
+      aria-label="Mobile Bottom Navigation"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-50 select-none pb-[calc(env(safe-area-inset-bottom,0px)+0.25rem)] pointer-events-none"
     >
       {/* Blur glass container */}
-      <div className="relative mx-3 mb-2 rounded-2xl bg-[#0c0d0e]/90 backdrop-blur-xl border border-white/10 shadow-[0_-4px_24px_rgba(0,0,0,0.6)] px-2 py-1.5 flex items-center justify-around">
-        {/* Tab 1: Beranda */}
-        <button
-          type="button"
-          onClick={handleHomeClick}
-          className="relative flex-1 flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all duration-200 active:scale-95 cursor-pointer"
-        >
-          {isHome && (
-            <motion.div
-              layoutId="mobileNavPill"
-              className="absolute inset-0 bg-white/[0.08] rounded-xl border border-white/10"
-              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            />
-          )}
-          <Home
-            size={19}
-            className={`transition-colors duration-200 ${
-              isHome ? 'text-amber-400' : 'text-neutral-400'
-            }`}
-          />
-          <span
-            className={`text-[10px] font-medium mt-1 tracking-tight transition-colors duration-200 ${
-              isHome ? 'text-white font-semibold' : 'text-neutral-400'
-            }`}
-          >
-            Beranda
-          </span>
-        </button>
+      <div className="relative mx-3 mb-1.5 rounded-2xl bg-[#0c0d0e]/92 backdrop-blur-2xl border border-white/15 shadow-[0_-8px_32px_rgba(0,0,0,0.75),0_0_0_1px_rgba(255,255,255,0.06)] p-1.5 flex items-center justify-between gap-1 pointer-events-auto">
+        {navItems.map((item) => {
+          const isActive = activeTab === item.id;
+          const Icon = item.icon;
 
-        {/* Tab 2: Katalog Kamar */}
-        <button
-          type="button"
-          onClick={handleCatalog}
-          className="relative flex-1 flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all duration-200 active:scale-95 cursor-pointer"
-        >
-          {isCatalog && (
-            <motion.div
-              layoutId="mobileNavPill"
-              className="absolute inset-0 bg-white/[0.08] rounded-xl border border-white/10"
-              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            />
-          )}
-          <Building2
-            size={19}
-            className={`transition-colors duration-200 ${
-              isCatalog ? 'text-amber-400' : 'text-neutral-400'
-            }`}
-          />
-          <span
-            className={`text-[10px] font-medium mt-1 tracking-tight transition-colors duration-200 ${
-              isCatalog ? 'text-white font-semibold' : 'text-neutral-400'
-            }`}
-          >
-            Katalog
-          </span>
-        </button>
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={item.onClick}
+              className="relative flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-xl transition-all duration-200 cursor-pointer active:scale-95 group focus:outline-none"
+            >
+              {/* Sliding Interactive Active Box Selection with Ambient Glow */}
+              {isActive && (
+                <motion.div
+                  layoutId="mobileNavActiveBox"
+                  className="absolute inset-0 rounded-xl bg-gradient-to-b from-amber-500/18 via-white/[0.08] to-white/[0.03] border border-amber-400/40 shadow-[0_0_16px_rgba(245,158,11,0.22),inset_0_1px_0_rgba(255,255,255,0.25)]"
+                  transition={{
+                    type: 'spring',
+                    stiffness: 480,
+                    damping: 34,
+                  }}
+                >
+                  {/* Subtle top indicator dot on active box */}
+                  <div className="absolute -top-[1px] left-1/2 -translate-x-1/2 w-4 h-[2px] rounded-full bg-gradient-to-r from-amber-300 via-amber-400 to-amber-300 shadow-[0_0_6px_rgba(245,158,11,0.8)]" />
+                </motion.div>
+              )}
 
-        {/* Tab 3: Peta & Lokasi */}
-        <button
-          type="button"
-          onClick={handleMapClick}
-          className="relative flex-1 flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all duration-200 active:scale-95 cursor-pointer"
-        >
-          {isMap && (
-            <motion.div
-              layoutId="mobileNavPill"
-              className="absolute inset-0 bg-white/[0.08] rounded-xl border border-white/10"
-              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            />
-          )}
-          <MapPin
-            size={19}
-            className={`transition-colors duration-200 ${
-              isMap ? 'text-amber-400' : 'text-neutral-400'
-            }`}
-          />
-          <span
-            className={`text-[10px] font-medium mt-1 tracking-tight transition-colors duration-200 ${
-              isMap ? 'text-white font-semibold' : 'text-neutral-400'
-            }`}
-          >
-            Peta
-          </span>
-        </button>
+              {/* Icon Container with active bounce and badge */}
+              <div className="relative z-10 flex items-center justify-center">
+                {item.isUserAvatar && userSession ? (
+                  <div className="relative">
+                    <div
+                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black transition-all duration-200 ${
+                        isActive
+                          ? 'bg-amber-400 text-black shadow-[0_0_10px_rgba(245,158,11,0.5)] ring-2 ring-amber-400/40'
+                          : 'bg-amber-400/20 text-amber-300 border border-amber-400/40'
+                      }`}
+                    >
+                      {userSession.name ? userSession.name.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                    <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 border border-[#0c0d0e]" />
+                  </div>
+                ) : (
+                  <motion.div
+                    animate={{
+                      scale: isActive ? [1, 1.14, 1] : 1,
+                    }}
+                    transition={{ duration: 0.24, ease: 'easeOut' }}
+                  >
+                    <Icon
+                      size={19}
+                      className={`transition-colors duration-200 ${
+                        isActive
+                          ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]'
+                          : 'text-neutral-400 group-hover:text-neutral-200'
+                      }`}
+                    />
+                  </motion.div>
+                )}
 
-        {/* Tab 4: Keranjang Booking */}
-        <button
-          type="button"
-          onClick={onCartClick}
-          className="relative flex-1 flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all duration-200 active:scale-95 cursor-pointer"
-        >
-          <div className="relative">
-            <ShoppingCart
-              size={19}
-              className="text-neutral-400 hover:text-white transition-colors duration-200"
-            />
-            {cartCount > 0 && (
-              <motion.span
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className="absolute -top-1.5 -right-2.5 min-w-4 h-4 px-1 rounded-full bg-amber-400 text-black text-[9px] font-black flex items-center justify-center shadow-xs"
-              >
-                {cartCount > 9 ? '9+' : cartCount}
-              </motion.span>
-            )}
-          </div>
-          <span className="text-[10px] font-medium text-neutral-400 mt-1 tracking-tight">
-            Keranjang
-          </span>
-        </button>
-
-        {/* Tab 4: Akun / Tenant Portal */}
-        <button
-          type="button"
-          onClick={userSession ? onProfileClick : onLoginClick}
-          className="relative flex-1 flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all duration-200 active:scale-95 cursor-pointer"
-        >
-          {userSession ? (
-            <div className="relative">
-              <div className="w-5 h-5 rounded-full bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-[10px] font-bold text-amber-300">
-                {userSession.name ? userSession.name.charAt(0).toUpperCase() : 'U'}
+                {/* Badge (e.g. for cart count) */}
+                {item.badge && (
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-1.5 -right-3 min-w-4 h-4 px-1 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 text-black text-[9px] font-black flex items-center justify-center shadow-md shadow-amber-500/30 ring-1 ring-[#0c0d0e]"
+                  >
+                    {item.badge}
+                  </motion.span>
+                )}
               </div>
-              <span className="absolute bottom-0 right-0 w-1.5 h-1.5 rounded-full bg-emerald-400 border border-black" />
-            </div>
-          ) : (
-            <LogIn size={19} className="text-neutral-400" />
-          )}
-          <span className="text-[10px] font-medium text-neutral-400 mt-1 tracking-tight">
-            {userSession ? 'Portal' : 'Masuk'}
-          </span>
-        </button>
+
+              {/* Label */}
+              <span
+                className={`relative z-10 text-[10px] tracking-tight mt-1 transition-all duration-200 ${
+                  isActive
+                    ? 'text-amber-300 font-bold drop-shadow-[0_1px_3px_rgba(245,158,11,0.3)]'
+                    : 'text-neutral-400 font-medium group-hover:text-neutral-300'
+                }`}
+              >
+                {item.label}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </nav>
   );
 };
+

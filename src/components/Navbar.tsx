@@ -27,7 +27,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   settings
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isLogoHovered, setIsLogoHovered] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -42,6 +41,9 @@ export const Navbar: React.FC<NavbarProps> = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const startColor = settings?.logo_gradient_start || '#F59E0B';
+  const endColor = settings?.logo_gradient_end || '#D97706';
+
   const navLinks = [
     { label: 'Beranda', target: 'home' },
     { label: 'Ruangan', target: 'work' },
@@ -49,10 +51,6 @@ export const Navbar: React.FC<NavbarProps> = ({
     { label: 'Fasilitas', target: 'resume' },
     { label: 'Resort', target: 'resort' },
   ];
-
-  const startColor = settings?.logo_gradient_start || '#89AACC';
-  const endColor = settings?.logo_gradient_end || '#4E85BF';
-  const logoText = settings?.logo_text || 'HS';
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 flex flex-col items-center pt-4 md:pt-6 px-4">
@@ -86,37 +84,20 @@ export const Navbar: React.FC<NavbarProps> = ({
       >
         {/* Logo */}
         <div 
-          className="relative w-9 h-9 flex items-center justify-center rounded-full cursor-pointer overflow-hidden transition-all duration-300 hover:scale-110 hover:shadow-[0_0_12px_rgba(137,170,204,0.6)] bg-surface border border-white/10"
-          onMouseEnter={() => setIsLogoHovered(true)}
-          onMouseLeave={() => setIsLogoHovered(false)}
+          className="relative w-9 h-9 flex items-center justify-center rounded-xl cursor-pointer overflow-hidden transition-all duration-300 hover:scale-110 hover:shadow-[0_0_14px_rgba(245,158,11,0.4)] bg-surface border border-white/10 p-1"
           onClick={() => {
             onNavClick('home');
             setIsMobileMenuOpen(false);
           }}
         >
-          {settings?.logo_image ? (
-            <img 
-              src={settings.logo_image} 
-              alt="Logo" 
-              className="w-full h-full object-contain p-1.5 select-none"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = '/favicon.svg';
-              }}
-            />
-          ) : (
-            <>
-              <div 
-                className="absolute inset-0 transition-transform duration-700 ease-in-out"
-                style={{
-                  background: `linear-gradient(90deg, ${startColor} 0%, ${endColor} 100%)`,
-                  transform: isLogoHovered ? 'rotate(180deg)' : 'rotate(0deg)',
-                }}
-              />
-              <div className="absolute inset-[2px] bg-bg rounded-full flex items-center justify-center select-none">
-                <span className="font-display italic text-[13px] text-text-primary font-bold tracking-tight">{logoText}</span>
-              </div>
-            </>
-          )}
+          <img 
+            src={settings?.logo_image || '/logo.png'} 
+            alt="Highlanderstay Logo" 
+            className="w-full h-full object-contain select-none transition-transform duration-300 group-hover:scale-105"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = '/favicon.svg';
+            }}
+          />
         </div>
 
         {/* Divider - Desktop Only */}

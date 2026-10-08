@@ -55,6 +55,7 @@ interface TenantProfileModalProps {
   session: UserSession | null;
   onLogout: () => void;
   onSessionUpdate?: (updatedSession: UserSession) => void;
+  initialTab?: DashboardTab;
 }
 
 type DashboardTab = 'overview' | 'cart' | 'leases' | 'invoices' | 'maintenance' | 'profile';
@@ -64,9 +65,16 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
   onClose,
   session,
   onLogout,
-  onSessionUpdate
+  onSessionUpdate,
+  initialTab = 'overview'
 }) => {
-  const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
+  const [activeTab, setActiveTab] = useState<DashboardTab>(initialTab);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab, isOpen]);
 
   // Dashboard Data State
   const [dashboardData, setDashboardData] = useState<TenantDashboardData | null>(null);

@@ -352,6 +352,18 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
     }
   }, []);
 
+  // Listen to bottom navigation tap on Peta
+  useEffect(() => {
+    const handleCenterEvent = () => {
+      setActiveProperty(null);
+      setSelectedLandmark(null);
+      setSearchQuery('');
+      fitMapToProperties(filteredProperties);
+    };
+    window.addEventListener('hs-map-center', handleCenterEvent);
+    return () => window.removeEventListener('hs-map-center', handleCenterEvent);
+  }, [filteredProperties, fitMapToProperties]);
+
   // Initialize Leaflet Map (Full Screen Background)
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -925,7 +937,7 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
 
       {/* Helper Floating Hint on Mobile (Only when no card is active) */}
       {!activeProperty && !selectedLandmark && (
-        <div className="fixed bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+        <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+4.75rem)] sm:bottom-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
           <div className="bg-white/95 backdrop-blur-xl border border-slate-300/80 px-4 py-2 rounded-full shadow-2xl text-xs font-bold text-slate-900 flex items-center gap-2 whitespace-nowrap">
             <Info size={14} className="text-amber-600 shrink-0" />
             <span className="text-slate-900 font-bold">Ketuk pin di peta untuk info & foto kamar</span>
@@ -943,7 +955,7 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 50, scale: 0.96 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] left-2.5 right-2.5 sm:fixed sm:bottom-6 sm:left-auto sm:right-6 sm:w-96 sm:max-w-md z-30 pointer-events-auto"
+            className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+4.5rem)] left-2.5 right-2.5 sm:fixed sm:bottom-6 sm:left-auto sm:right-6 sm:w-96 sm:max-w-md z-30 pointer-events-auto"
           >
             {(() => {
               const prop = activeProperty || nearestProperty!;

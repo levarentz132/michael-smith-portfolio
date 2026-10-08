@@ -20,6 +20,9 @@ import { ArticlePage } from './components/ArticlePage';
 import { ResortPage } from './components/ResortPage';
 import { MapSelectorPage } from './components/MapSelectorPage';
 import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
+import { CatalogPage } from './components/CatalogPage';
+import { CartPage } from './components/CartPage';
+import { PortalPage } from './components/PortalPage';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { ShoppingCart } from 'lucide-react';
 import { fetchSettings, slugify, logoutTenant, fetchCart, clearCartToken } from './api';
@@ -200,6 +203,21 @@ function App() {
       return;
     }
 
+    if (sectionId === 'work' || sectionId === 'katalog' || sectionId === 'portfolio') {
+      navigate('/katalog');
+      return;
+    }
+
+    if (sectionId === 'cart' || sectionId === 'keranjang') {
+      navigate('/cart');
+      return;
+    }
+
+    if (sectionId === 'portal' || sectionId === 'login' || sectionId === 'akun') {
+      navigate('/portal');
+      return;
+    }
+
     if (location.pathname !== '/') {
       navigate('/');
       setTimeout(() => {
@@ -252,6 +270,32 @@ function App() {
   return (
     <>
       <Routes>
+        {/* Dedicated Catalog Route */}
+        <Route path="/katalog" element={<CatalogPage settings={settings} />} />
+        <Route path="/kamar" element={<Navigate to="/katalog" replace />} />
+
+        {/* Dedicated Shopping Cart Route */}
+        <Route path="/cart" element={<CartPage settings={settings} onCartChange={refreshCartCount} />} />
+        <Route path="/keranjang" element={<Navigate to="/cart" replace />} />
+
+        {/* Dedicated Tenant Portal & Login Route */}
+        <Route 
+          path="/portal" 
+          element={
+            <PortalPage
+              session={userSession}
+              onLoginSuccess={handleLoginSuccess}
+              onLogout={handleLogout}
+              onSessionUpdate={(updated) => setUserSession(updated)}
+              settings={settings}
+            />
+          } 
+        />
+        <Route path="/login" element={<Navigate to="/portal" replace />} />
+        <Route path="/register" element={<Navigate to="/portal" replace />} />
+        <Route path="/akun" element={<Navigate to="/portal" replace />} />
+        <Route path="/profil" element={<Navigate to="/portal" replace />} />
+
         {/* Map & Nearest Property Selector Route */}
         <Route path="/map" element={<MapSelectorPage settings={settings} />} />
         <Route path="/peta" element={<Navigate to="/map" replace />} />
@@ -270,9 +314,8 @@ function App() {
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
 
         {/* DOKU Hosted Checkout Callback Return Routes */}
-        <Route path="/portal/billing" element={<Navigate to="/" replace />} />
-        <Route path="/billing" element={<Navigate to="/" replace />} />
-        <Route path="/portal" element={<Navigate to="/" replace />} />
+        <Route path="/portal/billing" element={<Navigate to="/portal" replace />} />
+        <Route path="/billing" element={<Navigate to="/portal" replace />} />
 
       {/* Landing Page Route */}
       <Route path="/" element={
@@ -406,17 +449,15 @@ function App() {
       } />
       </Routes>
 
-      {/* Mobile App Bottom Navigation Bar (Hidden on map view for immersive full-screen map experience) */}
-      {location.pathname !== '/map' && location.pathname !== '/peta' && location.pathname !== '/lokasi' && (
-        <MobileBottomNav
-          cartCount={cartCount}
-          userSession={userSession}
-          onCartClick={() => setCartOpen(true)}
-          onProfileClick={() => setProfileOpen(true)}
-          onLoginClick={() => setLoginOpen(true)}
-          onCatalogClick={() => handleNavClick('work')}
-        />
-      )}
+      {/* Mobile App Bottom Navigation Bar (Sticky on all pages including Map) */}
+      <MobileBottomNav
+        cartCount={cartCount}
+        userSession={userSession}
+        onCartClick={() => navigate('/cart')}
+        onProfileClick={() => navigate('/portal')}
+        onLoginClick={() => navigate('/portal')}
+        onCatalogClick={() => navigate('/katalog')}
+      />
 
       {showFloatingWhatsApp && location.pathname !== '/map' && location.pathname !== '/peta' && location.pathname !== '/lokasi' && (
         <FloatingWhatsApp whatsappNumber={settings?.whatsapp_number || '628123456789'} />

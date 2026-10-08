@@ -854,7 +854,7 @@ export const AUTH_API_BASE =
   (import.meta as any).env?.VITE_AUTH_API_URL || 
   (import.meta as any).env?.VITE_API_BASE_URL || 
   (import.meta as any).env?.API_BASE_URL || 
-  '/api/v1/auth';
+  'https://dashboard.highlanderstay.com/api/v1/auth';
 
 async function callAuthApi<T>(path: string, options: RequestInit = {}): Promise<T> {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
@@ -876,45 +876,66 @@ async function callAuthApi<T>(path: string, options: RequestInit = {}): Promise<
     headers: mergedHeaders
   };
 
-  // 1. If directUrl is different from proxyUrl (e.g. custom remote API configured), try directUrl
-  if (directUrl !== proxyUrl) {
-    try {
-      const res = await fetch(directUrl, reqOptions);
+  // 1. Try direct URL first (live API)
+  try {
+    const res = await fetch(directUrl, reqOptions);
+    const contentType = res.headers.get('content-type') || '';
+    
+    if (contentType.includes('application/json')) {
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
         const errorMsg = data?.message || 
           (data?.errors ? Object.values(data.errors).flat().join(', ') : null) ||
-          `Request failed with status ${res.status}`;
+          data?.error ||
+          `Permintaan gagal (${res.status})`;
         throw new Error(errorMsg);
       }
 
-      return data as T;
-    } catch (err: any) {
-      if (err?.message && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError') && !err.message.includes('fetch failed')) {
-        throw err;
+      if (data !== null) {
+        return data as T;
       }
-      // Otherwise fall through to proxyUrl
+    } else if (!res.ok) {
+      throw new Error(`Permintaan gagal (${res.status})`);
+    }
+  } catch (err: any) {
+    if (err?.message && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError') && !err.message.includes('fetch failed')) {
+      throw err;
+    }
+    // Network / CORS error, fall through to proxy if available
+  }
+
+  // 2. Call relative proxyUrl (/api/v1/auth/...) if different
+  if (directUrl !== proxyUrl) {
+    try {
+      const res = await fetch(proxyUrl, reqOptions);
+      const contentType = res.headers.get('content-type') || '';
+
+      if (contentType.includes('application/json')) {
+        const data = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          const errorMsg = data?.message || 
+            (data?.errors ? Object.values(data.errors).flat().join(', ') : null) ||
+            data?.error ||
+            `Permintaan gagal (${res.status})`;
+          throw new Error(errorMsg);
+        }
+
+        if (data !== null) {
+          return data as T;
+        }
+      } else if (!res.ok) {
+        throw new Error(`Permintaan gagal (${res.status})`);
+      }
+    } catch (proxyErr: any) {
+      if (proxyErr?.message && !proxyErr.message.includes('Failed to fetch') && !proxyErr.message.includes('NetworkError')) {
+        throw proxyErr;
+      }
     }
   }
 
-  // 2. Call relative proxyUrl (/api/v1/auth/...)
-  try {
-    const res = await fetch(proxyUrl, reqOptions);
-    const data = await res.json().catch(() => null);
-
-    if (!res.ok) {
-      const errorMsg = data?.message || 
-        (data?.errors ? Object.values(data.errors).flat().join(', ') : null) ||
-        data?.error ||
-        `Request failed with status ${res.status}`;
-      throw new Error(errorMsg);
-    }
-
-    return data as T;
-  } catch (proxyErr: any) {
-    throw new Error(proxyErr?.message || 'Gagal terhubung ke server autentikasi.');
-  }
+  throw new Error('Gagal terhubung ke server autentikasi. Pastikan perangkat Anda terhubung ke internet.');
 }
 
 // 0. Fetch Anti-Bot Security Captcha Challenge
@@ -940,7 +961,7 @@ export async function registerTenant(payload: RegisterPayload): Promise<Register
       password,
       password_confirmation,
       otp_channel: payload.otp_channel || 'whatsapp',
-      device_name: payload.device_name || 'highlanderstay-web',
+      device_name: payload.device_name || 'highlanderstay-mobile',
       captcha_key: payload.captcha_key,
       captcha_answer: payload.captcha_answer
     })
@@ -973,23 +994,32 @@ export async function verifyPhoneOtp(payload: VerifyOtpPayload, token?: string):
     method: 'POST',
     headers,
     body: JSON.stringify({
-      device_name: 'highlanderstay-web',
+      device_name: 'highlanderstay-mobile',
       ...payload
     })
   });
 
+  if (!data) {
+    throw new Error('Gagal verifikasi OTP: Respon server kosong.');
+  }
+
+  const userObj = data.user || (data as any)?.data?.user || (data as any)?.tenant || (data as any)?.data?.tenant;
+  if (!userObj) {
+    throw new Error(data.message || 'Gagal verifikasi OTP. Akun pengguna tidak ditemukan.');
+  }
+
   const session: UserSession = {
     role: 'tenant',
-    id: data.user.id,
-    name: data.user.name,
-    email: data.user.email,
-    phone: data.user.phone,
-    token: data.token,
-    phone_verified: Boolean(data.phone_verified ?? data.user.phone_verified),
-    phone_verified_at: data.user.phone_verified_at || new Date().toISOString(),
-    is_active: Boolean(data.user.is_active),
-    has_tenant_profile: Boolean(data.user.has_tenant_profile),
-    tenant: data.user.tenant || null
+    id: userObj.id,
+    name: userObj.name || 'Penyewa',
+    email: userObj.email || '',
+    phone: userObj.phone || '',
+    token: data.token || (data as any)?.access_token || token || '',
+    phone_verified: Boolean(data.phone_verified ?? userObj.phone_verified ?? true),
+    phone_verified_at: userObj.phone_verified_at || new Date().toISOString(),
+    is_active: Boolean(userObj.is_active ?? true),
+    has_tenant_profile: Boolean(userObj.has_tenant_profile ?? true),
+    tenant: userObj.tenant || null
   };
 
   return {
@@ -1004,40 +1034,58 @@ export async function loginTenant(payload: LoginPayload): Promise<{ session: Use
     method: 'POST',
     body: JSON.stringify({
       ...payload,
-      device_name: payload.device_name || 'highlanderstay-web'
+      device_name: payload.device_name || 'highlanderstay-mobile'
     })
   });
 
+  if (!data) {
+    throw new Error('Gagal login: Respon server tidak valid atau kosong.');
+  }
+
+  const userObj = data.user || (data as any)?.data?.user || (data as any)?.tenant || (data as any)?.data?.tenant;
+  if (!userObj) {
+    throw new Error(data.message || 'Gagal login: Data akun tidak ditemukan pada respon server.');
+  }
+
   const session: UserSession = {
     role: 'tenant',
-    id: data.user.id,
-    name: data.user.name,
-    email: data.user.email,
-    phone: data.user.phone,
-    token: data.token,
-    phone_verified: Boolean(data.user.phone_verified),
-    phone_verified_at: (data.user as any).phone_verified_at || null,
-    is_active: Boolean(data.user.is_active),
-    has_tenant_profile: Boolean((data.user as any).has_tenant_profile),
-    tenant: (data.user as any).tenant || null
+    id: userObj.id,
+    name: userObj.name || 'Penyewa',
+    email: userObj.email || '',
+    phone: userObj.phone || '',
+    token: data.token || (data as any)?.access_token || '',
+    phone_verified: Boolean(userObj.phone_verified ?? (data as any)?.phone_verified),
+    phone_verified_at: userObj.phone_verified_at || null,
+    is_active: Boolean(userObj.is_active ?? true),
+    has_tenant_profile: Boolean(userObj.has_tenant_profile ?? true),
+    tenant: userObj.tenant || null
   };
 
   return {
     session,
     message: data.message || 'Login berhasil.',
-    token: data.token
+    token: session.token || ''
   };
 }
 
 // 5. Fetch current logged in user profile
 export async function fetchCurrentUser(token: string): Promise<AuthUser> {
-  const data = await callAuthApi<{ user: AuthUser }>('/me', {
+  const data = await callAuthApi<{ user: AuthUser } | AuthUser>('/me', {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${token}`
     }
   });
-  return data.user;
+
+  if (!data) {
+    throw new Error('Gagal mengambil data profil.');
+  }
+
+  const user = (data as any).user || (data as any).data?.user || data;
+  if (!user || typeof user !== 'object') {
+    throw new Error('Data profil tidak valid.');
+  }
+  return user as AuthUser;
 }
 
 // 6. Delete account permanently
@@ -1093,7 +1141,7 @@ export async function resetPassword(payload: ResetPasswordPayload): Promise<{ se
     otp: code,
     password: payload.password,
     password_confirmation: passwordConfirmation,
-    device_name: payload.device_name || 'highlanderstay-web'
+    device_name: payload.device_name || 'highlanderstay-mobile'
   };
 
   if (payload.reset_token) {
@@ -1108,18 +1156,27 @@ export async function resetPassword(payload: ResetPasswordPayload): Promise<{ se
     body: JSON.stringify(body)
   });
 
+  if (!data) {
+    throw new Error('Gagal reset kata sandi: Respon server kosong.');
+  }
+
+  const userObj = data.user || (data as any)?.data?.user || (data as any)?.tenant;
+  if (!userObj) {
+    throw new Error(data.message || 'Password berhasil direset! Silakan login kembali.');
+  }
+
   const session: UserSession = {
     role: 'tenant',
-    id: data.user.id,
-    name: data.user.name,
-    email: data.user.email,
-    phone: data.user.phone,
-    token: data.token,
-    phone_verified: Boolean(data.user.phone_verified),
-    phone_verified_at: (data.user as any).phone_verified_at || new Date().toISOString(),
-    is_active: Boolean(data.user.is_active),
-    has_tenant_profile: Boolean((data.user as any).has_tenant_profile),
-    tenant: (data.user as any).tenant || null
+    id: userObj.id,
+    name: userObj.name || 'Penyewa',
+    email: userObj.email || '',
+    phone: userObj.phone || '',
+    token: data.token || '',
+    phone_verified: Boolean(userObj.phone_verified ?? true),
+    phone_verified_at: userObj.phone_verified_at || new Date().toISOString(),
+    is_active: Boolean(userObj.is_active ?? true),
+    has_tenant_profile: Boolean(userObj.has_tenant_profile ?? true),
+    tenant: userObj.tenant || null
   };
 
   return {
@@ -1134,7 +1191,7 @@ export const TENANT_API_PROXY = '/api/v1/tenant';
 export const TENANT_API_BASE = 
   (import.meta as any).env?.VITE_TENANT_API_URL || 
   (import.meta as any).env?.VITE_API_BASE_URL?.replace(/\/auth$/, '/tenant') || 
-  '/api/v1/tenant';
+  'https://dashboard.highlanderstay.com/api/v1/tenant';
 
 async function callTenantApi<T>(path: string, token: string, options: RequestInit = {}): Promise<T> {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
@@ -1165,16 +1222,24 @@ async function callTenantApi<T>(path: string, token: string, options: RequestIni
   if (directUrl !== proxyUrl) {
     try {
       const res = await fetch(directUrl, reqOptions);
-      const data = await res.json().catch(() => null);
+      const contentType = res.headers.get('content-type') || '';
 
-      if (!res.ok) {
-        const errorMsg = data?.message || 
-          (data?.errors ? Object.values(data.errors).flat().join(', ') : null) ||
-          `Request failed with status ${res.status}`;
-        throw new Error(errorMsg);
+      if (contentType.includes('application/json')) {
+        const data = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          const errorMsg = data?.message || 
+            (data?.errors ? Object.values(data.errors).flat().join(', ') : null) ||
+            `Permintaan gagal (${res.status})`;
+          throw new Error(errorMsg);
+        }
+
+        if (data !== null) {
+          return data as T;
+        }
+      } else if (!res.ok) {
+        throw new Error(`Permintaan gagal (${res.status})`);
       }
-
-      return data as T;
     } catch (err: any) {
       if (err?.message && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError') && !err.message.includes('fetch failed')) {
         throw err;
@@ -1185,17 +1250,27 @@ async function callTenantApi<T>(path: string, token: string, options: RequestIni
   // 2. Call relative proxyUrl (/api/v1/tenant/...)
   try {
     const res = await fetch(proxyUrl, reqOptions);
-    const data = await res.json().catch(() => null);
+    const contentType = res.headers.get('content-type') || '';
 
-    if (!res.ok) {
-      const errorMsg = data?.message || 
-        (data?.errors ? Object.values(data.errors).flat().join(', ') : null) ||
-        data?.error ||
-        `Request failed with status ${res.status}`;
-      throw new Error(errorMsg);
+    if (contentType.includes('application/json')) {
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        const errorMsg = data?.message || 
+          (data?.errors ? Object.values(data.errors).flat().join(', ') : null) ||
+          data?.error ||
+          `Permintaan gagal (${res.status})`;
+        throw new Error(errorMsg);
+      }
+
+      if (data !== null) {
+        return data as T;
+      }
+    } else if (!res.ok) {
+      throw new Error(`Permintaan gagal (${res.status})`);
     }
 
-    return data as T;
+    throw new Error('Gagal memproses data portal tenant.');
   } catch (proxyErr: any) {
     throw new Error(proxyErr?.message || 'Gagal terhubung ke layanan tenant portal.');
   }
@@ -1255,7 +1330,7 @@ export const ORDERS_API_PROXY = '/api/v1/orders';
 export const ORDERS_API_BASE = 
   (import.meta as any).env?.VITE_ORDERS_API_URL || 
   (import.meta as any).env?.VITE_API_BASE_URL?.replace(/\/auth$/, '/orders') || 
-  'http://localhost:8000/api/v1/orders';
+  'https://dashboard.highlanderstay.com/api/v1/orders';
 
 export async function createOpenKosOrder(payload: CreateOrderPayload): Promise<CreateOrderResponse> {
   const reqBody = {
@@ -1354,7 +1429,7 @@ export const CART_API_PROXY = '/api/v1/cart';
 export const CART_API_BASE =
   (import.meta as any).env?.VITE_CART_API_URL ||
   (import.meta as any).env?.VITE_API_BASE_URL?.replace(/\/auth$/, '/cart') ||
-  'http://localhost:8000/api/v1/cart';
+  'https://dashboard.highlanderstay.com/api/v1/cart';
 
 export function getStoredUserSession(): UserSession | null {
   try {
@@ -1784,7 +1859,7 @@ export async function refreshCartCheckout(orderId: number): Promise<RefreshCheck
 export const SANDBOX_API_PROXY = '/api/v1/sandbox';
 export const SANDBOX_API_BASE =
   (import.meta as any).env?.VITE_SANDBOX_API_URL ||
-  'http://localhost:8000/api/v1/sandbox';
+  'https://dashboard.highlanderstay.com/api/v1/sandbox';
 
 export interface SimulatePaymentResponse {
   success: boolean;
@@ -2011,8 +2086,39 @@ export interface WebsiteSettings {
 
 // Fetch Website Settings
 export async function fetchSettings(): Promise<WebsiteSettings> {
-  const res = await fetch('/api/settings');
-  return handleResponse<WebsiteSettings>(res, 'Failed to fetch settings');
+  const endpoints = [
+    '/api/settings',
+    'https://dashboard.highlanderstay.com/api/settings',
+    'http://localhost:5000/api/settings'
+  ];
+
+  for (const url of endpoints) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) {
+        return await res.json() as WebsiteSettings;
+      }
+    } catch {
+      // try next
+    }
+  }
+
+  // Safe fallback if server is unreachable
+  return {
+    logo_text: 'HS',
+    logo_gradient_start: '#89AACC',
+    logo_gradient_end: '#4E85BF',
+    banner_eyebrow: 'Promo Spesial',
+    banner_title: 'Diskon Early Bird 20%',
+    banner_description: 'Pesan ruang impian Anda bulan ini dan nikmati potongan harga eksklusif untuk 3 bulan pertama.',
+    banner_image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1920&q=80',
+    banner_cta: 'Klaim Promo',
+    promo_enabled: 'false',
+    promo_text: '',
+    logo_image: '',
+    whatsapp_number: '628123456789',
+    banners: []
+  };
 }
 
 // Update Website Settings

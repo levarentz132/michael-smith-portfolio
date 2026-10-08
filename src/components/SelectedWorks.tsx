@@ -443,7 +443,7 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick })
 
   return (
     <section id="work" className="bg-bg py-12 md:py-24 select-none">
-      <div className="max-w-[1200px] mx-auto px-3 sm:px-6 md:px-10 lg:px-16">
+      <div className="max-w-5xl mx-auto px-3 sm:px-6 md:px-8">
         
         {/* Header Section */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-10 gap-8">
@@ -824,7 +824,7 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick })
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 md:gap-7">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-6">
                       {filteredHotProperties.map((project, index) => (
                         <PropertyCard 
                           key={project.id || index}
@@ -929,7 +929,7 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick })
                       </div>
 
                       {/* Area Group Cards Grid */}
-                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 md:gap-7">
+                      <div className="grid grid-cols-2 gap-3 sm:gap-6">
                         {group.items.map((project, index) => (
                           <PropertyCard 
                             key={project.id || index}
@@ -975,7 +975,7 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick })
                       </button>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 md:gap-7">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-6">
                       {areaFilteredProperties.map((project, index) => (
                         <PropertyCard 
                           key={project.id || index}
