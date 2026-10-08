@@ -71,6 +71,18 @@ function playNotificationChime() {
 }
 
 // Process an incoming chat message
+let originalDocTitle = typeof document !== 'undefined' ? document.title : '';
+
+function updateDocumentTitle() {
+  if (typeof document === 'undefined') return;
+  if (!originalDocTitle) originalDocTitle = document.title;
+  if (globalUnreadCount > 0) {
+    document.title = `(${globalUnreadCount}) Pesan Baru • Highlanderstay`;
+  } else if (originalDocTitle) {
+    document.title = originalDocTitle;
+  }
+}
+
 function handleIncomingMessageData(raw: any) {
   if (!raw) return;
 
@@ -91,8 +103,36 @@ function handleIncomingMessageData(raw: any) {
       timestamp: Date.now(),
     };
 
+    updateDocumentTitle();
+
     if (!globalIsChatOpen) {
+      // 1. Audio chime
       playNotificationChime();
+
+      // 2. Mobile vibration (works directly on Android / Capacitor)
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        try {
+          navigator.vibrate([250, 100, 250]);
+        } catch {}
+      }
+
+      // 3. Request permission on interaction or show native notification if granted
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        if (Notification.permission === 'granted') {
+          try {
+            new Notification(senderName, {
+              body: content,
+              icon: '/favicon.svg',
+              badge: '/favicon.svg',
+              tag: 'highlanderstay-chat',
+            });
+          } catch {}
+        } else if (Notification.permission === 'default') {
+          try {
+            Notification.requestPermission();
+          } catch {}
+        }
+      }
     }
 
     notifyListeners();
@@ -121,6 +161,7 @@ function initChatwootListeners() {
     const count = customEvent.detail?.unreadMessageCount;
     if (typeof count === 'number') {
       globalUnreadCount = count;
+      updateDocumentTitle();
       notifyListeners();
     }
   });
@@ -134,6 +175,7 @@ function initChatwootListeners() {
     globalIsChatOpen = true;
     globalUnreadCount = 0;
     globalLastMessage = null;
+    updateDocumentTitle();
     notifyListeners();
   });
 
@@ -162,12 +204,14 @@ function initChatwootListeners() {
           const count = data.data?.unreadMessageCount ?? data.unreadMessageCount;
           if (typeof count === 'number') {
             globalUnreadCount = count;
+            updateDocumentTitle();
             notifyListeners();
           }
         } else if (eventName === 'chatwoot:opened' || eventName === 'opened') {
           globalIsChatOpen = true;
           globalUnreadCount = 0;
           globalLastMessage = null;
+          updateDocumentTitle();
           notifyListeners();
         } else if (eventName === 'chatwoot:closed' || eventName === 'closed') {
           globalIsChatOpen = false;
@@ -184,6 +228,7 @@ function initChatwootListeners() {
     if (window.$chatwoot && typeof window.$chatwoot.unreadMessageCount === 'number') {
       if (window.$chatwoot.unreadMessageCount !== globalUnreadCount && !globalIsChatOpen) {
         globalUnreadCount = window.$chatwoot.unreadMessageCount;
+        updateDocumentTitle();
         notifyListeners();
       }
     }
@@ -195,6 +240,7 @@ export function openLiveChat() {
     globalIsChatOpen = true;
     globalUnreadCount = 0;
     globalLastMessage = null;
+    updateDocumentTitle();
     notifyListeners();
     window.$chatwoot.toggle('open');
   }

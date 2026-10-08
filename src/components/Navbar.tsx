@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { UserSession, WebsiteSettings } from '../api';
-import { Menu, X, LogIn, LogOut, User, ShoppingCart, MessageCircle, ArrowRight } from 'lucide-react';
+import { Menu, X, LogIn, LogOut, User, ShoppingCart, MessageCircle } from 'lucide-react';
 import { useLiveChat } from '../utils/liveChat';
 
 interface NavbarProps {
@@ -29,8 +29,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { unreadCount, openChat, lastMessage } = useLiveChat();
-  const [showIncomingToast, setShowIncomingToast] = useState(false);
+  const { unreadCount, openChat } = useLiveChat();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -43,15 +42,6 @@ export const Navbar: React.FC<NavbarProps> = ({
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  // Show incoming toast when admin responds
-  useEffect(() => {
-    if (lastMessage) {
-      setShowIncomingToast(true);
-      const timer = setTimeout(() => setShowIncomingToast(false), 8000);
-      return () => clearTimeout(timer);
-    }
-  }, [lastMessage]);
 
   const startColor = settings?.logo_gradient_start || '#F59E0B';
   const endColor = settings?.logo_gradient_end || '#D97706';
@@ -66,59 +56,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 flex flex-col items-center pt-4 md:pt-6 px-4">
-      {/* Incoming Admin Message Alert Toast */}
-      <AnimatePresence>
-        {showIncomingToast && lastMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: -20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-            className="mb-3 w-full max-w-md bg-surface/95 backdrop-blur-xl border border-emerald-500/50 rounded-2xl p-3.5 shadow-2xl shadow-black/60 z-50 flex items-center justify-between gap-3 cursor-pointer hover:border-emerald-400 transition-all"
-            onClick={() => {
-              openChat();
-              setShowIncomingToast(false);
-            }}
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="relative flex size-9 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shrink-0">
-                <MessageCircle size={18} />
-                <span className="absolute -top-1 -right-1 size-3 rounded-full bg-emerald-500 animate-ping" />
-              </div>
-              <div className="text-left min-w-0">
-                <p className="text-xs font-bold text-text-primary flex items-center gap-1.5 truncate">
-                  <span>{lastMessage.sender || 'Admin Highlanderstay'}</span>
-                  <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-400 font-semibold">Balasan Baru</span>
-                </p>
-                <p className="text-[11px] text-muted truncate mt-0.5">
-                  {lastMessage.text}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                type="button"
-                className="px-3 py-1.5 rounded-xl bg-emerald-500 text-bg font-bold text-xs flex items-center gap-1 shadow hover:bg-emerald-400 transition-all"
-              >
-                <span>Buka</span>
-                <ArrowRight size={12} />
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowIncomingToast(false);
-                }}
-                className="p-1 rounded-lg text-muted hover:text-text-primary hover:bg-stroke/30 transition-colors"
-                aria-label="Tutup notifikasi"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Dynamic Promo Bar */}
       {settings?.promo_enabled === 'true' && settings?.promo_text && (
         <motion.div 
@@ -204,10 +141,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             title="Live Chat dengan Admin Highlanderstay"
             aria-label="Chat Admin"
           >
-            <span className="relative flex h-2 w-2 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
+            {unreadCount > 0 && (
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+            )}
             <MessageCircle size={14} className={unreadCount > 0 ? 'text-emerald-400' : 'text-text-primary/80'} />
             <span className="text-text-primary">Chat Admin</span>
             {unreadCount > 0 && (
@@ -316,10 +255,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             aria-label="Chat Admin"
           >
             <MessageCircle size={17} />
-            <span className="absolute top-1 right-1 flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-            </span>
+            {unreadCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+              </span>
+            )}
             {unreadCount > 0 && (
               <span className="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 text-[9px] font-bold font-mono bg-emerald-500 text-bg rounded-full flex items-center justify-center shadow-md animate-pulse">
                 {unreadCount}
@@ -417,11 +358,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }`}
               >
                 <span className="flex items-center gap-2">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                  </span>
-                  <MessageCircle size={16} className="text-emerald-400" />
+                  {unreadCount > 0 && (
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                    </span>
+                  )}
+                  <MessageCircle size={16} className={unreadCount > 0 ? 'text-emerald-400' : 'text-text-primary/80'} />
                   <span>Chat Admin (Live)</span>
                 </span>
                 {unreadCount > 0 ? (
