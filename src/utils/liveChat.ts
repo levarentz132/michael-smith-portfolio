@@ -1,4 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
+import { Badge } from '@capawesome/capacitor-badge';
 
 declare global {
   interface Window {
@@ -35,7 +38,41 @@ function notifyListeners() {
   listeners.forEach((fn) => fn());
 }
 
-// Play pleasant notification sound via Web Audio API (Zero external assets needed)
+// Setup Android Native Notification Channel & Permissions
+let isNativeSetup = false;
+async function initNativeNotificationSystem() {
+  if (isNativeSetup || !Capacitor.isNativePlatform()) return;
+  isNativeSetup = true;
+
+  try {
+    // 1. Create Android Notification Channel
+    await LocalNotifications.createChannel({
+      id: 'highlanderstay_livechat',
+      name: 'Pesan Live Chat Highlanderstay',
+      description: 'Notifikasi pesan baru dan balasan dari admin Highlanderstay',
+      importance: 5, // High importance -> shows heads-up popup banner
+      visibility: 1, // Public on lockscreen
+      vibration: true,
+      lights: true,
+      lightColor: '#10B981',
+    });
+
+    // 2. Check and request notification permissions
+    const perm = await LocalNotifications.checkPermissions();
+    if (perm.display !== 'granted') {
+      await LocalNotifications.requestPermissions();
+    }
+
+    // 3. Handle click on native system notification to open chat
+    LocalNotifications.addListener('localNotificationActionPerformed', () => {
+      openLiveChat();
+    });
+  } catch (err) {
+    console.warn('Native notification setup error:', err);
+  }
+}
+
+// Play pleasant notification sound via Web Audio API
 function playNotificationChime() {
   try {
     const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -70,7 +107,7 @@ function playNotificationChime() {
   }
 }
 
-// Process an incoming chat message
+// Update document title for web
 let originalDocTitle = typeof document !== 'undefined' ? document.title : '';
 
 function updateDocumentTitle() {
@@ -80,6 +117,35 @@ function updateDocumentTitle() {
     document.title = `(${globalUnreadCount}) Pesan Baru • Highlanderstay`;
   } else if (originalDocTitle) {
     document.title = originalDocTitle;
+  }
+}
+
+// Trigger native push notification on Android & badge icon
+async function triggerNativeNotifications(senderName: string, content: string, count: number) {
+  if (!Capacitor.isNativePlatform()) return;
+
+  try {
+    // 1. Android Status Bar System Notification
+    await LocalNotifications.schedule({
+      notifications: [
+        {
+          id: Math.floor(Math.random() * 1000000) + 1,
+          title: `💬 ${senderName}`,
+          body: content,
+          channelId: 'highlanderstay_livechat',
+          schedule: { at: new Date(Date.now() + 50) },
+          actionTypeId: 'OPEN_CHAT',
+          extra: { type: 'chat_reply' },
+        },
+      ],
+    });
+
+    // 2. Set App Icon Badge Number on Android launcher
+    if (count > 0) {
+      await Badge.set({ count });
+    }
+  } catch (err) {
+    console.warn('Native notification trigger failed:', err);
   }
 }
 
@@ -101,7 +167,7 @@ function handleIncomingMessageData(raw: any) {
     return;
   }
 
-  const senderName = msg.sender?.name || (senderType === 'user' || senderType === 'agent' ? 'Admin Highlanderstay' : 'Admin Highlanderstay');
+  const senderName = msg.sender?.name || 'Admin Highlanderstay';
 
   if (content && typeof content === 'string') {
     globalUnreadCount += 1;
@@ -114,17 +180,18 @@ function handleIncomingMessageData(raw: any) {
     updateDocumentTitle();
 
     if (!globalIsChatOpen) {
-      // 1. Audio chime
+      // 1. Audio chime & vibration
       playNotificationChime();
-
-      // 2. Mobile vibration (works directly on Android / Capacitor)
       if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
         try {
           navigator.vibrate([300, 150, 300]);
         } catch {}
       }
 
-      // 3. Request permission on interaction or show native notification if granted
+      // 2. Native Android Notification + App Icon Badge
+      triggerNativeNotifications(senderName, content, globalUnreadCount);
+
+      // 3. Web Notification fallback
       if (typeof window !== 'undefined' && 'Notification' in window) {
         if (Notification.permission === 'granted') {
           try {
@@ -153,12 +220,17 @@ function initChatwootListeners() {
   if (isInitialized || typeof window === 'undefined') return;
   isInitialized = true;
 
+  initNativeNotificationSystem();
+
   // 1. Custom Chatwoot Events
   window.addEventListener('chatwoot:ready', () => {
     globalIsReady = true;
     if (window.$chatwoot && typeof window.$chatwoot.unreadMessageCount === 'number') {
       if (window.$chatwoot.unreadMessageCount > 0) {
         globalUnreadCount = window.$chatwoot.unreadMessageCount;
+        if (Capacitor.isNativePlatform()) {
+          Badge.set({ count: globalUnreadCount }).catch(() => {});
+        }
       }
     }
     notifyListeners();
@@ -170,6 +242,13 @@ function initChatwootListeners() {
     if (typeof count === 'number') {
       globalUnreadCount = count;
       updateDocumentTitle();
+      if (Capacitor.isNativePlatform()) {
+        if (count > 0) {
+          Badge.set({ count }).catch(() => {});
+        } else {
+          Badge.clear().catch(() => {});
+        }
+      }
       notifyListeners();
     }
   });
@@ -184,6 +263,9 @@ function initChatwootListeners() {
     globalUnreadCount = 0;
     globalLastMessage = null;
     updateDocumentTitle();
+    if (Capacitor.isNativePlatform()) {
+      Badge.clear().catch(() => {});
+    }
     notifyListeners();
   });
 
@@ -213,6 +295,13 @@ function initChatwootListeners() {
           if (typeof count === 'number') {
             globalUnreadCount = count;
             updateDocumentTitle();
+            if (Capacitor.isNativePlatform()) {
+              if (count > 0) {
+                Badge.set({ count }).catch(() => {});
+              } else {
+                Badge.clear().catch(() => {});
+              }
+            }
             notifyListeners();
           }
         } else if (eventName === 'chatwoot:opened' || eventName === 'opened') {
@@ -220,6 +309,9 @@ function initChatwootListeners() {
           globalUnreadCount = 0;
           globalLastMessage = null;
           updateDocumentTitle();
+          if (Capacitor.isNativePlatform()) {
+            Badge.clear().catch(() => {});
+          }
           notifyListeners();
         } else if (eventName === 'chatwoot:closed' || eventName === 'closed') {
           globalIsChatOpen = false;
@@ -237,6 +329,13 @@ function initChatwootListeners() {
       if (window.$chatwoot.unreadMessageCount !== globalUnreadCount && !globalIsChatOpen) {
         globalUnreadCount = window.$chatwoot.unreadMessageCount;
         updateDocumentTitle();
+        if (Capacitor.isNativePlatform()) {
+          if (globalUnreadCount > 0) {
+            Badge.set({ count: globalUnreadCount }).catch(() => {});
+          } else {
+            Badge.clear().catch(() => {});
+          }
+        }
         notifyListeners();
       }
     }
@@ -249,6 +348,9 @@ export function openLiveChat() {
     globalUnreadCount = 0;
     globalLastMessage = null;
     updateDocumentTitle();
+    if (Capacitor.isNativePlatform()) {
+      Badge.clear().catch(() => {});
+    }
     notifyListeners();
     window.$chatwoot.toggle('open');
   }
