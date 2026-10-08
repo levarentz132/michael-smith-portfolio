@@ -2338,7 +2338,69 @@ app.get('/api/settings', async (req, res) => {
   }
 });
 
-// PUT (update) Website Settings
+// GET Specific Banners list & configuration
+app.get('/api/banners', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT `setting_key`, `setting_value` FROM settings WHERE `setting_key` IN (?, ?, ?, ?, ?, ?, ?, ?)', [
+      'banners', 'banner_image', 'banner_eyebrow', 'banner_title', 'banner_description', 'banner_cta', 'banner_autoplay_interval', 'banner_enabled'
+    ]);
+    const bannerConfig = {
+      banners: [],
+      banner_image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1920&q=80',
+      banner_eyebrow: 'Promo Spesial',
+      banner_title: 'Diskon Early Bird 20%',
+      banner_description: 'Pesan ruang impian Anda bulan ini dan nikmati potongan harga eksklusif untuk 3 bulan pertama.',
+      banner_cta: 'Klaim Promo',
+      banner_autoplay_interval: 5000,
+      banner_enabled: true
+    };
+    rows.forEach(row => {
+      let val = row.setting_value;
+      try {
+        val = JSON.parse(row.setting_value);
+      } catch (e) {
+        // raw string fallback
+      }
+      bannerConfig[row.setting_key] = val;
+    });
+    res.json(bannerConfig);
+  } catch (error) {
+    console.error('Error fetching banners:', error);
+    res.status(500).json({ error: 'Failed to fetch banners.' });
+  }
+});
+
+// PUT (update) Banners configuration
+app.put('/api/banners', async (req, res) => {
+  try {
+    const { banners, banner_image, banner_eyebrow, banner_title, banner_description, banner_cta, banner_autoplay_interval, banner_enabled } = req.body;
+    const toUpdate = {};
+    if (banners !== undefined) toUpdate.banners = banners;
+    if (banner_image !== undefined) toUpdate.banner_image = banner_image;
+    if (banner_eyebrow !== undefined) toUpdate.banner_eyebrow = banner_eyebrow;
+    if (banner_title !== undefined) toUpdate.banner_title = banner_title;
+    if (banner_description !== undefined) toUpdate.banner_description = banner_description;
+    if (banner_cta !== undefined) toUpdate.banner_cta = banner_cta;
+    if (banner_autoplay_interval !== undefined) toUpdate.banner_autoplay_interval = banner_autoplay_interval;
+    if (banner_enabled !== undefined) toUpdate.banner_enabled = banner_enabled;
+
+    const promises = Object.entries(toUpdate).map(([key, val]) => {
+      const valStr = JSON.stringify(val);
+      return pool.query(
+        'INSERT INTO settings (`setting_key`, `setting_value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `setting_value` = ?',
+        [key, valStr, valStr]
+      );
+    });
+
+    await Promise.all(promises);
+    res.json({ success: true, updated: toUpdate });
+  } catch (error) {
+    console.error('Error updating banners:', error);
+    res.status(500).json({ error: 'Failed to update banners.' });
+  }
+});
+
+// PUT (update) All Website Settings
 app.put('/api/settings', async (req, res) => {
   try {
     const settings = req.body;
@@ -2346,7 +2408,6 @@ app.put('/api/settings', async (req, res) => {
       return res.status(400).json({ error: 'Invalid settings object.' });
     }
 
-    // Save each key-value pair as a JSON serialized string
     const promises = Object.entries(settings).map(([key, val]) => {
       const valStr = JSON.stringify(val);
       return pool.query(

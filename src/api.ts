@@ -2065,6 +2065,29 @@ export interface ResortPageSettings {
   ctaDescription?: string;
 }
 
+export interface BannerSlide {
+  id?: number | string;
+  image: string;
+  title?: string;
+  eyebrow?: string;
+  description?: string;
+  cta_text?: string;
+  link?: string;
+  badge?: string;
+  active?: boolean;
+}
+
+export interface BannerConfig {
+  banners: (string | BannerSlide)[];
+  banner_image?: string;
+  banner_eyebrow?: string;
+  banner_title?: string;
+  banner_description?: string;
+  banner_cta?: string;
+  banner_autoplay_interval?: number;
+  banner_enabled?: boolean | string;
+}
+
 export interface WebsiteSettings {
   logo_text: string;
   logo_gradient_start: string;
@@ -2074,11 +2097,13 @@ export interface WebsiteSettings {
   banner_description: string;
   banner_image: string;
   banner_cta: string;
+  banner_autoplay_interval?: number;
+  banner_enabled?: boolean | string;
   promo_enabled: string; // 'true' or 'false'
   promo_text: string;
   logo_image?: string;
   whatsapp_number?: string;
-  banners?: string[];
+  banners?: (string | BannerSlide)[];
   facilities_premium?: Array<{ id: number; title: string; image: string; rotation?: number }>;
   resort_page?: ResortPageSettings;
   resort_property_ids?: number[];
@@ -2088,7 +2113,9 @@ export interface WebsiteSettings {
 export async function fetchSettings(): Promise<WebsiteSettings> {
   const endpoints = [
     '/api/settings',
+    '/api/v1/settings',
     'https://dashboard.highlanderstay.com/api/settings',
+    'https://dashboard.highlanderstay.com/api/v1/settings',
     'http://localhost:5000/api/settings'
   ];
 
@@ -2113,12 +2140,68 @@ export async function fetchSettings(): Promise<WebsiteSettings> {
     banner_description: 'Pesan ruang impian Anda bulan ini dan nikmati potongan harga eksklusif untuk 3 bulan pertama.',
     banner_image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1920&q=80',
     banner_cta: 'Klaim Promo',
+    banner_autoplay_interval: 5000,
+    banner_enabled: true,
     promo_enabled: 'false',
     promo_text: '',
     logo_image: '',
     whatsapp_number: '628123456789',
     banners: []
   };
+}
+
+// Fetch Banner Specific Data & Settings
+export async function fetchBanners(): Promise<BannerConfig> {
+  const endpoints = [
+    '/api/banners',
+    '/api/v1/banners',
+    '/api/settings',
+    'https://dashboard.highlanderstay.com/api/banners',
+    'https://dashboard.highlanderstay.com/api/v1/banners',
+    'http://localhost:5000/api/banners'
+  ];
+
+  for (const url of endpoints) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        return {
+          banners: Array.isArray(data.banners) ? data.banners : [],
+          banner_image: data.banner_image || 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1920&q=80',
+          banner_eyebrow: data.banner_eyebrow || 'Promo Spesial',
+          banner_title: data.banner_title || 'Diskon Early Bird 20%',
+          banner_description: data.banner_description || 'Pesan ruang impian Anda bulan ini dan nikmati potongan harga eksklusif untuk 3 bulan pertama.',
+          banner_cta: data.banner_cta || 'Klaim Promo',
+          banner_autoplay_interval: data.banner_autoplay_interval || 5000,
+          banner_enabled: data.banner_enabled !== undefined ? data.banner_enabled : true
+        };
+      }
+    } catch {
+      // try next
+    }
+  }
+
+  return {
+    banners: [],
+    banner_image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1920&q=80',
+    banner_eyebrow: 'Promo Spesial',
+    banner_title: 'Diskon Early Bird 20%',
+    banner_description: 'Pesan ruang impian Anda bulan ini dan nikmati potongan harga eksklusif untuk 3 bulan pertama.',
+    banner_cta: 'Klaim Promo',
+    banner_autoplay_interval: 5000,
+    banner_enabled: true
+  };
+}
+
+// Update Banner Configuration
+export async function updateBanners(config: Partial<BannerConfig>): Promise<{ success: boolean }> {
+  const res = await fetch('/api/banners', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config)
+  });
+  return handleResponse<{ success: boolean }>(res, 'Failed to update banners');
 }
 
 // Update Website Settings
