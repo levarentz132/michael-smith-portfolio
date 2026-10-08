@@ -40,16 +40,17 @@ function notifyListeners() {
 
 // Setup Android Native Notification Channel & Permissions
 let isNativeSetup = false;
-async function initNativeNotificationSystem() {
-  if (isNativeSetup || !Capacitor.isNativePlatform()) return;
+export async function initNativeNotificationSystem() {
+  if (!Capacitor.isNativePlatform()) return;
+  if (isNativeSetup) return;
   isNativeSetup = true;
 
   try {
-    // 1. Create Android Notification Channel
+    // 1. Create Android Notification Channel with Max Priority (Heads-up banner)
     await LocalNotifications.createChannel({
       id: 'highlanderstay_livechat',
       name: 'Pesan Live Chat Highlanderstay',
-      description: 'Notifikasi pesan baru dan balasan dari admin Highlanderstay',
+      description: 'Notifikasi balasan pesan langsung dari admin Highlanderstay',
       importance: 5, // High importance -> shows heads-up popup banner
       visibility: 1, // Public on lockscreen
       vibration: true,
@@ -57,10 +58,11 @@ async function initNativeNotificationSystem() {
       lightColor: '#10B981',
     });
 
-    // 2. Check and request notification permissions
+    // 2. Request Android 13+ Notification Permissions immediately
     const perm = await LocalNotifications.checkPermissions();
     if (perm.display !== 'granted') {
-      await LocalNotifications.requestPermissions();
+      const req = await LocalNotifications.requestPermissions();
+      console.log('[LiveChat] Notification permission status:', req.display);
     }
 
     // 3. Handle click on native system notification to open chat
@@ -68,12 +70,12 @@ async function initNativeNotificationSystem() {
       openLiveChat();
     });
   } catch (err) {
-    console.warn('Native notification setup error:', err);
+    console.warn('[LiveChat] Native notification setup error:', err);
   }
 }
 
 // Play pleasant notification sound via Web Audio API
-function playNotificationChime() {
+export function playNotificationChime() {
   try {
     const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioCtx) return;
@@ -84,7 +86,7 @@ function playNotificationChime() {
     const gain1 = ctx.createGain();
     osc1.type = 'sine';
     osc1.frequency.setValueAtTime(1318.51, ctx.currentTime);
-    gain1.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain1.gain.setValueAtTime(0.2, ctx.currentTime);
     gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
     osc1.connect(gain1);
     gain1.connect(ctx.destination);
@@ -96,7 +98,7 @@ function playNotificationChime() {
     const gain2 = ctx.createGain();
     osc2.type = 'sine';
     osc2.frequency.setValueAtTime(1661.22, ctx.currentTime + 0.12);
-    gain2.gain.setValueAtTime(0.18, ctx.currentTime + 0.12);
+    gain2.gain.setValueAtTime(0.25, ctx.currentTime + 0.12);
     gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55);
     osc2.connect(gain2);
     gain2.connect(ctx.destination);
@@ -121,15 +123,19 @@ function updateDocumentTitle() {
 }
 
 // Trigger native push notification on Android & badge icon
-async function triggerNativeNotifications(senderName: string, content: string, count: number) {
+export async function triggerNativeNotifications(senderName: string, content: string, count: number) {
   if (!Capacitor.isNativePlatform()) return;
 
   try {
+    await initNativeNotificationSystem();
+
+    const notifId = Math.floor(Math.random() * 1000000) + 1;
+    
     // 1. Android Status Bar System Notification
     await LocalNotifications.schedule({
       notifications: [
         {
-          id: Math.floor(Math.random() * 1000000) + 1,
+          id: notifId,
           title: `💬 ${senderName}`,
           body: content,
           channelId: 'highlanderstay_livechat',
@@ -141,15 +147,18 @@ async function triggerNativeNotifications(senderName: string, content: string, c
     });
 
     // 2. Set App Icon Badge Number on Android launcher
-    if (count > 0) {
-      await Badge.set({ count });
+    const badgeCount = Math.max(1, count);
+    try {
+      await Badge.set({ count: badgeCount });
+    } catch (badgeErr) {
+      console.warn('[LiveChat] Badge.set error:', badgeErr);
     }
   } catch (err) {
-    console.warn('Native notification trigger failed:', err);
+    console.warn('[LiveChat] Native notification trigger failed:', err);
   }
 }
 
-function handleIncomingMessageData(raw: any) {
+export function handleIncomingMessageData(raw: any) {
   if (!raw) return;
 
   const msg = raw.data || raw.message || raw;
@@ -161,7 +170,7 @@ function handleIncomingMessageData(raw: any) {
   // message_type === 0 (or 'incoming') -> visitor sent it
   // message_type === 1 (or 'outgoing' / 'template') -> agent/admin sent it
   // sender.type === 'contact' -> visitor
-  // sender.type === 'user' / 'agent' / 'bot' -> admin/agent
+  // sender.type === 'user' / 'agent' / 'bot' / 'agent_bot' -> admin/agent
   const isFromVisitor = senderType === 'contact' || messageType === 0 || messageType === 'incoming';
   if (isFromVisitor) {
     return;
@@ -170,7 +179,7 @@ function handleIncomingMessageData(raw: any) {
   const senderName = msg.sender?.name || 'Admin Highlanderstay';
 
   if (content && typeof content === 'string') {
-    globalUnreadCount += 1;
+    globalUnreadCount = Math.max(1, globalUnreadCount + 1);
     globalLastMessage = {
       text: content,
       sender: senderName,
@@ -179,34 +188,32 @@ function handleIncomingMessageData(raw: any) {
 
     updateDocumentTitle();
 
-    if (!globalIsChatOpen) {
-      // 1. Audio chime & vibration
-      playNotificationChime();
-      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+    // 1. Audio chime & vibration ALWAYS
+    playNotificationChime();
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate([300, 150, 300]);
+      } catch {}
+    }
+
+    // 2. Native Android Notification + App Icon Badge ALWAYS
+    triggerNativeNotifications(senderName, content, globalUnreadCount);
+
+    // 3. Web Notification fallback
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'granted') {
         try {
-          navigator.vibrate([300, 150, 300]);
+          new Notification(senderName, {
+            body: content,
+            icon: '/favicon.png',
+            badge: '/favicon.png',
+            tag: 'highlanderstay-chat-' + Date.now(),
+          });
         } catch {}
-      }
-
-      // 2. Native Android Notification + App Icon Badge
-      triggerNativeNotifications(senderName, content, globalUnreadCount);
-
-      // 3. Web Notification fallback
-      if (typeof window !== 'undefined' && 'Notification' in window) {
-        if (Notification.permission === 'granted') {
-          try {
-            new Notification(senderName, {
-              body: content,
-              icon: '/favicon.svg',
-              badge: '/favicon.svg',
-              tag: 'highlanderstay-chat-' + Date.now(),
-            });
-          } catch {}
-        } else if (Notification.permission === 'default') {
-          try {
-            Notification.requestPermission();
-          } catch {}
-        }
+      } else if (Notification.permission === 'default') {
+        try {
+          Notification.requestPermission();
+        } catch {}
       }
     }
 
@@ -214,9 +221,9 @@ function handleIncomingMessageData(raw: any) {
   }
 }
 
-// Global initialization of listeners (runs once)
+// Global initialization of listeners (runs once on import / boot)
 let isInitialized = false;
-function initChatwootListeners() {
+export function initChatwootListeners() {
   if (isInitialized || typeof window === 'undefined') return;
   isInitialized = true;
 
@@ -240,11 +247,15 @@ function initChatwootListeners() {
     const customEvent = event as CustomEvent<{ unreadMessageCount?: number }>;
     const count = customEvent.detail?.unreadMessageCount;
     if (typeof count === 'number') {
+      const prev = globalUnreadCount;
       globalUnreadCount = count;
       updateDocumentTitle();
       if (Capacitor.isNativePlatform()) {
         if (count > 0) {
           Badge.set({ count }).catch(() => {});
+          if (count > prev && !globalLastMessage) {
+            triggerNativeNotifications('Admin Highlanderstay', 'Anda memiliki balasan pesan baru di live chat', count);
+          }
         } else {
           Badge.clear().catch(() => {});
         }
@@ -265,6 +276,7 @@ function initChatwootListeners() {
     updateDocumentTitle();
     if (Capacitor.isNativePlatform()) {
       Badge.clear().catch(() => {});
+      LocalNotifications.removeAllDeliveredNotifications().catch(() => {});
     }
     notifyListeners();
   });
@@ -288,21 +300,35 @@ function initChatwootListeners() {
 
       if (data && typeof data === 'object') {
         const eventName = data.event || data.type;
-        if (eventName === 'on-message' || eventName === 'chatwoot:on-message') {
+        console.log('[Chatwoot Widget Event]', eventName, data);
+
+        if (eventName === 'on-message' || eventName === 'chatwoot:on-message' || eventName === 'message:created') {
           handleIncomingMessageData(data.data || data.message || data);
+        } else if (eventName === 'onEvent') {
+          if (data.eventIdentifier === 'chatwoot:on-message' || data.eventIdentifier === 'on-message') {
+            handleIncomingMessageData(data.data);
+          } else if (data.eventIdentifier === 'chatwoot:on-unread-message-count-changed') {
+            const count = data.data?.unreadMessageCount;
+            if (typeof count === 'number') {
+              updateUnreadCount(count);
+            }
+          }
+        } else if (eventName === 'handleNotificationDot') {
+          const count = data.unreadMessageCount ?? (data.data?.unreadMessageCount || 1);
+          if (typeof count === 'number') {
+            updateUnreadCount(count);
+          }
+        } else if (eventName === 'playAudio' || eventName === 'setUnreadMode') {
+          // Chatwoot widget triggered audio alert or unread mode for an incoming message
+          const nextCount = Math.max(1, globalUnreadCount + 1);
+          updateUnreadCount(nextCount);
+          if (!globalLastMessage) {
+            triggerNativeNotifications('Admin Highlanderstay', 'Anda memiliki balasan pesan baru di live chat', nextCount);
+          }
         } else if (eventName === 'on-unread-message-count-changed') {
           const count = data.data?.unreadMessageCount ?? data.unreadMessageCount;
           if (typeof count === 'number') {
-            globalUnreadCount = count;
-            updateDocumentTitle();
-            if (Capacitor.isNativePlatform()) {
-              if (count > 0) {
-                Badge.set({ count }).catch(() => {});
-              } else {
-                Badge.clear().catch(() => {});
-              }
-            }
-            notifyListeners();
+            updateUnreadCount(count);
           }
         } else if (eventName === 'chatwoot:opened' || eventName === 'opened') {
           globalIsChatOpen = true;
@@ -311,35 +337,58 @@ function initChatwootListeners() {
           updateDocumentTitle();
           if (Capacitor.isNativePlatform()) {
             Badge.clear().catch(() => {});
+            LocalNotifications.removeAllDeliveredNotifications().catch(() => {});
           }
           notifyListeners();
-        } else if (eventName === 'chatwoot:closed' || eventName === 'closed') {
+        } else if (eventName === 'chatwoot:closed' || eventName === 'closed' || eventName === 'closeWindow') {
           globalIsChatOpen = false;
           notifyListeners();
         }
       }
-    } catch {
-      // Non-JSON postMessage from other extensions/scripts
+    } catch (e) {
+      // Non-JSON postMessage from other scripts
     }
   });
+
+  // Helper to sync count
+  function updateUnreadCount(count: number) {
+    const prev = globalUnreadCount;
+    globalUnreadCount = count;
+    updateDocumentTitle();
+    if (Capacitor.isNativePlatform()) {
+      if (count > 0) {
+        Badge.set({ count }).catch(() => {});
+        if (count > prev && !globalLastMessage) {
+          triggerNativeNotifications('Admin Highlanderstay', 'Anda memiliki balasan pesan baru di live chat', count);
+        }
+      } else {
+        Badge.clear().catch(() => {});
+      }
+    }
+    notifyListeners();
+  }
 
   // 3. Periodic lightweight check for unread message count
   setInterval(() => {
     if (window.$chatwoot && typeof window.$chatwoot.unreadMessageCount === 'number') {
-      if (window.$chatwoot.unreadMessageCount !== globalUnreadCount && !globalIsChatOpen) {
-        globalUnreadCount = window.$chatwoot.unreadMessageCount;
-        updateDocumentTitle();
-        if (Capacitor.isNativePlatform()) {
-          if (globalUnreadCount > 0) {
-            Badge.set({ count: globalUnreadCount }).catch(() => {});
-          } else {
-            Badge.clear().catch(() => {});
-          }
-        }
-        notifyListeners();
+      const count = window.$chatwoot.unreadMessageCount;
+      if (count !== globalUnreadCount) {
+        updateUnreadCount(count);
       }
     }
-  }, 4000);
+  }, 2500);
+}
+
+// Dev test function exposed on window
+if (typeof window !== 'undefined') {
+  (window as any).testNotification = async (sender = 'Admin Highlanderstay', msg = 'Halo! Ada yang bisa kami bantu hari ini?') => {
+    await triggerNativeNotifications(sender, msg, 1);
+  };
+}
+
+// Auto-run initialization immediately on script load
+if (typeof window !== 'undefined') {
+  initChatwootListeners();
 }
 
 export function openLiveChat() {
@@ -350,6 +399,7 @@ export function openLiveChat() {
     updateDocumentTitle();
     if (Capacitor.isNativePlatform()) {
       Badge.clear().catch(() => {});
+      LocalNotifications.removeAllDeliveredNotifications().catch(() => {});
     }
     notifyListeners();
     window.$chatwoot.toggle('open');

@@ -44,7 +44,7 @@ export function useCapacitor(onBackPress?: () => boolean): CapacitorState {
           if (canGoBack) {
             window.history.back();
           } else {
-            CapApp.exitApp();
+            CapApp.minimizeApp();
           }
         });
       } catch (err) {

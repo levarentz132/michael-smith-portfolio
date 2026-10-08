@@ -30,6 +30,7 @@ import { fetchSettings, slugify, logoutTenant, fetchCart, clearCartToken } from 
 import type { UserSession, Property, WebsiteSettings } from './api';
 import { useSEO } from './hooks/useSEO';
 import { useCapacitor } from './hooks/useCapacitor';
+import { initNativeNotificationSystem } from './utils/liveChat';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -79,6 +80,11 @@ function App() {
     canonicalUrl: 'https://highlanderstay.com/',
     enabled: location.pathname === '/'
   });
+
+  // Initialize Android Native notification channels and request permissions
+  useEffect(() => {
+    initNativeNotificationSystem();
+  }, []);
 
   // Load branding settings
   useEffect(() => {
