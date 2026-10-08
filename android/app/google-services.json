@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "882503009400",
+    "project_id": "highlanderstay-5a173",
+    "storage_bucket": "highlanderstay-5a173.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:882503009400:android:681912f9f38f6d68f1d98d",
+        "android_client_info": {
+          "package_name": "com.highlanderstay.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA0pp4oiam5_6iawUlqFhnzsTFAMAk491c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

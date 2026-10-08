@@ -31,6 +31,7 @@ import type { UserSession, Property, WebsiteSettings } from './api';
 import { useSEO } from './hooks/useSEO';
 import { useCapacitor } from './hooks/useCapacitor';
 import { initNativeNotificationSystem } from './utils/liveChat';
+import { initPushNotifications } from './utils/pushNotifications';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -81,9 +82,10 @@ function App() {
     enabled: location.pathname === '/'
   });
 
-  // Initialize Android Native notification channels and request permissions
+  // Initialize Android Native & FCM Push notification systems
   useEffect(() => {
     initNativeNotificationSystem();
+    initPushNotifications();
   }, []);
 
   // Load branding settings

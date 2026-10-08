@@ -9,8 +9,41 @@ import { fileURLToPath } from 'url';
 import multer from 'multer';
 import midtransClient from 'midtrans-client';
 import crypto from 'crypto';
+import admin from 'firebase-admin';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Initialize Firebase Admin SDK for FCM Push Notifications
+let firebaseApp = null;
+try {
+  const serviceAccountFiles = [
+    'highlanderstay-5a173-firebase-adminsdk-fbsvc-5e3904dbaf.json',
+    'firebase-service-account.json'
+  ];
+  let serviceAccountPath = null;
+  for (const f of serviceAccountFiles) {
+    const fullPath = path.join(__dirname, f);
+    if (fs.existsSync(fullPath)) {
+      serviceAccountPath = fullPath;
+      break;
+    }
+  }
+
+  if (serviceAccountPath) {
+    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+    firebaseApp = admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+    console.log('[Firebase Admin] Initialized successfully for project:', serviceAccount.project_id);
+  } else {
+    console.warn('[Firebase Admin] Service account key file not found');
+  }
+} catch (fbErr) {
+  console.warn('[Firebase Admin] Initialization failed:', fbErr.message);
+}
 
 // Initialize Midtrans Snap client
 const snap = new midtransClient.Snap({
@@ -18,9 +51,6 @@ const snap = new midtransClient.Snap({
   serverKey: process.env.MIDTRANS_SERVER_KEY || '',
   clientKey: process.env.MIDTRANS_CLIENT_KEY || ''
 });
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -94,6 +124,19 @@ async function initializeDatabase() {
         \`content\` LONGTEXT NOT NULL,
         \`image\` VARCHAR(255) DEFAULT '',
         \`read_time\` VARCHAR(50) DEFAULT '5 menit baca',
+        \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    // Create device_push_tokens table for FCM notifications
+    await dbConnection.query(`
+      CREATE TABLE IF NOT EXISTS device_push_tokens (
+        \`id\` INT AUTO_INCREMENT PRIMARY KEY,
+        \`token\` VARCHAR(255) UNIQUE NOT NULL,
+        \`phone\` VARCHAR(50) DEFAULT NULL,
+        \`email\` VARCHAR(100) DEFAULT NULL,
+        \`platform\` VARCHAR(50) DEFAULT 'android',
         \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -2499,6 +2542,111 @@ ${urls}
   } catch (error) {
     console.error('Error generating sitemap:', error);
     res.status(500).type('text').send('Failed to generate sitemap.');
+  }
+});
+
+// Register FCM Device Push Token
+app.post('/api/register-push-token', async (req, res) => {
+  const { token, phone, email, platform } = req.body;
+  if (!token) return res.status(400).json({ error: 'Token is required' });
+  try {
+    const conn = await pool.getConnection();
+    await conn.query(`
+      INSERT INTO device_push_tokens (token, phone, email, platform)
+      VALUES (?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE phone = COALESCE(VALUES(phone), phone), email = COALESCE(VALUES(email), email), platform = VALUES(platform), updated_at = NOW()
+    `, [token, phone || null, email || null, platform || 'android']);
+    conn.release();
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error registering push token:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Chatwoot Webhook to send Push Notification when Admin replies
+app.post('/api/chatwoot-webhook', async (req, res) => {
+  try {
+    const payload = req.body;
+    console.log('[Chatwoot Webhook]', payload.event, 'type:', payload.message_type);
+
+    // Only process outgoing messages sent by agents/admins/bots
+    if (payload.event === 'message_created' && (payload.message_type === 'outgoing' || payload.message_type === 1)) {
+      const channelType = payload.inbox?.channel_type || payload.conversation?.channel || '';
+      
+      // If message is from WhatsApp channel, WhatsApp already notifies user on their WA app directly
+      if (channelType === 'Channel::Whatsapp') {
+        console.log('[Chatwoot Webhook] Outgoing message is for WhatsApp inbox; skipping app push.');
+        return res.status(200).send('OK');
+      }
+
+      const content = payload.content || 'Balasan pesan baru dari admin Highlanderstay';
+      const senderName = payload.sender?.name || 'Admin Highlanderstay';
+
+      if (firebaseApp) {
+        // Fetch registered push tokens
+        const conn = await pool.getConnection();
+        const [tokenRows] = await conn.query('SELECT token FROM device_push_tokens ORDER BY updated_at DESC LIMIT 50');
+        conn.release();
+
+        if (tokenRows && tokenRows.length > 0) {
+          const tokens = tokenRows.map(r => r.token).filter(Boolean);
+          console.log(`[FCM] Sending push notification to ${tokens.length} devices...`);
+
+          const message = {
+            notification: {
+              title: `💬 ${senderName}`,
+              body: content,
+            },
+            data: {
+              type: 'livechat',
+              sender: senderName,
+              content: content,
+              click_action: 'OPEN_CHAT',
+            },
+            android: {
+              priority: 'high',
+              notification: {
+                channelId: 'highlanderstay_livechat',
+                sound: 'default',
+                icon: 'ic_launcher',
+                clickAction: 'OPEN_CHAT',
+              },
+            },
+            tokens: tokens,
+          };
+
+          const response = await admin.messaging().sendEachForMulticast(message);
+          console.log(`[FCM] Push sent: ${response.successCount} success, ${response.failureCount} failed`);
+
+          // Clean up dead/unregistered tokens
+          if (response.failureCount > 0) {
+            const badTokens = [];
+            response.responses.forEach((resp, idx) => {
+              if (!resp.success) {
+                const errCode = resp.error?.code;
+                if (errCode === 'messaging/invalid-registration-token' || errCode === 'messaging/registration-token-not-registered') {
+                  badTokens.push(tokens[idx]);
+                }
+              }
+            });
+            if (badTokens.length > 0) {
+              const cleanConn = await pool.getConnection();
+              await cleanConn.query('DELETE FROM device_push_tokens WHERE token IN (?)', [badTokens]);
+              cleanConn.release();
+              console.log(`[FCM] Cleaned up ${badTokens.length} stale tokens.`);
+            }
+          }
+        }
+      } else {
+        console.warn('[FCM] Firebase not initialized; cannot send push notification');
+      }
+    }
+
+    res.status(200).send('OK');
+  } catch (err) {
+    console.error('Chatwoot webhook handler error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
