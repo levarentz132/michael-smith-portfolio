@@ -2317,20 +2317,42 @@ app.delete('/api/admins/:id', async (req, res) => {
   }
 });
 
+// In-memory cache for ultra-fast response with high concurrent users
+let memorySettingsCache = null;
+let memorySettingsCacheTime = 0;
+const SETTINGS_CACHE_TTL = 60 * 1000; // 60 seconds TTL
+
+async function getCachedSettings() {
+  const now = Date.now();
+  if (memorySettingsCache && (now - memorySettingsCacheTime < SETTINGS_CACHE_TTL)) {
+    return memorySettingsCache;
+  }
+  const [rows] = await pool.query('SELECT `setting_key`, `setting_value` FROM settings');
+  const settings = {};
+  rows.forEach(row => {
+    let val = row.setting_value;
+    try {
+      val = JSON.parse(row.setting_value);
+    } catch (e) {
+      // Fallback to raw string if it is not valid JSON
+    }
+    settings[row.setting_key] = val;
+  });
+  memorySettingsCache = settings;
+  memorySettingsCacheTime = now;
+  return settings;
+}
+
+function invalidateSettingsCache() {
+  memorySettingsCache = null;
+  memorySettingsCacheTime = 0;
+}
+
 // GET Website Settings
 app.get('/api/settings', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT `setting_key`, `setting_value` FROM settings');
-    const settings = {};
-    rows.forEach(row => {
-      let val = row.setting_value;
-      try {
-        val = JSON.parse(row.setting_value);
-      } catch (e) {
-        // Fallback to raw string if it is not valid JSON
-      }
-      settings[row.setting_key] = val;
-    });
+    const settings = await getCachedSettings();
+    res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     res.json(settings);
   } catch (error) {
     console.error('Error fetching settings:', error);
@@ -2341,28 +2363,18 @@ app.get('/api/settings', async (req, res) => {
 // GET Specific Banners list & configuration
 app.get('/api/banners', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT `setting_key`, `setting_value` FROM settings WHERE `setting_key` IN (?, ?, ?, ?, ?, ?, ?, ?)', [
-      'banners', 'banner_image', 'banner_eyebrow', 'banner_title', 'banner_description', 'banner_cta', 'banner_autoplay_interval', 'banner_enabled'
-    ]);
+    const settings = await getCachedSettings();
     const bannerConfig = {
-      banners: [],
-      banner_image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1920&q=80',
-      banner_eyebrow: 'Promo Spesial',
-      banner_title: 'Diskon Early Bird 20%',
-      banner_description: 'Pesan ruang impian Anda bulan ini dan nikmati potongan harga eksklusif untuk 3 bulan pertama.',
-      banner_cta: 'Klaim Promo',
-      banner_autoplay_interval: 5000,
-      banner_enabled: true
+      banners: Array.isArray(settings.banners) ? settings.banners : [],
+      banner_image: settings.banner_image || 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1920&q=80',
+      banner_eyebrow: settings.banner_eyebrow || 'Promo Spesial',
+      banner_title: settings.banner_title || 'Diskon Early Bird 20%',
+      banner_description: settings.banner_description || 'Pesan ruang impian Anda bulan ini dan nikmati potongan harga eksklusif untuk 3 bulan pertama.',
+      banner_cta: settings.banner_cta || 'Klaim Promo',
+      banner_autoplay_interval: settings.banner_autoplay_interval || 5000,
+      banner_enabled: settings.banner_enabled !== undefined ? settings.banner_enabled : true
     };
-    rows.forEach(row => {
-      let val = row.setting_value;
-      try {
-        val = JSON.parse(row.setting_value);
-      } catch (e) {
-        // raw string fallback
-      }
-      bannerConfig[row.setting_key] = val;
-    });
+    res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     res.json(bannerConfig);
   } catch (error) {
     console.error('Error fetching banners:', error);
@@ -2393,6 +2405,7 @@ app.put('/api/banners', async (req, res) => {
     });
 
     await Promise.all(promises);
+    invalidateSettingsCache();
     res.json({ success: true, updated: toUpdate });
   } catch (error) {
     console.error('Error updating banners:', error);
@@ -2417,6 +2430,7 @@ app.put('/api/settings', async (req, res) => {
     });
 
     await Promise.all(promises);
+    invalidateSettingsCache();
     res.json({ success: true });
   } catch (error) {
     console.error('Error updating settings:', error);
