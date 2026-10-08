@@ -86,14 +86,22 @@ function updateDocumentTitle() {
 function handleIncomingMessageData(raw: any) {
   if (!raw) return;
 
-  // Chatwoot message format handling
-  const content = typeof raw === 'string' ? raw : (raw.content || raw.text || raw.message || '');
-  const senderName = raw.sender?.name || (raw.sender?.type === 'user' ? 'Admin Highlanderstay' : 'Admin');
-  
-  // Ignore messages sent by the visitor themselves if sender is 'contact'
-  if (raw.sender?.type === 'contact' || raw.message_type === 1 || raw.message_type === 'outgoing') {
+  const msg = raw.data || raw.message || raw;
+  const content = typeof msg === 'string' ? msg : (msg.content || msg.text || msg.message || '');
+  const senderType = msg.sender?.type || msg.sender_type || '';
+  const messageType = msg.message_type;
+
+  // In Chatwoot SDK:
+  // message_type === 0 (or 'incoming') -> visitor sent it
+  // message_type === 1 (or 'outgoing' / 'template') -> agent/admin sent it
+  // sender.type === 'contact' -> visitor
+  // sender.type === 'user' / 'agent' / 'bot' -> admin/agent
+  const isFromVisitor = senderType === 'contact' || messageType === 0 || messageType === 'incoming';
+  if (isFromVisitor) {
     return;
   }
+
+  const senderName = msg.sender?.name || (senderType === 'user' || senderType === 'agent' ? 'Admin Highlanderstay' : 'Admin Highlanderstay');
 
   if (content && typeof content === 'string') {
     globalUnreadCount += 1;
@@ -112,7 +120,7 @@ function handleIncomingMessageData(raw: any) {
       // 2. Mobile vibration (works directly on Android / Capacitor)
       if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
         try {
-          navigator.vibrate([250, 100, 250]);
+          navigator.vibrate([300, 150, 300]);
         } catch {}
       }
 
@@ -124,7 +132,7 @@ function handleIncomingMessageData(raw: any) {
               body: content,
               icon: '/favicon.svg',
               badge: '/favicon.svg',
-              tag: 'highlanderstay-chat',
+              tag: 'highlanderstay-chat-' + Date.now(),
             });
           } catch {}
         } else if (Notification.permission === 'default') {

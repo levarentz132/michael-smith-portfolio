@@ -24,6 +24,7 @@ import { CatalogPage } from './components/CatalogPage';
 import { CartPage } from './components/CartPage';
 import { PortalPage } from './components/PortalPage';
 import { MobileBottomNav } from './components/MobileBottomNav';
+import { LiveChatToast } from './components/LiveChatToast';
 import { ShoppingCart } from 'lucide-react';
 import { fetchSettings, slugify, logoutTenant, fetchCart, clearCartToken } from './api';
 import type { UserSession, Property, WebsiteSettings } from './api';
@@ -463,6 +464,9 @@ function App() {
         onLoginClick={() => navigate('/portal')}
         onCatalogClick={() => navigate('/katalog')}
       />
+
+      {/* In-App LiveChat Notification Toast for New Admin Messages */}
+      <LiveChatToast />
 
       {/* Unpaid Cart Floating Reminder Toast */}
       <AnimatePresence>
