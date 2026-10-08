@@ -1,25 +1,26 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Home, ShoppingCart, LogIn, Building2, MapPin } from 'lucide-react';
+import { Home, MessageCircle, LogIn, Building2, MapPin } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { UserSession } from '../api';
+import { useLiveChat } from '../utils/liveChat';
 
 export interface MobileBottomNavProps {
-  cartCount: number;
+  cartCount?: number;
   userSession: UserSession | null;
   isCartOpen?: boolean;
   isProfileOpen?: boolean;
   isLoginOpen?: boolean;
-  onCartClick: () => void;
+  onCartClick?: () => void;
   onProfileClick: () => void;
   onLoginClick: () => void;
   onCatalogClick?: () => void;
 }
 
-export type MobileNavTab = 'home' | 'catalog' | 'map' | 'cart' | 'profile';
+export type MobileNavTab = 'home' | 'catalog' | 'map' | 'chat' | 'profile';
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
-  cartCount,
+  cartCount = 0,
   userSession,
   isCartOpen = false,
   isProfileOpen = false,
@@ -31,12 +32,10 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { unreadCount, openChat } = useLiveChat();
 
   // Determine active tab dynamically based on route and open modals
   const activeTab: MobileNavTab = React.useMemo(() => {
-    if (isCartOpen || location.pathname === '/cart' || location.pathname === '/keranjang') {
-      return 'cart';
-    }
     if (
       isProfileOpen ||
       isLoginOpen ||
@@ -68,7 +67,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       return 'home';
     }
     return 'home';
-  }, [location.pathname, location.hash, isCartOpen, isProfileOpen, isLoginOpen]);
+  }, [location.pathname, location.hash, isProfileOpen, isLoginOpen]);
 
   const handleHomeClick = () => {
     if (location.pathname !== '/') {
@@ -95,12 +94,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     }
   };
 
-  const handleCartClick = () => {
-    if (onCartClick) {
-      onCartClick();
-      return;
-    }
-    navigate('/cart');
+  const handleChatClick = () => {
+    openChat();
   };
 
   const handleProfileClick = () => {
@@ -135,11 +130,12 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       onClick: handleMapClick,
     },
     {
-      id: 'cart' as MobileNavTab,
-      label: 'Keranjang',
-      icon: ShoppingCart,
-      onClick: handleCartClick,
-      badge: cartCount > 0 ? (cartCount > 9 ? '9+' : cartCount) : null,
+      id: 'chat' as MobileNavTab,
+      label: 'Chat',
+      icon: MessageCircle,
+      onClick: handleChatClick,
+      badge: unreadCount > 0 ? (unreadCount > 9 ? '9+' : unreadCount) : null,
+      isLiveChat: true,
     },
     {
       id: 'profile' as MobileNavTab,
@@ -217,12 +213,12 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                   </motion.div>
                 )}
 
-                {/* Badge (e.g. for cart count) */}
+                {/* Badge (e.g. for unread chat messages or notifications) */}
                 {item.badge && (
                   <motion.span
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="absolute -top-1.5 -right-3 min-w-4 h-4 px-1 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 text-black text-[9px] font-black flex items-center justify-center shadow-md shadow-amber-500/30 ring-1 ring-[#0c0d0e]"
+                    className="absolute -top-1.5 -right-3 min-w-4 h-4 px-1 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500 text-bg text-[9px] font-black flex items-center justify-center shadow-md shadow-emerald-500/40 ring-1 ring-[#0c0d0e] animate-pulse"
                   >
                     {item.badge}
                   </motion.span>
