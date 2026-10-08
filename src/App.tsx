@@ -295,7 +295,16 @@ function App() {
         <Route path="/profil" element={<Navigate to="/portal" replace />} />
 
         {/* Map & Nearest Property Selector Route */}
-        <Route path="/map" element={<MapSelectorPage settings={settings} />} />
+        <Route 
+          path="/map" 
+          element={
+            <MapSelectorPage 
+              settings={settings} 
+              session={userSession}
+              onLoginSuccess={handleLoginSuccess}
+            />
+          } 
+        />
         <Route path="/peta" element={<Navigate to="/map" replace />} />
         <Route path="/lokasi" element={<Navigate to="/map" replace />} />
 

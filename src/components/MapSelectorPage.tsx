@@ -42,8 +42,9 @@ import {
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { fetchProperties, slugify } from '../api';
-import type { Property, WebsiteSettings } from '../api';
+import type { Property, WebsiteSettings, UserSession } from '../api';
 import { MapUserGuideModal } from './MapUserGuideModal';
+import { LoginModal } from './LoginModal';
 import {
   resolvePropertyCoordinates,
   calculateDistanceKm,
@@ -58,7 +59,9 @@ import { useSEO } from '../hooks/useSEO';
 
 interface MapSelectorPageProps {
   settings?: WebsiteSettings | null;
+  session?: UserSession | null;
   onBookProperty?: (property: Property) => void;
+  onLoginSuccess?: (session: UserSession) => void;
 }
 
 const AREA_DISPLAY_ORDER = [
@@ -99,8 +102,52 @@ function getPropertyArea(prop: Property): string {
   return loc || 'Lainnya';
 }
 
-export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) => {
+export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ 
+  settings, 
+  session: propSession, 
+  onLoginSuccess: propOnLoginSuccess 
+}) => {
   const navigate = useNavigate();
+
+  // User session state (synchronized with props & localStorage)
+  const [userSession, setUserSession] = useState<UserSession | null>(() => {
+    if (propSession) return propSession;
+    const savedSession = localStorage.getItem('userSession');
+    if (savedSession) {
+      try {
+        return JSON.parse(savedSession);
+      } catch (e) {
+        console.error('Error parsing userSession from localStorage', e);
+      }
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    if (propSession !== undefined) {
+      setUserSession(propSession);
+    }
+  }, [propSession]);
+
+  useEffect(() => {
+    const handleStorage = () => {
+      const savedSession = localStorage.getItem('userSession');
+      if (savedSession) {
+        try {
+          setUserSession(JSON.parse(savedSession));
+        } catch {
+          setUserSession(null);
+        }
+      } else {
+        setUserSession(null);
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [pendingKeeperContact, setPendingKeeperContact] = useState<{ phone?: string | null; title?: string } | null>(null);
 
   // Clean WhatsApp Number
   const adminWa = useMemo(() => {
@@ -115,6 +162,34 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
       : `Halo Penjaga Highlanderstay, saya ingin bertanya tentang rekomendasi kamar kos & apartemen yang siap huni.`;
     return `https://wa.me/${cleanNumber}?text=${encodeURIComponent(msg)}`;
   }, [adminWa]);
+
+  // Handler for Hubungi Penjaga (requires logged in tenant/user)
+  const handleContactKeeper = useCallback((phone?: string | null, propertyTitle?: string) => {
+    if (!userSession) {
+      setPendingKeeperContact({ phone, title: propertyTitle });
+      setLoginModalOpen(true);
+      return;
+    }
+    const targetUrl = formatWaUrl(phone, propertyTitle);
+    window.open(targetUrl, '_blank', 'noopener,noreferrer');
+  }, [userSession, formatWaUrl]);
+
+  const handleLoginSuccess = useCallback((session: UserSession) => {
+    localStorage.setItem('userSession', JSON.stringify(session));
+    if (session.token) {
+      localStorage.setItem('authToken', session.token);
+    }
+    setUserSession(session);
+    setLoginModalOpen(false);
+    if (propOnLoginSuccess) {
+      propOnLoginSuccess(session);
+    }
+    if (pendingKeeperContact) {
+      const targetUrl = formatWaUrl(pendingKeeperContact.phone, pendingKeeperContact.title);
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
+      setPendingKeeperContact(null);
+    }
+  }, [pendingKeeperContact, formatWaUrl, propOnLoginSuccess]);
 
   // SEO Optimization
   useSEO({
@@ -1084,16 +1159,15 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
                       <span>Foto & Info</span>
                     </button>
 
-                    <a
-                      href={formatWaUrl(prop.phone, prop.title)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-2 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-slate-950 text-xs font-black flex items-center gap-1 shrink-0 active:scale-95 transition-all shadow-md"
-                      title="Hubungi Penjaga via WhatsApp"
+                    <button
+                      type="button"
+                      onClick={() => handleContactKeeper(prop.phone, prop.title)}
+                      className="px-3 py-2 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-slate-950 text-xs font-black flex items-center gap-1 shrink-0 active:scale-95 transition-all shadow-md cursor-pointer"
+                      title={userSession ? "Hubungi Penjaga via WhatsApp" : "Masuk untuk Hubungi Penjaga via WhatsApp"}
                     >
                       <MessageCircle size={14} className="text-slate-950 fill-slate-950/20" />
                       <span>Hubungi Penjaga</span>
-                    </a>
+                    </button>
 
                     <button
                       type="button"
@@ -1408,16 +1482,15 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
 
                   {/* Modal Footer Action Buttons */}
                   <div className="sticky bottom-0 bg-surface/98 backdrop-blur-2xl border-t border-white/10 p-3 sm:p-4 flex items-center justify-between gap-2 sm:gap-3">
-                    <a
-                      href={formatWaUrl(prop.phone, prop.title)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 text-xs sm:text-sm font-bold flex items-center gap-1.5 sm:gap-2 transition-all shrink-0 active:scale-95"
-                      title="Hubungi Penjaga via WhatsApp"
+                    <button
+                      type="button"
+                      onClick={() => handleContactKeeper(prop.phone, prop.title)}
+                      className="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 text-xs sm:text-sm font-bold flex items-center gap-1.5 sm:gap-2 transition-all shrink-0 active:scale-95 cursor-pointer"
+                      title={userSession ? "Hubungi Penjaga via WhatsApp" : "Masuk untuk Hubungi Penjaga via WhatsApp"}
                     >
                       <MessageCircle size={16} className="text-emerald-400" />
                       <span>Hubungi Penjaga</span>
-                    </a>
+                    </button>
 
                     <button
                       type="button"
@@ -1501,16 +1574,17 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
                     </div>
                   </div>
 
-                  <a
-                    href={formatWaUrl(prop.phone, prop.title)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="p-2.5 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-slate-950 text-xs shrink-0 active:scale-90 transition-all shadow-md"
-                    title="Hubungi Penjaga"
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleContactKeeper(prop.phone, prop.title);
+                    }}
+                    className="p-2.5 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-slate-950 text-xs shrink-0 active:scale-90 transition-all shadow-md cursor-pointer"
+                    title={userSession ? "Hubungi Penjaga via WhatsApp" : "Masuk untuk Hubungi Penjaga via WhatsApp"}
                   >
                     <MessageCircle size={15} className="text-slate-950 fill-slate-950/20" />
-                  </a>
+                  </button>
                 </div>
               ))}
             </div>
@@ -1524,6 +1598,18 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ settings }) =>
       <MapUserGuideModal
         isOpen={isGuideOpen}
         onClose={() => setIsGuideOpen(false)}
+      />
+
+      {/* =========================================================================
+          LOGIN MODAL FOR HUBUNGI PENJAGA (AUTH RESTRICTION)
+         ========================================================================= */}
+      <LoginModal
+        isOpen={loginModalOpen}
+        onClose={() => {
+          setLoginModalOpen(false);
+          setPendingKeeperContact(null);
+        }}
+        onLoginSuccess={handleLoginSuccess}
       />
 
     </div>

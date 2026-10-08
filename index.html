@@ -36,7 +36,22 @@
         hideMessageBubble: true,
         position: 'right',
         locale: 'id',
-        type: 'standard'
+        type: 'standard',
+        launcherTitle: '',
+        preChatForm: {
+          enabled: true,
+          greetingLabel: 'Silakan masukkan nomor telepon Anda untuk memulai chat.',
+          fields: {
+            email: {
+              required: false,
+              enabled: false
+            },
+            phone_number: {
+              required: true,
+              enabled: true
+            }
+          }
+        }
       };
       (function(d,t) {
         var BASE_URL="https://chatwoot.highlanderstay.com";
