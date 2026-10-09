@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Mail, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Mail, ShieldCheck, Phone, MapPin, Bell, MessageSquare, Database } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSEO } from '../hooks/useSEO';
 
@@ -7,9 +7,9 @@ export const PrivacyPolicyPage: React.FC = () => {
   const navigate = useNavigate();
 
   useSEO({
-    title: 'Privacy Policy | Highlanderstay',
-    description: 'Privacy Policy for Highlanderstay, including how we collect, use, protect, and manage customer data for room booking and communication services.',
-    keywords: 'Highlanderstay privacy policy, privacy policy, data protection, booking privacy',
+    title: 'Kebijakan Privasi (Privacy Policy) | Highlanderstay App',
+    description: 'Privacy Policy for Highlanderstay mobile app and web platform, outlining how user data, location, push notifications, and room booking records are handled and protected.',
+    keywords: 'Highlanderstay privacy policy, Google Play privacy policy, data safety, push notification privacy',
     canonicalUrl: 'https://highlanderstay.com/privacy-policy'
   });
 
@@ -22,93 +22,106 @@ export const PrivacyPolicyPage: React.FC = () => {
           className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted hover:text-text-primary transition-colors mb-8"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Highlanderstay
+          Kembali ke Beranda
         </button>
 
-        <div className="border border-stroke bg-surface rounded-3xl p-6 md:p-10 shadow-xl">
+        <div className="border border-stroke bg-surface rounded-3xl p-6 md:p-10 shadow-xl text-left">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-              <ShieldCheck className="w-5 h-5" />
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+              <ShieldCheck className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-muted font-bold">Highlanderstay</p>
-              <h1 className="text-2xl md:text-4xl font-display italic font-semibold">Privacy Policy</h1>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-muted font-bold">Highlanderstay Android App & Web</p>
+              <h1 className="text-2xl md:text-4xl font-display font-bold">Kebijakan Privasi (Privacy Policy)</h1>
             </div>
           </div>
 
-          <p className="text-xs text-muted mb-8">Last updated: August 9, 2026</p>
+          <div className="flex items-center gap-4 text-xs text-muted mb-8 pb-4 border-b border-white/10">
+            <span>Terakhir diperbarui: <strong>9 Oktober 2026</strong></span>
+            <span>•</span>
+            <span>Berlaku untuk: <strong>com.highlanderstay.app</strong></span>
+          </div>
 
-          <div className="space-y-7 text-sm leading-relaxed text-muted">
-            <section>
-              <h2 className="text-base font-bold text-text-primary mb-2">1. Information We Collect</h2>
+          <div className="space-y-8 text-sm leading-relaxed text-muted">
+            <p>
+              Selamat datang di <strong>Highlanderstay</strong> (aplikasi seluler Android <code>com.highlanderstay.app</code> dan situs web <code>https://highlanderstay.com</code>). Kami sangat menghargai privasi Anda dan berkomitmen untuk melindungi data pribadi pengguna saat menjelajah kamar kos, apartemen, maupun melakukan reservasi.
+            </p>
+
+            <section className="space-y-3">
+              <h2 className="text-base font-bold text-text-primary flex items-center gap-2">
+                <Database className="w-4 h-4 text-amber-400" />
+                <span>1. Data yang Kami Kumpulkan</span>
+              </h2>
+              <p>Kami mengumpulkan data berikut yang Anda berikan secara sukarela untuk kelancaran operasional layanan:</p>
+              <ul className="list-disc pl-5 space-y-1.5">
+                <li><strong>Informasi Kontak & Akun:</strong> Nama lengkap, nomor telepon (WhatsApp), alamat email, dan identitas verifikasi penyewa saat melakukan login atau booking.</li>
+                <li><strong>Data Transaksi & Booking:</strong> Informasi kamar/unit yang dipilih, durasi sewa, tanggal check-in, dan status pembayaran.</li>
+                <li><strong>Pesan & Live Chat:</strong> Percakapan, pertanyaan, atau keluhan yang dikirimkan melalui fitur Live Chat dalam aplikasi.</li>
+              </ul>
+            </section>
+
+            <section className="space-y-3">
+              <h2 className="text-base font-bold text-text-primary flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-rose-400" />
+                <span>2. Izin Akses Lokasi (GPS)</span>
+              </h2>
               <p>
-                Highlanderstay may collect personal information such as name, phone number, email address,
-                booking details, identity information submitted for tenant verification, payment status, and
-                messages sent to us through our website, WhatsApp, Meta/Facebook lead forms, or related services.
+                Aplikasi dapat meminta izin akses lokasi perangkat (GPS) <strong>hanya jika Anda mengizinkannya secara eksplisit</strong> saat menggunakan fitur peta interaktif. Data lokasi hanya digunakan secara real-time pada perangkat untuk menghitung jarak dan menampilkan unit kos terdekat dari posisi Anda, dan tidak disimpan atau dilacak di latar belakang secara permanen.
               </p>
             </section>
 
-            <section>
-              <h2 className="text-base font-bold text-text-primary mb-2">2. How We Use Information</h2>
+            <section className="space-y-3">
+              <h2 className="text-base font-bold text-text-primary flex items-center gap-2">
+                <Bell className="w-4 h-4 text-emerald-400" />
+                <span>3. Notifikasi Push & Perangkat (FCM)</span>
+              </h2>
               <p>
-                We use customer information to process room bookings, confirm availability, contact customers,
-                provide tenant support, handle complaints, improve our service, and comply with operational or
-                legal requirements. We may also use contact details to respond to inquiries submitted through
-                Facebook, Instagram, WhatsApp, or our website.
+                Untuk menyampaikan informasi penting seperti balasan Live Chat dari admin atau konfirmasi booking secara real-time saat aplikasi sedang ditutup, aplikasi menggunakan layanan <strong>Google Firebase Cloud Messaging (FCM)</strong>. Token perangkat acak (FCM Device Token) disimpan dengan aman di server kami untuk mengirimkan notifikasi tersebut.
               </p>
             </section>
 
-            <section>
-              <h2 className="text-base font-bold text-text-primary mb-2">3. Payments</h2>
+            <section className="space-y-3">
+              <h2 className="text-base font-bold text-text-primary flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-sky-400" />
+                <span>4. Penggunaan Layanan Pihak Ketiga</span>
+              </h2>
+              <p>Untuk menunjang fungsionalitas aplikasi, kami bekerja sama dengan penyedia layanan pihak ketiga tepercaya:</p>
+              <ul className="list-disc pl-5 space-y-1.5">
+                <li><strong>Google Firebase (FCM):</strong> Untuk infrastruktur pengiriman Push Notification.</li>
+                <li><strong>Chatwoot:</strong> Untuk modul layanan pelanggan Live Chat.</li>
+                <li><strong>Payment Gateway (DOKU / Midtrans):</strong> Untuk memproses transaksi pembayaran secara aman. Kami tidak pernah menyimpan nomor kartu kredit atau PIN perbankan Anda.</li>
+                <li><strong>OpenStreetMap:</strong> Untuk menampilkan peta lokasi properti.</li>
+              </ul>
+            </section>
+
+            <section className="space-y-3">
+              <h2 className="text-base font-bold text-text-primary">5. Pembagian Data (Data Sharing)</h2>
               <p>
-                Online payments for eligible transit bookings may be processed by a third-party payment provider.
-                Highlanderstay does not store full card or bank account details. Payment provider data is handled
-                according to the provider&apos;s own security and privacy practices.
+                Kami <strong>tidak pernah menjual, menyewakan, atau memperjualbelikan</strong> data pribadi Anda kepada pihak ketiga manapun untuk tujuan periklanan atau pemasaran pihak lain.
               </p>
             </section>
 
-            <section>
-              <h2 className="text-base font-bold text-text-primary mb-2">4. Sharing of Information</h2>
+            <section className="space-y-3">
+              <h2 className="text-base font-bold text-text-primary">6. Hak Pengguna & Penghapusan Data (Data Deletion)</h2>
               <p>
-                We do not sell personal information. We may share limited information with service providers that
-                help us operate bookings, payments, customer communication, hosting, analytics, or security. We may
-                also disclose information when required by law or to protect our business, customers, or property.
+                Anda berhak untuk meminta salinan, pembaruan, atau <strong>penghapusan akun dan seluruh data pribadi Anda</strong> kapan saja. Anda dapat mengajukan permohonan penghapusan data dengan menghubungi kami melalui email resmi di bawah ini dengan subjek <em>"Permohonan Hapus Data Pengguna"</em>.
               </p>
             </section>
 
-            <section>
-              <h2 className="text-base font-bold text-text-primary mb-2">5. Data Security</h2>
+            <section className="space-y-3 pt-4 border-t border-white/10">
+              <h2 className="text-base font-bold text-text-primary">7. Kontak Kami</h2>
               <p>
-                We apply reasonable technical and organizational safeguards to protect personal information.
-                However, no internet-based service can be guaranteed to be completely secure.
+                Jika Anda memiliki pertanyaan mengenai kebijakan privasi ini atau pengelolaan data di aplikasi Highlanderstay, silakan hubungi tim kami:
               </p>
-            </section>
-
-            <section>
-              <h2 className="text-base font-bold text-text-primary mb-2">6. Data Retention</h2>
-              <p>
-                We keep personal information only as long as needed for booking operations, tenant management,
-                customer support, accounting records, dispute handling, and legal compliance.
-              </p>
-            </section>
-
-            <section>
-              <h2 className="text-base font-bold text-text-primary mb-2">7. Your Choices</h2>
-              <p>
-                You may contact us to request access, correction, or deletion of your personal information,
-                subject to operational, legal, and record-keeping requirements.
-              </p>
-            </section>
-
-            <section>
-              <h2 className="text-base font-bold text-text-primary mb-2">8. Contact Us</h2>
-              <p>
-                For privacy questions or data requests, please contact Highlanderstay through our official
-                customer support channel.
-              </p>
-              <div className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-stroke bg-bg px-4 py-3 text-text-primary">
-                <Mail className="w-4 h-4 text-muted" />
-                <span className="text-xs font-semibold">support@highlanderstay.com</span>
+              <div className="flex flex-wrap gap-3 mt-3">
+                <div className="inline-flex items-center gap-2 rounded-2xl border border-stroke bg-bg px-4 py-3 text-text-primary">
+                  <Mail className="w-4 h-4 text-emerald-400" />
+                  <span className="text-xs font-semibold">support@highlanderstay.com</span>
+                </div>
+                <div className="inline-flex items-center gap-2 rounded-2xl border border-stroke bg-bg px-4 py-3 text-text-primary">
+                  <Phone className="w-4 h-4 text-amber-400" />
+                  <span className="text-xs font-semibold">+62 812-3456-7890</span>
+                </div>
               </div>
             </section>
           </div>
@@ -117,3 +130,4 @@ export const PrivacyPolicyPage: React.FC = () => {
     </main>
   );
 };
+
