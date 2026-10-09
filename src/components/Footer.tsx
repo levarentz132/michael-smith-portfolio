@@ -131,8 +131,8 @@ export const Footer: React.FC = () => {
           <span className="text-[10px] sm:text-xs text-muted uppercase tracking-[0.15em] font-semibold">Pemesanan Dibuka untuk Juni 2026</span>
         </div>
 
-        {/* Social Links */}
-        <div className="flex items-center gap-4 sm:gap-6 order-1 md:order-2">
+        {/* Social & Policy Links */}
+        <div className="flex flex-wrap items-center gap-4 sm:gap-6 order-1 md:order-2">
           {socials.map((social) => (
             <a 
               key={social.name}
@@ -144,6 +144,12 @@ export const Footer: React.FC = () => {
               {social.name}
             </a>
           ))}
+          <a
+            href="/privacy-policy"
+            className="text-[10px] sm:text-xs text-amber-400 hover:text-amber-300 uppercase tracking-[0.15em] font-semibold transition-colors duration-300"
+          >
+            Kebijakan Privasi & Syarat
+          </a>
         </div>
 
         {/* Copyright */}

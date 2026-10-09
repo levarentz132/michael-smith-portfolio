@@ -718,6 +718,28 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                         {isSubmitting ? 'Mendaftarkan...' : 'Daftar dengan WhatsApp'}
                         <ArrowRight size={14} />
                       </button>
+
+                      <p className="text-[11px] text-muted text-center leading-relaxed mt-1 px-1">
+                        Dengan mendaftar akun, Anda menyatakan telah membaca & menyetujui{' '}
+                        <a 
+                          href="/privacy-policy" 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-amber-400 hover:underline font-semibold"
+                        >
+                          Syarat & Ketentuan
+                        </a>{' '}
+                        serta{' '}
+                        <a 
+                          href="/privacy-policy" 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-amber-400 hover:underline font-semibold"
+                        >
+                          Kebijakan Privasi
+                        </a>{' '}
+                        Highlanderstay.
+                      </p>
                     </form>
                   )}
                 </>

@@ -102,16 +102,29 @@ export const PrivacyPolicyPage: React.FC = () => {
             </section>
 
             <section className="space-y-3">
-              <h2 className="text-base font-bold text-text-primary">6. Hak Pengguna & Penghapusan Data (Data Deletion)</h2>
+              <h2 className="text-base font-bold text-text-primary">6. Syarat & Ketentuan Penggunaan Akun</h2>
+              <p>
+                Dengan mendaftar akun atau menggunakan platform Highlanderstay, pengguna menyetujui ketentuan berikut:
+              </p>
+              <ul className="list-disc pl-5 space-y-1.5">
+                <li>Pengguna wajib memberikan data nomor telepon WhatsApp dan informasi identitas yang valid dan benar.</li>
+                <li>Pengguna bertanggung jawab penuh atas keamanan kredensial akun dan kerahasiaan kata sandi/kode OTP masing-masing.</li>
+                <li>Pemesanan dan pembayaran sewa kamar wajib mengikuti ketentuan reservasi yang berlaku di masing-masing unit properti Highlanderstay.</li>
+                <li>Dilarang menyalahgunakan sistem, melakukan spam, atau melakukan tindakan melawan hukum dalam properti maupun sistem digital Highlanderstay.</li>
+              </ul>
+            </section>
+
+            <section className="space-y-3">
+              <h2 className="text-base font-bold text-text-primary">7. Hak Pengguna & Penghapusan Data (Data Deletion)</h2>
               <p>
                 Anda berhak untuk meminta salinan, pembaruan, atau <strong>penghapusan akun dan seluruh data pribadi Anda</strong> kapan saja. Anda dapat mengajukan permohonan penghapusan data dengan menghubungi kami melalui email resmi di bawah ini dengan subjek <em>"Permohonan Hapus Data Pengguna"</em>.
               </p>
             </section>
 
             <section className="space-y-3 pt-4 border-t border-white/10">
-              <h2 className="text-base font-bold text-text-primary">7. Kontak Kami</h2>
+              <h2 className="text-base font-bold text-text-primary">8. Kontak Kami</h2>
               <p>
-                Jika Anda memiliki pertanyaan mengenai kebijakan privasi ini atau pengelolaan data di aplikasi Highlanderstay, silakan hubungi tim kami:
+                Jika Anda memiliki pertanyaan mengenai kebijakan privasi atau syarat & ketentuan ini di aplikasi Highlanderstay, silakan hubungi tim kami:
               </p>
               <div className="flex flex-wrap gap-3 mt-3">
                 <div className="inline-flex items-center gap-2 rounded-2xl border border-stroke bg-bg px-4 py-3 text-text-primary">
@@ -120,7 +133,7 @@ export const PrivacyPolicyPage: React.FC = () => {
                 </div>
                 <div className="inline-flex items-center gap-2 rounded-2xl border border-stroke bg-bg px-4 py-3 text-text-primary">
                   <Phone className="w-4 h-4 text-amber-400" />
-                  <span className="text-xs font-semibold">+62 812-3456-7890</span>
+                  <span className="text-xs font-semibold">+62 818-0623-6581</span>
                 </div>
               </div>
             </section>

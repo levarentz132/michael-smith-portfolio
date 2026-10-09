@@ -285,6 +285,18 @@ export const PortalPage: React.FC<PortalPageProps> = ({
               >
                 Daftar Akun Baru (Calon Penghuni)
               </button>
+
+              <p className="text-[11px] text-muted text-center pt-2 leading-relaxed">
+                Dengan mendaftar atau masuk, Anda menyetujui{' '}
+                <Link to="/privacy-policy" className="text-amber-400 hover:underline font-semibold">
+                  Syarat & Ketentuan
+                </Link>{' '}
+                serta{' '}
+                <Link to="/privacy-policy" className="text-amber-400 hover:underline font-semibold">
+                  Kebijakan Privasi
+                </Link>{' '}
+                kami.
+              </p>
             </div>
           </div>
         )}
