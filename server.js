@@ -9,7 +9,8 @@ import { fileURLToPath } from 'url';
 import multer from 'multer';
 import midtransClient from 'midtrans-client';
 import crypto from 'crypto';
-import admin from 'firebase-admin';
+import { initializeApp, cert } from 'firebase-admin/app';
+import { getMessaging } from 'firebase-admin/messaging';
 
 dotenv.config();
 
@@ -34,8 +35,8 @@ try {
 
   if (serviceAccountPath) {
     const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
-    firebaseApp = admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount)
+    firebaseApp = initializeApp({
+      credential: cert(serviceAccount)
     });
     console.log('[Firebase Admin] Initialized successfully for project:', serviceAccount.project_id);
   } else {
@@ -2616,7 +2617,7 @@ app.post('/api/chatwoot-webhook', async (req, res) => {
             tokens: tokens,
           };
 
-          const response = await admin.messaging().sendEachForMulticast(message);
+          const response = await getMessaging(firebaseApp).sendEachForMulticast(message);
           console.log(`[FCM] Push sent: ${response.successCount} success, ${response.failureCount} failed`);
 
           // Clean up dead/unregistered tokens

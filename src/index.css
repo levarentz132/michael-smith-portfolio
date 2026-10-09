@@ -415,3 +415,19 @@ video:focus {
   background: rgba(245, 158, 11, 0.4);
 }
 
+/* Completely suppress any Chatwoot unread popup cards / dialogs on screen */
+.woot-widget-holder.has-unread-view,
+.woot-widget-bubble.has-unread-view,
+#cw-widget-holder.has-unread-view,
+.woot-unread-container,
+.has-unread-view {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  width: 0 !important;
+  max-height: 0 !important;
+  overflow: hidden !important;
+}
+
