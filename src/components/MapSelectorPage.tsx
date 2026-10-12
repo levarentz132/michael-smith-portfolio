@@ -221,7 +221,8 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
 
   // Filtering & Navigation states
   const [selectedArea, setSelectedArea] = useState<string>('Semua Area');
-  const [onlyAvailableHot, setOnlyAvailableHot] = useState<boolean>(false);
+  // Default to true for only available rooms so users are not confused by full rooms
+  const [onlyAvailable, setOnlyAvailable] = useState<boolean>(true);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
@@ -321,7 +322,7 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
         }
       }
 
-      if (onlyAvailableHot) {
+      if (onlyAvailable) {
         if (!item.availableRooms || item.availableRooms <= 0) {
           return false;
         }
@@ -338,7 +339,14 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
     });
 
     return list;
-  }, [propertiesWithDistance, selectedArea, onlyAvailableHot, selectedLandmark]);
+  }, [propertiesWithDistance, selectedArea, onlyAvailable, selectedLandmark]);
+
+  // Ensure active property is cleared if filter excludes it
+  useEffect(() => {
+    if (activeProperty && !filteredProperties.some((p) => p.id === activeProperty.id)) {
+      setActiveProperty(null);
+    }
+  }, [filteredProperties, activeProperty]);
 
   // Identify nearest property
   const nearestProperty = useMemo(() => {
@@ -924,8 +932,41 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
           </AnimatePresence>
         </div>
 
-        {/* Horizontal Scrolling Area Chips Row */}
+        {/* Quick Filter Row: Availability Segmented Toggle + Area Filter Chips */}
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 px-0.5 scroll-smooth">
+          {/* Availability Segmented Control (Default: Kamar Tersedia, Option to show full rooms) */}
+          <div className="inline-flex items-center p-0.5 bg-surface/95 backdrop-blur-2xl border border-white/20 rounded-full shadow-lg shrink-0">
+            <button
+              type="button"
+              onClick={() => setOnlyAvailable(true)}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-all cursor-pointer active:scale-95 ${
+                onlyAvailable
+                  ? 'bg-emerald-500 text-slate-950 font-black shadow-md shadow-emerald-500/30'
+                  : 'text-text-primary/70 hover:text-white'
+              }`}
+              title="Filter default: hanya unit kos yang memiliki kamar kosong siap huni"
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${onlyAvailable ? 'bg-slate-950 animate-pulse' : 'bg-emerald-400'}`} />
+              <span>Kamar Tersedia</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setOnlyAvailable(false)}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-all cursor-pointer active:scale-95 ${
+                !onlyAvailable
+                  ? 'bg-amber-400 text-slate-950 font-black shadow-md shadow-amber-500/30'
+                  : 'text-text-primary/70 hover:text-white'
+              }`}
+              title="Opsi untuk melihat semua unit kos termasuk yang kamar penuh"
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${!onlyAvailable ? 'bg-slate-950' : 'bg-rose-400'}`} />
+              <span>Semua (Termasuk Full)</span>
+            </button>
+          </div>
+
+          <div className="w-[1px] h-5 bg-white/20 shrink-0 mx-0.5" />
+
+          {/* Area Chips */}
           {AREA_DISPLAY_ORDER.map((area) => {
             const isActive = selectedArea === area;
             return (
@@ -942,20 +983,42 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
               </button>
             );
           })}
-
-          {/* HOT filter toggle */}
-          <button
-            onClick={() => setOnlyAvailableHot(!onlyAvailableHot)}
-            className={`flex items-center gap-1 px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider shrink-0 transition-all shadow-md backdrop-blur-md cursor-pointer active:scale-95 ${
-              onlyAvailableHot
-                ? 'bg-gradient-to-r from-orange-500 to-rose-500 text-white border border-orange-400 shadow-orange-500/30'
-                : 'bg-surface/90 border border-orange-500/30 text-orange-300 hover:bg-orange-500/20'
-            }`}
-          >
-            <Flame size={12} className={onlyAvailableHot ? 'fill-white' : 'text-orange-400'} />
-            <span>Ready (HOT)</span>
-          </button>
         </div>
+
+        {/* Empty State Banner when filtered list has 0 results */}
+        {filteredProperties.length === 0 && (
+          <div className="p-2.5 sm:p-3 rounded-2xl bg-[#111827]/95 backdrop-blur-2xl border-2 border-slate-700/80 text-xs text-white flex items-center justify-between gap-2 shadow-2xl animate-in fade-in zoom-in-95">
+            <div className="flex items-center gap-2 min-w-0">
+              <Info size={16} className="text-amber-400 shrink-0" />
+              <span className="truncate">
+                {onlyAvailable
+                  ? `Tidak ada kamar kosong tersedia di ${selectedArea !== 'Semua Area' ? selectedArea : 'pilihan ini'}.`
+                  : `Tidak ada properti di ${selectedArea}.`}
+              </span>
+            </div>
+            {onlyAvailable ? (
+              <button
+                type="button"
+                onClick={() => setOnlyAvailable(false)}
+                className="px-3 py-1 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-[11px] font-black shrink-0 transition-colors shadow cursor-pointer active:scale-95"
+              >
+                Lihat Kamar Penuh
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedArea('Semua Area');
+                  setSearchQuery('');
+                  setOnlyAvailable(true);
+                }}
+                className="px-3 py-1 rounded-xl bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold shrink-0 transition-colors cursor-pointer active:scale-95"
+              >
+                Reset Filter
+              </button>
+            )}
+          </div>
+        )}
 
         {/* GPS Error Notification */}
         {gpsError && (
@@ -987,7 +1050,11 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
         <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+4.75rem)] sm:bottom-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
           <div className="bg-white/95 backdrop-blur-xl border border-slate-300/80 px-4 py-2 rounded-full shadow-2xl text-xs font-bold text-slate-900 flex items-center gap-2 whitespace-nowrap">
             <Info size={14} className="text-amber-600 shrink-0" />
-            <span className="text-slate-900 font-bold">Ketuk pin di peta untuk info & foto kamar</span>
+            <span className="text-slate-900 font-bold">
+              {onlyAvailable
+                ? 'Hanya kamar tersedia • Ketuk pin untuk detail'
+                : 'Menampilkan semua kamar • Ketuk pin untuk detail'}
+            </span>
           </div>
         </div>
       )}
@@ -1494,16 +1561,44 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
             exit={{ opacity: 0, x: -300 }}
             className="fixed top-0 left-0 bottom-0 w-full max-w-sm bg-surface/98 backdrop-blur-3xl border-r border-white/15 z-50 p-4 flex flex-col shadow-2xl text-left pointer-events-auto"
           >
-            <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-2">
               <div className="flex items-center gap-2">
                 <Building2 size={18} className="text-amber-400" />
-                <h3 className="font-bold text-sm text-text-primary">Semua Properti ({filteredProperties.length})</h3>
+                <h3 className="font-bold text-sm text-text-primary">
+                  {onlyAvailable ? 'Kamar Tersedia' : 'Semua Properti'} ({filteredProperties.length})
+                </h3>
               </div>
               <button
                 onClick={() => setIsDrawerOpen(false)}
                 className="p-1 rounded-full hover:bg-white/10 text-muted hover:text-white"
               >
                 <X size={18} />
+              </button>
+            </div>
+
+            {/* Quick Availability Toggle in Drawer */}
+            <div className="flex items-center p-0.5 bg-white/5 border border-white/10 rounded-xl mb-3">
+              <button
+                type="button"
+                onClick={() => setOnlyAvailable(true)}
+                className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-center transition-all cursor-pointer ${
+                  onlyAvailable
+                    ? 'bg-emerald-500 text-slate-950 font-black shadow-sm'
+                    : 'text-muted hover:text-white'
+                }`}
+              >
+                Kamar Tersedia
+              </button>
+              <button
+                type="button"
+                onClick={() => setOnlyAvailable(false)}
+                className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-center transition-all cursor-pointer ${
+                  !onlyAvailable
+                    ? 'bg-amber-400 text-slate-950 font-black shadow-sm'
+                    : 'text-muted hover:text-white'
+                }`}
+              >
+                Termasuk Full
               </button>
             </div>
 
