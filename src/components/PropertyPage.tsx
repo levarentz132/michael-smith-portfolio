@@ -179,6 +179,27 @@ export const PropertyPage: React.FC = () => {
     loadSettingsData();
   }, []);
 
+  // Auto-open booking modal if navigated via direct booking link (e.g. ?book=true&room=...)
+  useEffect(() => {
+    if (!property) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const shouldOpenBooking = params.get('book') === 'true' || params.get('book') === '1' || params.get('booking') === 'true';
+    const roomParam = params.get('room');
+
+    if (roomParam) {
+      setSelectedRoomName(roomParam);
+    }
+
+    if (shouldOpenBooking) {
+      if (!userSession) {
+        setLoginModalOpen(true);
+      } else {
+        setBookingOpen(true);
+      }
+    }
+  }, [property]);
+
   // Prevent body scroll and handle Escape key when lightbox state changes
   useEffect(() => {
     if (isLightboxOpen) {
