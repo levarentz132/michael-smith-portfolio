@@ -220,9 +220,12 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
 
   // Filtering & Navigation states
   const [selectedArea, setSelectedArea] = useState<string>('Semua Area');
-  // Default to true for only available rooms so users are not confused by full rooms
+  // Default to true for only available rooms on map
   const [onlyAvailable, setOnlyAvailable] = useState<boolean>(true);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  // Show left sidebar room list by default
+  const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(true);
+  // Left sidebar room list defaults to showing ALL rooms
+  const [drawerOnlyAvailable, setDrawerOnlyAvailable] = useState<boolean>(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
 
@@ -346,6 +349,35 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
       setActiveProperty(null);
     }
   }, [filteredProperties, activeProperty]);
+
+  // Drawer room list: defaults to showing ALL properties/rooms so users can browse the complete list as default
+  const drawerProperties = useMemo(() => {
+    let list = propertiesWithDistance.filter((item) => {
+      if (selectedArea !== 'Semua Area') {
+        const area = getPropertyArea(item);
+        if (area.toLowerCase() !== selectedArea.toLowerCase()) {
+          return false;
+        }
+      }
+
+      if (drawerOnlyAvailable) {
+        if (!item.availableRooms || item.availableRooms <= 0) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    list.sort((a, b) => {
+      if (selectedLandmark) {
+        return (a.distanceKm ?? 9999) - (b.distanceKm ?? 9999);
+      }
+      return (b.availableRooms || 0) - (a.availableRooms || 0);
+    });
+
+    return list;
+  }, [propertiesWithDistance, selectedArea, drawerOnlyAvailable, selectedLandmark]);
 
   // Identify nearest property
   const nearestProperty = useMemo(() => {
@@ -1564,50 +1596,53 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
               <div className="flex items-center gap-2">
                 <Building2 size={18} className="text-amber-400" />
                 <h3 className="font-bold text-sm text-text-primary">
-                  {onlyAvailable ? 'Kamar Tersedia' : 'Semua Properti'} ({filteredProperties.length})
+                  Daftar Kamar ({drawerProperties.length})
                 </h3>
               </div>
               <button
                 onClick={() => setIsDrawerOpen(false)}
                 className="p-1 rounded-full hover:bg-white/10 text-muted hover:text-white"
+                title="Tutup Sidebar"
               >
                 <X size={18} />
               </button>
             </div>
 
-            {/* Quick Availability Toggle in Drawer */}
+            {/* Quick Availability Toggle in Drawer (Default: Semua Unit) */}
             <div className="flex items-center p-0.5 bg-white/5 border border-white/10 rounded-xl mb-3">
               <button
                 type="button"
-                onClick={() => setOnlyAvailable(true)}
+                onClick={() => setDrawerOnlyAvailable(false)}
                 className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-center transition-all cursor-pointer ${
-                  onlyAvailable
-                    ? 'bg-emerald-500 text-slate-950 font-black shadow-sm'
-                    : 'text-muted hover:text-white'
-                }`}
-              >
-                Kamar Tersedia
-              </button>
-              <button
-                type="button"
-                onClick={() => setOnlyAvailable(false)}
-                className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-center transition-all cursor-pointer ${
-                  !onlyAvailable
+                  !drawerOnlyAvailable
                     ? 'bg-amber-400 text-slate-950 font-black shadow-sm'
                     : 'text-muted hover:text-white'
                 }`}
               >
-                Termasuk Full
+                Semua Unit ({propertiesWithDistance.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setDrawerOnlyAvailable(true)}
+                className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-center transition-all cursor-pointer ${
+                  drawerOnlyAvailable
+                    ? 'bg-emerald-500 text-slate-950 font-black shadow-sm'
+                    : 'text-muted hover:text-white'
+                }`}
+              >
+                Hanya Ready
               </button>
             </div>
 
             <div className="space-y-2.5 overflow-y-auto flex-1 custom-scrollbar pr-1">
-              {filteredProperties.map((prop, idx) => (
+              {drawerProperties.map((prop, idx) => (
                 <div
                   key={prop.id || idx}
                   onClick={() => {
                     setActiveProperty(prop);
-                    setIsDrawerOpen(false);
+                    if (window.innerWidth < 768) {
+                      setIsDrawerOpen(false);
+                    }
                     if (mapInstanceRef.current) {
                       mapInstanceRef.current.setView(
                         [prop.coordinates.lat, prop.coordinates.lng],
