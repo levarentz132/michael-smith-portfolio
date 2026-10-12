@@ -57,7 +57,7 @@ export async function initPushNotifications() {
       }
     });
 
-    PushNotifications.addListener('registrationError', (error) => {
+    PushNotifications.addListener('registrationError', (error: any) => {
       console.error('[FCM Push] Registration error:', error);
     });
 

@@ -498,6 +498,122 @@ const FALLBACK_PROPERTY_IMAGES = {
   defaultApartment: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80'
 };
 
+const KNOWN_PROPERTY_DB_IDS = {
+  'alpukat': 5,
+  'apartemen-sedayu': 2,
+  'apartemen': 2,
+  'green-garden': 3,
+  'mangga': 6,
+  'greenville': 6,
+  'jelambar': 14,
+  'kios-mal-taman-palem': 16,
+  'kiosk': 16,
+  'lahan': 7,
+  'pakjo': 11,
+  'pedongkelan': 10,
+  'pesing-baru': 4,
+  'pesing-lama': 12,
+  'rajawali': 15,
+  'rumah-taman-ratu': 13,
+  'rumah': 13,
+  'sumur-bor': 8,
+  'taman mahkota': 9,
+  'taman-mahkota': 9,
+  'td guest': 17,
+  'td-guest': 17,
+  'td647': 7,
+  'td795': 13,
+};
+
+function findPropertyFromList(lookup, properties) {
+  if (!lookup || !Array.isArray(properties)) return null;
+  const lookupKey = String(lookup).toLowerCase().trim();
+  if (!lookupKey) return null;
+
+  const cleanLookup = lookupKey.replace(/^loc_/, '').replace(/[_\s]+/g, '-');
+  const prefixMatch = lookupKey.match(/^(\d+)[-_](.+)$/);
+  const prefixId = prefixMatch ? prefixMatch[1] : null;
+  const suffixSlug = prefixMatch ? prefixMatch[2].trim() : null;
+
+  const norm = (s) => {
+    if (!s) return '';
+    return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  };
+
+  // 1. Exact match by full lookupKey against slug, canonicalSlug, title, or canonicalId
+  for (const p of properties) {
+    const pSlug = norm(p.slug);
+    const pCanon = norm(p.canonicalSlug);
+    const pTitle = norm(p.title);
+    const pCanonId = (p.canonicalId || '').toLowerCase().trim();
+
+    if (pSlug && pSlug === cleanLookup) return p;
+    if (pCanon && pCanon === cleanLookup) return p;
+    if (pTitle && pTitle === cleanLookup) return p;
+    if (pCanonId && (pCanonId === lookupKey || norm(pCanonId) === cleanLookup)) return p;
+  }
+
+  // 2. If lookupKey has both ID and slug suffix (e.g. "4-pesing-baru" or "10-greenville")
+  if (suffixSlug) {
+    const normSuffix = norm(suffixSlug);
+
+    // 2a. Check if any property matches BOTH prefixId AND suffixSlug
+    if (prefixId) {
+      for (const p of properties) {
+        const idMatches = String(p.id) === prefixId || String(p.dbId) === prefixId || String(p.clientIndex) === prefixId;
+        if (idMatches) {
+          const slugMatches = norm(p.slug) === normSuffix || norm(p.canonicalSlug) === normSuffix || norm(p.title) === normSuffix;
+          if (slugMatches) return p;
+        }
+      }
+    }
+
+    // 2b. If no dual match, SLUG IS DEFINITIVE (prevent a numeric prefix from hijacking a property with matching slug)
+    for (const p of properties) {
+      if (norm(p.slug) === normSuffix || norm(p.canonicalSlug) === normSuffix || norm(p.title) === normSuffix) {
+        return p;
+      }
+    }
+  }
+
+  // 3. Exact match by numeric/database ID (dbId first, then id)
+  for (const p of properties) {
+    if (p.dbId !== undefined && p.dbId !== null && String(p.dbId) === lookupKey) return p;
+    if (p.id !== undefined && p.id !== null && String(p.id) === lookupKey) return p;
+  }
+  for (const p of properties) {
+    if (p.clientIndex !== undefined && String(p.clientIndex) === lookupKey) return p;
+    if (prefixId && !suffixSlug && (String(p.id) === prefixId || String(p.dbId) === prefixId)) return p;
+  }
+
+  // 4. Fallback: Prefix ID match only if suffixSlug didn't match anything
+  if (prefixId) {
+    for (const p of properties) {
+      if (String(p.id) === prefixId || String(p.dbId) === prefixId) {
+        return p;
+      }
+    }
+  }
+
+  // 5. Fuzzy / Substring match (e.g. "pesing" -> "pesing-baru", "sedayu" -> "apartemen-sedayu")
+  const searchSlug = suffixSlug ? norm(suffixSlug) : cleanLookup;
+  if (searchSlug && searchSlug.length >= 3) {
+    const candidates = properties.filter(p => {
+      const pSlug = norm(p.slug);
+      const pCanon = norm(p.canonicalSlug);
+      const pTitle = norm(p.title);
+      return (pSlug && (pSlug.includes(searchSlug) || searchSlug.includes(pSlug))) ||
+             (pCanon && (pCanon.includes(searchSlug) || searchSlug.includes(pCanon))) ||
+             (pTitle && (pTitle.includes(searchSlug) || searchSlug.includes(pTitle)));
+    });
+    if (candidates.length === 1) {
+      return candidates[0];
+    }
+  }
+
+  return null;
+}
+
 function parseMinPriceFromApi(item) {
   if (item.available_room_details && item.available_room_details.length > 0) {
     const validRates = item.available_room_details
@@ -591,8 +707,16 @@ async function fetchPropertiesFromApi(forceRefresh = false) {
       const lat = (item.latitude !== undefined && item.latitude !== null && !isNaN(Number(item.latitude))) ? Number(item.latitude) : null;
       const lng = (item.longitude !== undefined && item.longitude !== null && !isNaN(Number(item.longitude))) ? Number(item.longitude) : null;
 
+      const cleanSlug = item.slug ? String(item.slug).toLowerCase().trim() : '';
+      const cleanCanonSlug = item.canonical_slug ? String(item.canonical_slug).toLowerCase().trim() : '';
+      const realDbId = (item.id !== undefined && item.id !== null && !isNaN(Number(item.id)))
+        ? Number(item.id)
+        : (KNOWN_PROPERTY_DB_IDS[cleanSlug] || KNOWN_PROPERTY_DB_IDS[cleanCanonSlug] || null);
+
       return {
-        id: index + 1,
+        id: realDbId || (index + 1),
+        dbId: realDbId,
+        clientIndex: index + 1,
         title: item.name,
         slug: item.slug || slugifyForUrl(item.name),
         canonicalSlug: item.canonical_slug || null,
@@ -666,22 +790,7 @@ app.get('/api/properties/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const properties = await fetchPropertiesFromApi(false);
-
-    // Try finding by exact numeric id, slug, canonical_slug, canonical_id, or prefix like "15-apartemen"
-    const lookupKey = String(id).toLowerCase().trim();
-    const prefixId = lookupKey.includes('-') ? lookupKey.split('-')[0] : null;
-    const suffixSlug = lookupKey.includes('-') ? lookupKey.split('-').slice(1).join('-') : null;
-
-    const found = properties.find(p => {
-      if (String(p.id) === lookupKey) return true;
-      if (prefixId && String(p.id) === prefixId) return true;
-      if (p.slug && p.slug.toLowerCase() === lookupKey) return true;
-      if (suffixSlug && p.slug && p.slug.toLowerCase() === suffixSlug) return true;
-      if (p.canonicalSlug && p.canonicalSlug.toLowerCase() === lookupKey) return true;
-      if (suffixSlug && p.canonicalSlug && p.canonicalSlug.toLowerCase() === suffixSlug) return true;
-      if (p.canonicalId && p.canonicalId.toLowerCase() === lookupKey) return true;
-      return false;
-    });
+    const found = findPropertyFromList(id, properties);
 
     if (found) {
       return res.json(found);
