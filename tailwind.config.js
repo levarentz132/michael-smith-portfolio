@@ -7,12 +7,12 @@ export default {
   theme: {
     extend: {
       colors: {
-        bg: "hsl(var(--bg))",
-        surface: "hsl(var(--surface))",
-        "text-primary": "hsl(var(--text))",
-        muted: "hsl(var(--muted))",
-        stroke: "hsl(var(--stroke))",
-        accent: "hsl(var(--accent))",
+        bg: "hsl(var(--bg) / <alpha-value>)",
+        surface: "hsl(var(--surface) / <alpha-value>)",
+        "text-primary": "hsl(var(--text) / <alpha-value>)",
+        muted: "hsl(var(--muted) / <alpha-value>)",
+        stroke: "hsl(var(--stroke) / <alpha-value>)",
+        accent: "hsl(var(--accent) / <alpha-value>)",
       },
       fontFamily: {
         body: ["Inter", "sans-serif"],

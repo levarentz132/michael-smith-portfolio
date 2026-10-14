@@ -719,17 +719,17 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
          ========================================================================= */}
       <div className="absolute top-[calc(env(safe-area-inset-top,0px)+0.5rem)] sm:top-4 left-2.5 right-2.5 sm:left-4 sm:right-4 max-w-2xl mx-auto z-40 pointer-events-auto space-y-1.5 sm:space-y-2">
         {/* Top Quick Navigation Pill */}
-        <div className="flex items-center justify-between gap-1.5 sm:gap-2 bg-surface/95 backdrop-blur-2xl border border-white/20 rounded-2xl px-3 py-1.5 shadow-2xl shadow-black/80">
+        <div className="flex items-center justify-between gap-1.5 sm:gap-2 bg-[#090d16] border border-slate-700/80 rounded-2xl px-3 py-1.5 shadow-2xl shadow-black/90">
           {/* Brand & Home Link */}
           <Link
             to="/"
             className="flex items-center gap-2 group shrink-0 active:scale-95 transition-transform"
             title="Kembali ke Beranda Highlanderstay"
           >
-            <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-400 flex items-center justify-center text-bg font-black text-xs shadow-md shadow-amber-500/20 group-hover:rotate-6 transition-transform">
+            <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-400 flex items-center justify-center text-slate-950 font-black text-xs shadow-md shadow-amber-500/20 group-hover:rotate-6 transition-transform">
               HS
             </div>
-            <span className="font-display font-bold text-xs sm:text-sm text-text-primary tracking-tight group-hover:text-amber-400 transition-colors">
+            <span className="font-display font-extrabold text-xs sm:text-sm text-white tracking-tight group-hover:text-amber-400 transition-colors">
               Highlanderstay
             </span>
           </Link>
@@ -738,14 +738,14 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
           <div className="hidden md:flex items-center gap-1 text-xs">
             <Link
               to="/"
-              className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-text-primary/90 hover:text-amber-400 hover:bg-white/10 transition-all font-medium"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-slate-200 hover:text-amber-400 hover:bg-slate-800/80 transition-all font-semibold"
             >
               <Home size={13} />
               <span>Beranda</span>
             </Link>
             <Link
               to="/resort"
-              className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-text-primary/90 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all font-medium"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-slate-200 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all font-semibold"
             >
               <Palmtree size={13} className="text-emerald-400" />
               <span>Resort & Villa</span>
@@ -753,7 +753,7 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
             <button
               type="button"
               onClick={() => setIsDrawerOpen(true)}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-text-primary/90 hover:text-amber-400 hover:bg-white/10 transition-all font-medium cursor-pointer"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-slate-200 hover:text-amber-400 hover:bg-slate-800/80 transition-all font-semibold cursor-pointer"
             >
               <List size={13} />
               <span>Daftar Unit</span>
@@ -777,7 +777,7 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
             <button
               type="button"
               onClick={() => setIsNavMenuOpen(!isNavMenuOpen)}
-              className="p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-white/10 hover:bg-white/20 text-text-primary hover:text-amber-400 transition-all flex items-center gap-1 text-xs font-bold active:scale-95 cursor-pointer"
+              className="p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-white hover:text-amber-400 transition-all flex items-center gap-1 text-xs font-bold active:scale-95 cursor-pointer"
               title="Menu Navigasi"
             >
               {isNavMenuOpen ? <X size={15} /> : <Menu size={15} />}
@@ -794,37 +794,37 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.98 }}
               transition={{ duration: 0.15 }}
-              className="bg-surface/98 backdrop-blur-3xl border border-white/20 rounded-2xl p-3 shadow-2xl space-y-1.5 z-50 text-left"
+              className="bg-[#090d16] border border-slate-700 rounded-2xl p-3 shadow-2xl space-y-1.5 z-50 text-left text-white"
             >
-              <div className="text-[10px] uppercase font-bold text-muted px-2 py-0.5 tracking-wider border-b border-white/10 pb-1">
+              <div className="text-[10px] uppercase font-bold text-slate-400 px-2 py-0.5 tracking-wider border-b border-slate-800 pb-1">
                 Navigasi Highlanderstay
               </div>
               <div className="grid grid-cols-2 gap-1.5 pt-1">
                 <Link
                   to="/"
                   onClick={() => setIsNavMenuOpen(false)}
-                  className="flex items-center gap-2 p-2.5 rounded-xl bg-white/5 hover:bg-amber-500/20 text-text-primary hover:text-amber-300 transition-all group"
+                  className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-900 hover:bg-amber-500/20 text-white hover:text-amber-300 transition-all group"
                 >
                   <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 group-hover:scale-110 transition-transform">
                     <Home size={15} />
                   </div>
                   <div>
                     <div className="text-xs font-bold">Beranda</div>
-                    <div className="text-[10px] text-muted">Halaman utama</div>
+                    <div className="text-[10px] text-slate-400">Halaman utama</div>
                   </div>
                 </Link>
 
                 <Link
                   to="/resort"
                   onClick={() => setIsNavMenuOpen(false)}
-                  className="flex items-center gap-2 p-2.5 rounded-xl bg-white/5 hover:bg-emerald-500/20 text-text-primary hover:text-emerald-300 transition-all group"
+                  className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-900 hover:bg-emerald-500/20 text-white hover:text-emerald-300 transition-all group"
                 >
                   <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 group-hover:scale-110 transition-transform">
                     <Palmtree size={15} />
                   </div>
                   <div>
                     <div className="text-xs font-bold">Resort & Villa</div>
-                    <div className="text-[10px] text-muted">Paket liburan</div>
+                    <div className="text-[10px] text-slate-400">Paket liburan</div>
                   </div>
                 </Link>
 
@@ -834,14 +834,14 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
                     setIsNavMenuOpen(false);
                     setIsDrawerOpen(true);
                   }}
-                  className="flex items-center gap-2 p-2.5 rounded-xl bg-white/5 hover:bg-sky-500/20 text-text-primary hover:text-sky-300 transition-all group text-left cursor-pointer"
+                  className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-900 hover:bg-sky-500/20 text-white hover:text-sky-300 transition-all group text-left cursor-pointer"
                 >
                   <div className="p-1.5 rounded-lg bg-sky-500/20 text-sky-400 group-hover:scale-110 transition-transform">
                     <List size={15} />
                   </div>
                   <div>
                     <div className="text-xs font-bold">Daftar Unit</div>
-                    <div className="text-[10px] text-muted">List semua kos</div>
+                    <div className="text-[10px] text-slate-400">List semua kos</div>
                   </div>
                 </button>
               </div>
@@ -851,18 +851,18 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
 
         {/* Main Search & Action Bar Row */}
         <div className="relative">
-          <div className="flex items-center gap-1.5 sm:gap-2 bg-surface/95 backdrop-blur-2xl border border-white/20 rounded-2xl p-1.5 sm:p-2 shadow-2xl shadow-black/80">
+          <div className="flex items-center gap-1.5 sm:gap-2 bg-[#090d16] border border-slate-700/80 rounded-2xl p-1.5 sm:p-2 shadow-2xl shadow-black/90">
             {/* Back to Home Button */}
             <Link
               to="/"
-              className="p-2 sm:p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-text-primary hover:text-amber-400 transition-all shrink-0 flex items-center justify-center active:scale-95"
+              className="p-2 sm:p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-200 hover:text-amber-400 transition-all shrink-0 flex items-center justify-center active:scale-95"
               title="Kembali ke Beranda"
             >
               <ArrowLeft size={16} />
             </Link>
 
             {/* Search Input */}
-            <div className="flex-1 flex items-center gap-1.5 sm:gap-2 min-w-0 px-2 sm:px-2.5 py-1 sm:py-1.5 bg-white/5 rounded-xl border border-white/10 focus-within:border-amber-400">
+            <div className="flex-1 flex items-center gap-1.5 sm:gap-2 min-w-0 px-2 sm:px-2.5 py-1 sm:py-1.5 bg-[#030712] rounded-xl border border-slate-700/90 focus-within:border-amber-400">
               <Search size={14} className="text-amber-400 shrink-0" />
               <input
                 ref={searchInputRef}
@@ -874,7 +874,7 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
                   setAutocompleteOpen(true);
                 }}
                 onFocus={() => setAutocompleteOpen(true)}
-                className="w-full bg-transparent text-xs sm:text-sm text-text-primary placeholder:text-muted/70 focus:outline-none font-sans truncate min-w-0"
+                className="w-full bg-transparent text-xs sm:text-sm text-white placeholder:text-slate-400 focus:outline-none font-sans truncate min-w-0"
               />
               {isSearchingGeocode && (
                 <RefreshCw size={12} className="text-amber-400 animate-spin shrink-0" />
@@ -882,7 +882,7 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
               {searchQuery && (
                 <button
                   onClick={handleClearSearch}
-                  className="text-muted hover:text-rose-400 p-0.5 rounded-full shrink-0"
+                  className="text-slate-400 hover:text-rose-400 p-0.5 rounded-full shrink-0"
                   title="Hapus"
                 >
                   <X size={13} />
@@ -906,7 +906,7 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
             <button
               type="button"
               onClick={() => setIsDrawerOpen(true)}
-              className="p-2 sm:p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-text-primary hover:text-amber-400 transition-all shrink-0 flex items-center justify-center active:scale-95"
+              className="p-2 sm:p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-200 hover:text-amber-400 transition-all shrink-0 flex items-center justify-center active:scale-95"
               title="Lihat Daftar Semua Unit"
             >
               <List size={16} />
@@ -920,10 +920,10 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
-                className="absolute top-full left-0 right-0 mt-2 bg-surface/98 backdrop-blur-3xl border border-white/20 rounded-2xl shadow-2xl p-2.5 z-50 max-h-[50vh] sm:max-h-[300px] overflow-y-auto space-y-1.5 text-left custom-scrollbar"
+                className="absolute top-full left-0 right-0 mt-2 bg-[#090d16] border border-slate-700 rounded-2xl shadow-2xl p-2.5 z-50 max-h-[50vh] sm:max-h-[300px] overflow-y-auto space-y-1.5 text-left custom-scrollbar"
               >
                 {/* Category Pills */}
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 no-scrollbar border-b border-white/10">
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 no-scrollbar border-b border-slate-800">
                   {[
                     { id: 'all', label: 'Semua', icon: Compass },
                     { id: 'university', label: 'Kampus', icon: School },
@@ -934,10 +934,10 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
                     <button
                       key={cat.id}
                       onClick={() => setLandmarkCategoryFilter(cat.id)}
-                      className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider shrink-0 transition-all ${
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider shrink-0 transition-all ${
                         landmarkCategoryFilter === cat.id
-                          ? 'bg-amber-500 text-bg shadow-sm'
-                          : 'bg-stroke/30 text-muted hover:text-text-primary'
+                          ? 'bg-amber-400 text-slate-950 shadow-sm'
+                          : 'bg-slate-800 text-slate-300 hover:text-white'
                       }`}
                     >
                       <span>{cat.label}</span>
@@ -949,11 +949,11 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
                   <button
                     key={landmark.id}
                     onClick={() => handleSelectLandmark(landmark)}
-                    className="w-full text-left p-2 rounded-xl hover:bg-white/10 active:bg-white/15 flex items-center justify-between gap-2 cursor-pointer transition-colors"
+                    className="w-full text-left p-2 rounded-xl bg-slate-900/60 hover:bg-slate-800 active:bg-slate-750 flex items-center justify-between gap-2 cursor-pointer transition-colors"
                   >
                     <div className="min-w-0">
-                      <div className="text-xs font-bold text-text-primary truncate">{landmark.name}</div>
-                      <div className="text-[10px] text-muted truncate">{landmark.area}</div>
+                      <div className="text-xs font-black text-white truncate">{landmark.name}</div>
+                      <div className="text-[10px] text-slate-400 truncate">{landmark.area}</div>
                     </div>
                     <span className="text-[10px] font-bold text-amber-400 shrink-0">Pilih →</span>
                   </button>
@@ -966,14 +966,14 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
         {/* Quick Filter Row: Availability Segmented Toggle + Area Filter Chips */}
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 px-0.5 scroll-smooth">
           {/* Availability Segmented Control (Default: Kamar Tersedia, Option to show full rooms) */}
-          <div className="inline-flex items-center p-0.5 bg-surface/95 backdrop-blur-2xl border border-white/20 rounded-full shadow-lg shrink-0">
+          <div className="inline-flex items-center p-0.5 bg-[#090d16] border border-slate-700/80 rounded-full shadow-xl shrink-0">
             <button
               type="button"
               onClick={() => setOnlyAvailable(true)}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-all cursor-pointer active:scale-95 ${
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer active:scale-95 ${
                 onlyAvailable
-                  ? 'bg-emerald-500 text-slate-950 font-black shadow-md shadow-emerald-500/30'
-                  : 'text-text-primary/70 hover:text-white'
+                  ? 'bg-emerald-400 text-slate-950 font-black shadow-md shadow-emerald-500/30'
+                  : 'text-slate-300 hover:text-white'
               }`}
               title="Filter default: hanya unit kos yang memiliki kamar kosong siap huni"
             >
@@ -983,10 +983,10 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
             <button
               type="button"
               onClick={() => setOnlyAvailable(false)}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-all cursor-pointer active:scale-95 ${
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer active:scale-95 ${
                 !onlyAvailable
                   ? 'bg-amber-400 text-slate-950 font-black shadow-md shadow-amber-500/30'
-                  : 'text-text-primary/70 hover:text-white'
+                  : 'text-slate-300 hover:text-white'
               }`}
               title="Opsi untuk melihat semua unit kos termasuk yang kamar penuh"
             >
@@ -995,7 +995,7 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
             </button>
           </div>
 
-          <div className="w-[1px] h-5 bg-white/20 shrink-0 mx-0.5" />
+          <div className="w-[1px] h-5 bg-slate-700 shrink-0 mx-0.5" />
 
           {/* Area Chips */}
           {AREA_DISPLAY_ORDER.map((area) => {
@@ -1004,10 +1004,10 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
               <button
                 key={area}
                 onClick={() => setSelectedArea(area)}
-                className={`px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider shrink-0 transition-all shadow-md backdrop-blur-md cursor-pointer active:scale-95 ${
+                className={`px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider shrink-0 transition-all shadow-md cursor-pointer active:scale-95 ${
                   isActive
-                    ? 'bg-amber-500 text-bg border border-amber-400 shadow-amber-500/20'
-                    : 'bg-surface/90 border border-white/15 text-text-primary/90 hover:text-white'
+                    ? 'bg-amber-400 text-slate-950 border border-amber-300 shadow-amber-500/20'
+                    : 'bg-[#090d16] hover:bg-slate-800 border border-slate-700 text-slate-200 hover:text-white'
                 }`}
               >
                 {area}
@@ -1068,7 +1068,7 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
         <button
           type="button"
           onClick={() => fitMapToProperties(filteredProperties, selectedLandmark)}
-          className="p-2.5 sm:p-3 rounded-2xl bg-surface/95 hover:bg-surface border border-white/20 text-text-primary hover:text-amber-400 shadow-2xl backdrop-blur-xl transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+          className="p-2.5 sm:p-3 rounded-2xl bg-[#090d16] hover:bg-slate-800 border border-slate-700 text-white hover:text-amber-400 shadow-2xl transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 text-xs font-bold"
           title="Pusatkan Semua Properti"
         >
           <Maximize2 size={16} />
@@ -1590,18 +1590,18 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
             initial={{ opacity: 0, x: -300 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -300 }}
-            className="fixed top-0 left-0 bottom-0 w-full max-w-sm bg-surface/98 backdrop-blur-3xl border-r border-white/15 z-50 p-4 flex flex-col shadow-2xl text-left pointer-events-auto"
+            className="fixed top-0 left-0 bottom-0 w-full max-w-sm bg-[#090d16] border-r border-slate-800 z-50 p-4 flex flex-col shadow-[0_20px_60px_rgba(0,0,0,0.95)] text-left pointer-events-auto"
           >
-            <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-2">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800/80 mb-2.5">
               <div className="flex items-center gap-2">
                 <Building2 size={18} className="text-amber-400" />
-                <h3 className="font-bold text-sm text-text-primary">
+                <h3 className="font-extrabold text-sm text-white">
                   Daftar Kamar ({drawerProperties.length})
                 </h3>
               </div>
               <button
                 onClick={() => setIsDrawerOpen(false)}
-                className="p-1 rounded-full hover:bg-white/10 text-muted hover:text-white"
+                className="p-1 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
                 title="Tutup Sidebar"
               >
                 <X size={18} />
@@ -1609,14 +1609,14 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
             </div>
 
             {/* Quick Availability Toggle in Drawer (Default: Semua Unit) */}
-            <div className="flex items-center p-0.5 bg-white/5 border border-white/10 rounded-xl mb-3">
+            <div className="flex items-center p-1 bg-[#030712] border border-slate-800 rounded-xl mb-3 shadow-inner">
               <button
                 type="button"
                 onClick={() => setDrawerOnlyAvailable(false)}
-                className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-center transition-all cursor-pointer ${
+                className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider text-center transition-all cursor-pointer ${
                   !drawerOnlyAvailable
-                    ? 'bg-amber-400 text-slate-950 font-black shadow-sm'
-                    : 'text-muted hover:text-white'
+                    ? 'bg-amber-400 text-slate-950 font-black shadow-md'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
                 }`}
               >
                 Semua Unit ({propertiesWithDistance.length})
@@ -1624,10 +1624,10 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
               <button
                 type="button"
                 onClick={() => setDrawerOnlyAvailable(true)}
-                className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-center transition-all cursor-pointer ${
+                className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider text-center transition-all cursor-pointer ${
                   drawerOnlyAvailable
-                    ? 'bg-emerald-500 text-slate-950 font-black shadow-sm'
-                    : 'text-muted hover:text-white'
+                    ? 'bg-emerald-400 text-slate-950 font-black shadow-md'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
                 }`}
               >
                 Hanya Ready
@@ -1651,17 +1651,17 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
                       );
                     }
                   }}
-                  className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all cursor-pointer flex items-center justify-between gap-3 active:scale-98 group"
+                  className="p-3 rounded-2xl bg-[#131b2a] hover:bg-[#1a2538] border border-slate-800 hover:border-amber-400/50 transition-all cursor-pointer flex items-center justify-between gap-3 active:scale-98 group shadow-sm"
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <img
                       src={prop.image}
                       alt={prop.title}
-                      className="w-14 h-14 rounded-xl object-cover shrink-0"
+                      className="w-14 h-14 rounded-xl object-cover shrink-0 border border-slate-700/80"
                     />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-1 mb-0.5">
-                        <span className="text-[9px] font-bold text-amber-400 uppercase truncate">{getPropertyArea(prop)}</span>
+                        <span className="text-[9.5px] font-black text-amber-400 uppercase tracking-wider truncate">{getPropertyArea(prop)}</span>
                         <span className={`text-[8.5px] font-black px-2 py-0.5 rounded-full shrink-0 shadow-sm ${
                           prop.availableRooms && prop.availableRooms > 0
                             ? 'bg-emerald-400 text-slate-950'
@@ -1670,8 +1670,8 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
                           {prop.availableRooms && prop.availableRooms > 0 ? `${prop.availableRooms} Kmr Ready` : 'Full'}
                         </span>
                       </div>
-                      <div className="text-xs font-bold text-text-primary truncate">{prop.title}</div>
-                      <div className="text-xs font-black text-amber-400 mt-0.5">{prop.priceRange || prop.price}</div>
+                      <div className="text-xs font-black text-white group-hover:text-amber-300 transition-colors truncate">{prop.title}</div>
+                      <div className="text-xs font-black text-amber-300 mt-0.5">{prop.priceRange || prop.price}</div>
                     </div>
                   </div>
 
@@ -1681,7 +1681,7 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
                       e.stopPropagation();
                       handleContactKeeper(prop.phone, prop.title);
                     }}
-                    className="p-2.5 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-slate-950 text-xs shrink-0 active:scale-90 transition-all shadow-md cursor-pointer"
+                    className="p-2.5 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-slate-950 text-xs shrink-0 active:scale-90 transition-all shadow-md shadow-emerald-500/20 cursor-pointer"
                     title={userSession ? "Hubungi Penjaga via WhatsApp" : "Masuk untuk Hubungi Penjaga via WhatsApp"}
                   >
                     <MessageCircle size={15} className="text-slate-950 fill-slate-950/20" />

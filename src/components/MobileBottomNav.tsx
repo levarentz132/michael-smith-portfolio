@@ -145,8 +145,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       aria-label="Mobile Bottom Navigation"
       className="md:hidden fixed bottom-0 left-0 right-0 z-50 select-none pb-[calc(env(safe-area-inset-bottom,0px)+0.25rem)] pointer-events-none"
     >
-      {/* Blur glass container */}
-      <div className="relative mx-3 mb-1.5 rounded-2xl bg-[#0c0d0e]/92 backdrop-blur-2xl border border-white/15 shadow-[0_-8px_32px_rgba(0,0,0,0.75),0_0_0_1px_rgba(255,255,255,0.06)] p-1.5 flex items-center justify-between gap-1 pointer-events-auto">
+      {/* Solid dark container for maximum contrast over maps */}
+      <div className="relative mx-3 mb-1.5 rounded-2xl bg-[#090d16] border border-slate-700/80 shadow-[0_-8px_32px_rgba(0,0,0,0.95)] p-1.5 flex items-center justify-between gap-1 pointer-events-auto">
         {navItems.map((item) => {
           const isActive = activeTab === item.id;
           const Icon = item.icon;
@@ -162,7 +162,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               {isActive && (
                 <motion.div
                   layoutId="mobileNavActiveBox"
-                  className="absolute inset-0 rounded-xl bg-gradient-to-b from-amber-500/18 via-white/[0.08] to-white/[0.03] border border-amber-400/40 shadow-[0_0_16px_rgba(245,158,11,0.22),inset_0_1px_0_rgba(255,255,255,0.25)]"
+                  className="absolute inset-0 rounded-xl bg-gradient-to-b from-amber-500/20 via-white/[0.08] to-transparent border border-amber-400/50 shadow-[0_0_16px_rgba(245,158,11,0.25)]"
                   transition={{
                     type: 'spring',
                     stiffness: 480,
@@ -201,7 +201,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                       className={`transition-colors duration-200 ${
                         isActive
                           ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]'
-                          : 'text-neutral-400 group-hover:text-neutral-200'
+                          : 'text-slate-300 group-hover:text-white'
                       }`}
                     />
                   </motion.div>
@@ -223,8 +223,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               <span
                 className={`relative z-10 text-[10px] tracking-tight mt-1 transition-all duration-200 ${
                   isActive
-                    ? 'text-amber-300 font-bold drop-shadow-[0_1px_3px_rgba(245,158,11,0.3)]'
-                    : 'text-neutral-400 font-medium group-hover:text-neutral-300'
+                    ? 'text-amber-300 font-extrabold drop-shadow-[0_1px_3px_rgba(245,158,11,0.3)]'
+                    : 'text-slate-300 font-semibold group-hover:text-white'
                 }`}
               >
                 {item.label}
