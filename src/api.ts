@@ -13,6 +13,8 @@ export interface AvailableRoomDetail {
 
 export interface Property {
   id?: number;
+  dbId?: number | null;
+  clientIndex?: number;
   title: string;
   slug?: string;
   canonicalSlug?: string;
@@ -643,6 +645,33 @@ async function handleResponse<T>(res: Response, fallbackError: string): Promise<
   }
 }
 
+export const KNOWN_PROPERTY_DB_IDS: Record<string, number> = {
+  'alpukat': 5,
+  'apartemen-sedayu': 2,
+  'apartemen': 2,
+  'green-garden': 3,
+  'mangga': 6,
+  'greenville': 6,
+  'jelambar': 14,
+  'kios-mal-taman-palem': 16,
+  'kiosk': 16,
+  'lahan': 7,
+  'pakjo': 11,
+  'pedongkelan': 10,
+  'pesing-baru': 4,
+  'pesing-lama': 12,
+  'rajawali': 15,
+  'rumah-taman-ratu': 13,
+  'rumah': 13,
+  'sumur-bor': 8,
+  'taman mahkota': 9,
+  'taman-mahkota': 9,
+  'td guest': 17,
+  'td-guest': 17,
+  'td647': 7,
+  'td795': 13,
+};
+
 // Fetch all properties (calls backend proxy, with fallback to direct dashboard API)
 export async function fetchProperties(): Promise<Property[]> {
   try {
@@ -698,8 +727,16 @@ export async function fetchProperties(): Promise<Property[]> {
           const lat = typeof item.latitude === 'number' ? item.latitude : (item.latitude ? parseFloat(item.latitude) : undefined);
           const lng = typeof item.longitude === 'number' ? item.longitude : (item.longitude ? parseFloat(item.longitude) : undefined);
 
+          const cleanSlug = item.slug ? String(item.slug).toLowerCase().trim() : '';
+          const cleanCanonSlug = item.canonical_slug ? String(item.canonical_slug).toLowerCase().trim() : '';
+          const realDbId = (item.id !== undefined && item.id !== null && !isNaN(Number(item.id)))
+            ? Number(item.id)
+            : (KNOWN_PROPERTY_DB_IDS[cleanSlug] || KNOWN_PROPERTY_DB_IDS[cleanCanonSlug] || null);
+
           return {
-            id: idx + 1,
+            id: realDbId || (idx + 1),
+            dbId: realDbId,
+            clientIndex: idx + 1,
             title: item.name,
             slug: item.slug,
             canonicalSlug: item.canonical_slug,
@@ -743,6 +780,96 @@ export async function fetchProperties(): Promise<Property[]> {
   throw new Error('Failed to fetch properties from server and API.');
 }
 
+// Robust lookup supporting ID, prefixId-slug, slug, canonicalSlug, title, and fuzzy matches
+export function findPropertyFromList(lookup: number | string, properties: Property[]): Property | null {
+  const lookupKey = String(lookup).toLowerCase().trim();
+  if (!lookupKey) return null;
+
+  const cleanLookup = lookupKey.replace(/^loc_/, '').replace(/[_\s]+/g, '-');
+
+  const prefixMatch = lookupKey.match(/^(\d+)[-_](.+)$/);
+  const prefixId = prefixMatch ? prefixMatch[1] : null;
+  const suffixSlug = prefixMatch ? prefixMatch[2].trim() : null;
+
+  const norm = (s?: string | null) => {
+    if (!s) return '';
+    return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  };
+
+  // 1. Exact match by full lookupKey against slug, canonicalSlug, title, or canonicalId
+  for (const p of properties) {
+    const pSlug = norm(p.slug);
+    const pCanon = norm(p.canonicalSlug);
+    const pTitle = norm(p.title);
+    const pCanonId = (p.canonicalId || '').toLowerCase().trim();
+
+    if (pSlug && pSlug === cleanLookup) return p;
+    if (pCanon && pCanon === cleanLookup) return p;
+    if (pTitle && pTitle === cleanLookup) return p;
+    if (pCanonId && (pCanonId === lookupKey || norm(pCanonId) === cleanLookup)) return p;
+  }
+
+  // 2. If lookupKey has both ID and slug suffix (e.g. "4-pesing-baru" or "10-greenville")
+  if (suffixSlug) {
+    const normSuffix = norm(suffixSlug);
+
+    // 2a. Check if any property matches BOTH prefixId AND suffixSlug
+    if (prefixId) {
+      for (const p of properties) {
+        const idMatches = String(p.id) === prefixId || String(p.dbId) === prefixId || String(p.clientIndex) === prefixId;
+        if (idMatches) {
+          const slugMatches = norm(p.slug) === normSuffix || norm(p.canonicalSlug) === normSuffix || norm(p.title) === normSuffix;
+          if (slugMatches) return p;
+        }
+      }
+    }
+
+    // 2b. If no dual match, SLUG IS DEFINITIVE (prevent a numeric prefix from hijacking a property with matching slug)
+    for (const p of properties) {
+      if (norm(p.slug) === normSuffix || norm(p.canonicalSlug) === normSuffix || norm(p.title) === normSuffix) {
+        return p;
+      }
+    }
+  }
+
+  // 3. Exact match by numeric/database ID (dbId first, then id)
+  for (const p of properties) {
+    if (p.dbId !== undefined && p.dbId !== null && String(p.dbId) === lookupKey) return p;
+    if (p.id !== undefined && p.id !== null && String(p.id) === lookupKey) return p;
+  }
+  for (const p of properties) {
+    if (p.clientIndex !== undefined && String(p.clientIndex) === lookupKey) return p;
+    if (prefixId && !suffixSlug && (String(p.id) === prefixId || String(p.dbId) === prefixId)) return p;
+  }
+
+  // 4. Fallback: Prefix ID match only if suffixSlug didn't match anything
+  if (prefixId) {
+    for (const p of properties) {
+      if (String(p.id) === prefixId || String(p.dbId) === prefixId) {
+        return p;
+      }
+    }
+  }
+
+  // 5. Fuzzy / Substring match (e.g. "pesing" -> "pesing-baru", "sedayu" -> "apartemen-sedayu")
+  const searchSlug = suffixSlug ? norm(suffixSlug) : cleanLookup;
+  if (searchSlug && searchSlug.length >= 3) {
+    const candidates = properties.filter(p => {
+      const pSlug = norm(p.slug);
+      const pCanon = norm(p.canonicalSlug);
+      const pTitle = norm(p.title);
+      return (pSlug && (pSlug.includes(searchSlug) || searchSlug.includes(pSlug))) ||
+             (pCanon && (pCanon.includes(searchSlug) || searchSlug.includes(pCanon))) ||
+             (pTitle && (pTitle.includes(searchSlug) || searchSlug.includes(pTitle)));
+    });
+    if (candidates.length === 1) {
+      return candidates[0];
+    }
+  }
+
+  return null;
+}
+
 // Fetch a single property by ID or slug
 export async function fetchPropertyById(id: number | string): Promise<Property> {
   try {
@@ -756,20 +883,7 @@ export async function fetchPropertyById(id: number | string): Promise<Property> 
 
   // Fallback: find from all properties list
   const all = await fetchProperties();
-  const lookupKey = String(id).toLowerCase().trim();
-  const prefixId = lookupKey.includes('-') ? lookupKey.split('-')[0] : null;
-  const suffixSlug = lookupKey.includes('-') ? lookupKey.split('-').slice(1).join('-') : null;
-
-  const found = all.find(p => {
-    if (String(p.id) === lookupKey) return true;
-    if (prefixId && String(p.id) === prefixId) return true;
-    if (p.slug && p.slug.toLowerCase() === lookupKey) return true;
-    if (suffixSlug && p.slug && p.slug.toLowerCase() === suffixSlug) return true;
-    if (p.canonicalSlug && p.canonicalSlug.toLowerCase() === lookupKey) return true;
-    if (suffixSlug && p.canonicalSlug && p.canonicalSlug.toLowerCase() === suffixSlug) return true;
-    if (p.canonicalId && p.canonicalId.toLowerCase() === lookupKey) return true;
-    return false;
-  });
+  const found = findPropertyFromList(id, all);
 
   if (found) return found;
 

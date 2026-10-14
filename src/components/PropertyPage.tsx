@@ -35,7 +35,22 @@ export const PropertyPage: React.FC = () => {
       : 'Memuat detail untuk ruang sewa premium di Highlanderstay...',
     keywords: property 
       ? `co-living, ${property.title}, kamar kos, ${property.location}, kamar sewa, hunian Jakarta`
-      : 'co-living, sewa premium, kamar kos, apartemen Jakarta'
+      : 'co-living, sewa premium, kamar kos, apartemen Jakarta',
+    canonicalUrl: property ? `https://highlanderstay.com/property/${idSlug}` : undefined,
+    imageUrl: property?.image,
+    structuredData: property ? {
+      '@context': 'https://schema.org',
+      '@type': property.type === 'apartment' ? 'ApartmentComplex' : 'LodgingBusiness',
+      name: property.title,
+      description: property.description || `${property.title} di ${property.location}`,
+      image: property.image,
+      address: {
+        '@type': 'PostalAddress',
+        addressLocality: property.kecamatan || property.location || 'Jakarta',
+        addressCountry: 'ID'
+      },
+      url: `https://highlanderstay.com/property/${idSlug}`
+    } : undefined
   });
   
   // Parallax Scroll State
