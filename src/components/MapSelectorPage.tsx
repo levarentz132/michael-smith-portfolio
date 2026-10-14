@@ -55,50 +55,13 @@ import {
 } from '../data/mapData';
 import type { LandmarkItem, PropertyWithDistance } from '../data/mapData';
 import { useSEO } from '../hooks/useSEO';
+import { getPropertyArea, propertyMatchesArea, buildDynamicAreaList } from '../utils/areaHierarchy';
 
 interface MapSelectorPageProps {
   settings?: WebsiteSettings | null;
   session?: UserSession | null;
   onBookProperty?: (property: Property) => void;
   onLoginSuccess?: (session: UserSession) => void;
-}
-
-const AREA_DISPLAY_ORDER = [
-  'Semua Area',
-  'Kebon Jeruk',
-  'Grogol',
-  'Kemayoran',
-  'Cengkareng',
-  'Jakarta Barat',
-  'Tangerang',
-  'Palembang'
-];
-
-function getPropertyArea(prop: Property): string {
-  const loc = (prop.kecamatan || prop.location || '').trim();
-  const lower = loc.toLowerCase();
-  if (lower.includes('kebon jeruk') || lower.includes('greenville') || lower.includes('pesing') || lower.includes('green garden')) {
-    return 'Kebon Jeruk';
-  }
-  if (lower.includes('grogol') || lower.includes('jelambar') || lower.includes('alpukat') || lower.includes('td')) {
-    return 'Grogol';
-  }
-  if (lower.includes('kemayoran') || lower.includes('rajawali')) {
-    return 'Kemayoran';
-  }
-  if (lower.includes('cengkareng') || lower.includes('pedongkelan') || lower.includes('sumur bor')) {
-    return 'Cengkareng';
-  }
-  if (lower.includes('tangerang') || lower.includes('mahkota')) {
-    return 'Tangerang';
-  }
-  if (lower.includes('palembang') || lower.includes('pak jo') || lower.includes('pakjo')) {
-    return 'Palembang';
-  }
-  if (lower.includes('jakarta') || lower.includes('daan mogot') || lower.includes('sedayu') || lower.includes('apartemen')) {
-    return 'Jakarta Barat';
-  }
-  return loc || 'Lainnya';
 }
 
 export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({ 
@@ -314,12 +277,16 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
     return list;
   }, [properties, selectedLandmark]);
 
+  // Dynamically extract area list from API properties
+  const areaOptions = useMemo(() => {
+    return buildDynamicAreaList(properties);
+  }, [properties]);
+
   // Filter & Sort properties
   const filteredProperties = useMemo(() => {
     let list = propertiesWithDistance.filter((item) => {
       if (selectedArea !== 'Semua Area') {
-        const area = getPropertyArea(item);
-        if (area.toLowerCase() !== selectedArea.toLowerCase()) {
+        if (!propertyMatchesArea(item, selectedArea)) {
           return false;
         }
       }
@@ -354,8 +321,7 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
   const drawerProperties = useMemo(() => {
     let list = propertiesWithDistance.filter((item) => {
       if (selectedArea !== 'Semua Area') {
-        const area = getPropertyArea(item);
-        if (area.toLowerCase() !== selectedArea.toLowerCase()) {
+        if (!propertyMatchesArea(item, selectedArea)) {
           return false;
         }
       }
@@ -997,8 +963,8 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
 
           <div className="w-[1px] h-5 bg-slate-700 shrink-0 mx-0.5" />
 
-          {/* Area Chips */}
-          {AREA_DISPLAY_ORDER.map((area) => {
+          {/* Dynamic Area Chips from API */}
+          {areaOptions.map((area: string) => {
             const isActive = selectedArea === area;
             return (
               <button

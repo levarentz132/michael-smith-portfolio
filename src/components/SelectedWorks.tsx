@@ -3,108 +3,20 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { fetchProperties } from '../api';
 import type { Property } from '../api';
 import { gsap } from 'gsap';
-import { SlidersHorizontal, Flame, MapPin, Building2 } from 'lucide-react';
+import { SlidersHorizontal, Flame, MapPin, Building2, ChevronRight, ArrowLeft } from 'lucide-react';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import {
+  getPropertyAreaInfo,
+  propertyMatchesArea,
+  getAreaBadgeStyles,
+  buildDynamicAreaTabs,
+  groupPropertiesByDistrict
+} from '../utils/areaHierarchy';
 
 gsap.registerPlugin(ScrollTrigger);
 
 interface SelectedWorksProps {
   onPropertyClick: (id: number, title: string) => void;
-}
-
-function getPropertyArea(prop: Property): string {
-  const loc = (prop.kecamatan || prop.location || '').trim();
-  const lower = loc.toLowerCase();
-  if (lower.includes('kebon jeruk') || lower.includes('greenville') || lower.includes('pesing') || lower.includes('green garden')) {
-    return 'Kebon Jeruk';
-  }
-  if (lower.includes('grogol') || lower.includes('jelambar') || lower.includes('alpukat') || lower.includes('td')) {
-    return 'Grogol';
-  }
-  if (lower.includes('kemayoran') || lower.includes('rajawali')) {
-    return 'Kemayoran';
-  }
-  if (lower.includes('cengkareng') || lower.includes('pedongkelan') || lower.includes('sumur bor')) {
-    return 'Cengkareng';
-  }
-  if (lower.includes('tangerang') || lower.includes('mahkota')) {
-    return 'Tangerang';
-  }
-  if (lower.includes('palembang') || lower.includes('pak jo') || lower.includes('pakjo')) {
-    return 'Palembang';
-  }
-  if (lower.includes('jakarta') || lower.includes('daan mogot') || lower.includes('sedayu') || lower.includes('apartemen')) {
-    return 'Jakarta Barat';
-  }
-  return loc || 'Lainnya';
-}
-
-const AREA_DISPLAY_ORDER = [
-  'Kebon Jeruk',
-  'Grogol',
-  'Kemayoran',
-  'Cengkareng',
-  'Jakarta Barat',
-  'Tangerang',
-  'Palembang'
-];
-
-function getAreaBadgeStyles(area: string): { bg: string; text: string; border: string; dot: string } {
-  const a = area.toLowerCase();
-  if (a.includes('kebon jeruk')) {
-    return {
-      bg: 'bg-emerald-600/90',
-      text: 'text-white',
-      border: 'border-emerald-400/50',
-      dot: 'bg-emerald-300'
-    };
-  }
-  if (a.includes('grogol')) {
-    return {
-      bg: 'bg-sky-600/90',
-      text: 'text-white',
-      border: 'border-sky-400/50',
-      dot: 'bg-sky-300'
-    };
-  }
-  if (a.includes('kemayoran')) {
-    return {
-      bg: 'bg-purple-600/90',
-      text: 'text-white',
-      border: 'border-purple-400/50',
-      dot: 'bg-purple-300'
-    };
-  }
-  if (a.includes('cengkareng')) {
-    return {
-      bg: 'bg-amber-600/90',
-      text: 'text-white',
-      border: 'border-amber-400/50',
-      dot: 'bg-amber-300'
-    };
-  }
-  if (a.includes('tangerang')) {
-    return {
-      bg: 'bg-teal-600/90',
-      text: 'text-white',
-      border: 'border-teal-400/50',
-      dot: 'bg-teal-300'
-    };
-  }
-  if (a.includes('palembang')) {
-    return {
-      bg: 'bg-rose-600/90',
-      text: 'text-white',
-      border: 'border-rose-400/50',
-      dot: 'bg-rose-300'
-    };
-  }
-  return {
-    bg: 'bg-blue-600/90',
-    text: 'text-white',
-    border: 'border-blue-400/50',
-    dot: 'bg-blue-300'
-  };
 }
 
 interface PropertyCardProps {
@@ -119,8 +31,8 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ project, index, onPropertyC
   const roomBadges = project.availableRoomsList && project.availableRoomsList.length > 0
     ? project.availableRoomsList.slice(0, 3)
     : [];
-  const areaName = getPropertyArea(project);
-  const badgeStyles = getAreaBadgeStyles(areaName);
+  const areaInfo = getPropertyAreaInfo(project);
+  const badgeStyles = getAreaBadgeStyles(areaInfo.district, areaInfo.isJakartaBarat);
 
   return (
     <motion.div 
@@ -156,10 +68,10 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ project, index, onPropertyC
       <div className="absolute top-2 left-2 right-2 md:top-4 md:left-4 md:right-4 flex justify-between items-start z-10 transition-all duration-300 md:group-hover:opacity-0 md:group-hover:scale-95 gap-1">
         <div className="flex flex-col gap-1 items-start min-w-0">
           <div className="flex items-center gap-1 flex-wrap">
-            {/* Highlighted Area Tag Pill at Top Left */}
+            {/* Hierarchical Area Tag Pill (e.g. "Kebon Jeruk • Jakbar") */}
             <span className={`backdrop-blur-md text-[7px] sm:text-[8px] md:text-[10px] font-extrabold uppercase px-1.5 py-0.5 md:px-2.5 md:py-1 rounded-full border shadow-sm flex items-center gap-0.5 sm:gap-1 ${badgeStyles.bg} ${badgeStyles.text} ${badgeStyles.border}`}>
               <MapPin size={8} className="fill-white" />
-              <span className="truncate max-w-[55px] sm:max-w-none">{areaName}</span>
+              <span className="truncate max-w-[85px] sm:max-w-none">{areaInfo.displayBadge}</span>
             </span>
 
             {/* Price Badge */}
@@ -206,16 +118,16 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ project, index, onPropertyC
         </span>
       </div>
 
-      {/* Permanent Bottom Info Overlay (Desktop & Mobile, visible before hover) */}
+      {/* Permanent Bottom Info Overlay */}
       <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3 md:p-4 bg-gradient-to-t from-black/95 via-black/80 to-transparent flex justify-between items-end z-10 transition-all duration-300 md:group-hover:opacity-0 pointer-events-none">
         <div className="text-left min-w-0 flex-1 pr-1 sm:pr-2">
-          {/* Prominent Highlighted Area Badge (Hidden on mobile to avoid duplication with top badge) */}
+          {/* Highlighted Area Badge */}
           <div className="hidden sm:flex items-center gap-1.5 mb-1.5 flex-wrap">
             <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] md:text-[10px] font-extrabold uppercase tracking-wider shadow-md backdrop-blur-md border ${badgeStyles.bg} ${badgeStyles.text} ${badgeStyles.border}`}>
               <MapPin size={10} className="fill-white" />
-              <span>{areaName}</span>
+              <span>{areaInfo.displayBadge}</span>
             </span>
-            {project.kecamatan && project.kecamatan.toLowerCase() !== areaName.toLowerCase() && (
+            {project.kecamatan && project.kecamatan.toLowerCase() !== areaInfo.district.toLowerCase() && (
               <span className="text-[9px] md:text-[10px] text-white/80 font-medium truncate drop-shadow-sm">
                 • {project.kecamatan}
               </span>
@@ -247,12 +159,11 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ project, index, onPropertyC
 
       {/* Hover Details Mask (Desktop Only) */}
       <div className="hidden md:flex absolute inset-0 bg-bg/90 opacity-0 group-hover:opacity-100 transition-opacity duration-400 backdrop-blur-md flex-col justify-between p-6 md:p-8 z-20 pointer-events-none md:pointer-events-auto">
-        {/* Category & Highlighted Area info (Slides Down) */}
         <div className="flex flex-col gap-1.5 transition-all duration-400 ease-out transform -translate-y-3 opacity-0 group-hover:translate-y-0 group-hover:opacity-100">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] md:text-[10px] font-extrabold uppercase tracking-wider border shadow-sm ${badgeStyles.bg} ${badgeStyles.text} ${badgeStyles.border}`}>
               <MapPin size={10} className="fill-white" />
-              <span>Kawasan {areaName}</span>
+              <span>{areaInfo.fullAreaLabel}</span>
             </span>
             <span className="text-xs text-muted uppercase tracking-[0.2em] font-semibold">{project.category}</span>
             {isHot && (
@@ -283,7 +194,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ project, index, onPropertyC
           <div className="flex flex-col text-left">
             <div className="flex items-center gap-1.5">
               <span className="text-base md:text-lg text-text-primary font-bold">{project.title}</span>
-              <span className="text-xs font-semibold text-emerald-400">• {areaName}</span>
+              <span className="text-xs font-semibold text-emerald-400">• {areaInfo.displayBadge}</span>
             </div>
             {project.promoPrice ? (
               <span className="text-xs flex items-center gap-1.5">
@@ -353,25 +264,17 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick })
     }
   }, [loading, properties, filter, selectedArea, searchTerm]);
 
-  // Available unique areas
-  const uniqueAreas = useMemo(() => {
-    const setOfAreas = new Set(properties.map(p => getPropertyArea(p)));
-    const sorted = AREA_DISPLAY_ORDER.filter(a => setOfAreas.has(a));
-    Array.from(setOfAreas).forEach(a => {
-      if (!sorted.includes(a)) sorted.push(a);
-    });
-    return sorted;
-  }, [properties]);
-
   // Base filter (type, search)
   const baseFilteredProperties = useMemo(() => {
     return properties.filter(prop => {
       const matchesType = filter === 'all' ? true : prop.type === filter;
+      const areaInfo = getPropertyAreaInfo(prop);
       const matchesSearch = searchTerm === '' ? true :
         prop.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         prop.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (prop.kecamatan && prop.kecamatan.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        getPropertyArea(prop).toLowerCase().includes(searchTerm.toLowerCase()) ||
+        areaInfo.district.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        areaInfo.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (prop.description && prop.description.toLowerCase().includes(searchTerm.toLowerCase()));
       return matchesType && matchesSearch;
     });
@@ -382,63 +285,116 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick })
     return baseFilteredProperties.filter(p => p.availableRooms && p.availableRooms > 0);
   }, [baseFilteredProperties]);
 
-  // Unique areas among HOT properties
-  const uniqueHotAreas = useMemo(() => {
-    const setOfAreas = new Set(hotProperties.map(p => getPropertyArea(p)));
-    const sorted = AREA_DISPLAY_ORDER.filter(a => setOfAreas.has(a));
-    Array.from(setOfAreas).forEach(a => {
-      if (!sorted.includes(a)) sorted.push(a);
-    });
-    return sorted;
-  }, [hotProperties]);
-
   // Total available rooms count across HOT properties
   const totalHotRooms = useMemo(() => {
     return hotProperties.reduce((sum, p) => sum + (p.availableRooms || 0), 0);
   }, [hotProperties]);
 
-  // Filtered HOT properties by selected hot area
+  // Filtered HOT properties by selected hot area (using dynamic hierarchical matching)
   const filteredHotProperties = useMemo(() => {
     if (selectedHotArea === 'all') return hotProperties;
-    return hotProperties.filter(p => getPropertyArea(p).toLowerCase() === selectedHotArea.toLowerCase());
+    return hotProperties.filter(p => propertyMatchesArea(p, selectedHotArea));
   }, [hotProperties, selectedHotArea]);
 
-  // Grouped HOT properties by area
+  // Dynamically group HOT properties by sub-district directly from API data
   const groupedHotByArea = useMemo(() => {
-    const groups: { area: string; items: Property[]; totalRooms: number }[] = [];
-    uniqueHotAreas.forEach(area => {
-      const items = hotProperties.filter(p => getPropertyArea(p).toLowerCase() === area.toLowerCase());
-      if (items.length > 0) {
-        const rooms = items.reduce((sum, p) => sum + (p.availableRooms || 0), 0);
-        groups.push({ area, items, totalRooms: rooms });
-      }
-    });
-    return groups;
-  }, [uniqueHotAreas, hotProperties]);
+    return groupPropertiesByDistrict(hotProperties);
+  }, [hotProperties]);
 
-  // Properties filtered by selected area
+  // Properties filtered by selected area in Section 2 (dynamic hierarchical matching)
   const areaFilteredProperties = useMemo(() => {
     if (selectedArea === 'all') return baseFilteredProperties;
-    return baseFilteredProperties.filter(p => getPropertyArea(p).toLowerCase() === selectedArea.toLowerCase());
+    return baseFilteredProperties.filter(p => propertyMatchesArea(p, selectedArea));
   }, [baseFilteredProperties, selectedArea]);
 
-  // Grouped properties by area for "Semua Area" overview
+  // Dynamically group all properties by sub-district directly from API data
   const groupedByArea = useMemo(() => {
-    const groups: { area: string; items: Property[] }[] = [];
-    uniqueAreas.forEach(area => {
-      const items = baseFilteredProperties.filter(p => getPropertyArea(p).toLowerCase() === area.toLowerCase());
-      if (items.length > 0) {
-        groups.push({ area, items });
+    return groupPropertiesByDistrict(baseFilteredProperties);
+  }, [baseFilteredProperties]);
+
+  // Dynamically extract child districts for Jakarta Barat directly from properties in API data
+  const jakbarDistricts = useMemo(() => {
+    const set = new Set<string>();
+    properties.forEach(p => {
+      const info = getPropertyAreaInfo(p);
+      if (info.isJakartaBarat && info.district.toLowerCase() !== 'jakarta barat') {
+        set.add(info.district);
       }
     });
-    return groups;
-  }, [uniqueAreas, baseFilteredProperties]);
+    return Array.from(set).sort();
+  }, [properties]);
 
   const scrollToSection = (id: string) => {
     const el = document.getElementById(id);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+  };
+
+  // Helper to render area filter tabs 100% dynamically from API properties
+  const renderAreaTabs = (
+    currentSelected: string,
+    onSelect: (val: string) => void,
+    variant: 'hot' | 'general'
+  ) => {
+    const dataSource = variant === 'hot' ? hotProperties : baseFilteredProperties;
+    const dynamicTabs = buildDynamicAreaTabs(dataSource, variant === 'hot' ? 'hot' : 'all');
+
+    return (
+      <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-8 no-scrollbar touch-pan-x">
+        {dynamicTabs.map((tab) => {
+          const isSelected = currentSelected.toLowerCase() === tab.key.toLowerCase();
+          const items = tab.key === 'all'
+            ? dataSource
+            : dataSource.filter(p => propertyMatchesArea(p, tab.key));
+          const count = items.length;
+          const rooms = variant === 'hot'
+            ? items.reduce((sum, p) => sum + (p.availableRooms || 0), 0)
+            : 0;
+
+          const isJakbarCity = tab.isCityLevel;
+          const isJakbarSub = Boolean(tab.parentCity === 'Jakarta Barat');
+
+          return (
+            <button
+              key={tab.key}
+              onClick={() => onSelect(tab.key)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide whitespace-nowrap transition-all duration-200 shrink-0 flex items-center gap-1.5 ${
+                isSelected
+                  ? variant === 'hot'
+                    ? 'bg-gradient-to-r from-orange-500 to-rose-500 text-white shadow-md shadow-orange-500/25 ring-2 ring-orange-400/30'
+                    : 'bg-text-primary text-bg shadow-md ring-2 ring-text-primary/20'
+                  : isJakbarCity
+                    ? 'bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/20 hover:border-indigo-400'
+                    : isJakbarSub
+                      ? 'bg-surface border border-stroke/80 text-text-primary/90 hover:border-text-primary/60'
+                      : 'bg-surface border border-stroke text-muted hover:text-text-primary hover:border-stroke/80'
+              }`}
+            >
+              {tab.key === 'all' ? (
+                variant === 'hot' ? <Flame size={12} className={isSelected ? 'fill-white' : 'text-orange-400'} /> : <Building2 size={12} />
+              ) : (
+                <MapPin size={11} className={isSelected ? (variant === 'hot' ? 'text-white fill-white' : 'text-bg fill-bg') : isJakbarCity ? 'text-indigo-400' : 'text-muted'} />
+              )}
+              
+              <span>
+                {tab.label}
+              </span>
+
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                isSelected 
+                  ? 'bg-black/25 text-white' 
+                  : isJakbarCity
+                    ? 'bg-indigo-500/20 text-indigo-300'
+                    : 'bg-stroke/60 text-muted'
+              }`}>
+                {variant === 'hot' ? `${count} unit (${rooms} kmr)` : count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    );
   };
 
   return (
@@ -459,14 +415,14 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick })
             </h2>
             {/* Subtext */}
             <p className="text-sm md:text-base text-muted font-light leading-relaxed">
-              Jelajahi unit kos dan apartemen siap huni (HOT) serta pilihan lokasi strategis di Kebon Jeruk, Grogol, Kemayoran, dan sekitarnya.
+              Jelajahi unit kos dan apartemen siap huni (HOT) serta pilihan lokasi strategis dari data area terbaru.
             </p>
             {/* Search Bar */}
             <div className="w-full max-w-md mt-6">
               <div className="relative group">
                 <input 
                   type="text"
-                  placeholder="Cari ruangan, area (Kebon Jeruk, Grogol), atau fasilitas..."
+                  placeholder="Cari ruangan, kecamatan, atau kota..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full bg-surface border border-stroke rounded-full px-5 py-3 text-base sm:text-xs text-text-primary placeholder:text-muted focus:outline-none focus:border-text-primary/40 focus:ring-1 focus:ring-text-primary/10 transition-all duration-300 font-sans shadow-sm"
@@ -537,7 +493,7 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick })
                   </span>
                 )}
                 {selectedArea !== 'all' && (
-                  <span className="text-[9px] font-semibold uppercase bg-orange-500/20 text-orange-300 px-2.5 py-1 rounded-full border border-orange-500/30 flex items-center gap-1">
+                  <span className="text-[9px] font-semibold uppercase bg-indigo-500/20 text-indigo-300 px-2.5 py-1 rounded-full border border-indigo-500/30 flex items-center gap-1">
                     Area: {selectedArea}
                     <button onClick={() => setSelectedArea('all')} className="hover:text-rose-400 font-bold ml-1">✕</button>
                   </span>
@@ -586,7 +542,7 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick })
               <div className="flex flex-wrap gap-1.5 items-center">
                 <span className="text-[9px] text-muted uppercase font-semibold">Aktif:</span>
                 {selectedArea !== 'all' && (
-                  <span className="text-[9px] font-semibold uppercase bg-orange-500/20 text-orange-300 px-2 py-0.5 rounded-full border border-orange-500/30">
+                  <span className="text-[9px] font-semibold uppercase bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-500/30">
                     {selectedArea}
                   </span>
                 )}
@@ -691,7 +647,9 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick })
           /* Normal Structured Sections */
           <div className="flex flex-col gap-16 md:gap-24">
             
-            {/* 1. HOT SECTION — KAMAR SIAP HUNI */}
+            {/* =========================================================================
+                1. HOT SECTION — KAMAR SIAP HUNI
+               ========================================================================= */}
             {hotProperties.length > 0 && (
               <div id="hot-section" className="scroll-mt-28">
                 {/* Section Header */}
@@ -710,110 +668,125 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick })
                       Kamar Siap Huni <span className="italic font-normal text-orange-400">(HOT)</span>
                     </h3>
                     <p className="text-xs md:text-sm text-muted font-light mt-1">
-                      Unit pilihan dengan kamar ready yang siap langsung ditempati tanpa antre, dikelompokkan per area.
+                      Unit ready tanpa masa tunggu. Filter area diambil otomatis dari data API properti terkini.
                     </p>
                   </div>
 
                   <div className="flex items-center gap-2 self-start sm:self-end shrink-0">
                     <span className="px-3.5 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-300 text-xs font-bold flex items-center gap-1.5">
                       <Flame size={13} className="text-orange-400 fill-orange-400" />
-                      <span>{hotProperties.length} Properti Ready • {totalHotRooms} Kamar</span>
+                      <span>{hotProperties.length} Properti Ready • {totalHotRooms} Kamar Siap Huni</span>
                     </span>
                   </div>
                 </div>
 
-                {/* HOT Area Selector Tabs Bar */}
-                <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-8 no-scrollbar touch-pan-x">
-                  <button
-                    onClick={() => setSelectedHotArea('all')}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide whitespace-nowrap transition-all duration-200 shrink-0 flex items-center gap-1.5 ${
-                      selectedHotArea === 'all'
-                        ? 'bg-gradient-to-r from-orange-500 to-rose-500 text-white shadow-md shadow-orange-500/20'
-                        : 'bg-surface border border-orange-500/20 text-orange-300/80 hover:text-orange-200 hover:border-orange-500/40'
-                    }`}
-                  >
-                    <Flame size={12} className={selectedHotArea === 'all' ? 'fill-white' : ''} />
-                    <span>Semua Area Ready</span>
-                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${selectedHotArea === 'all' ? 'bg-black/20 text-white' : 'bg-orange-500/10 text-orange-300'}`}>
-                      {hotProperties.length}
-                    </span>
-                  </button>
+                {/* Hierarchical Area Tabs for HOT (Generated Dynamically) */}
+                {renderAreaTabs(selectedHotArea, setSelectedHotArea, 'hot')}
 
-                  {uniqueHotAreas.map((area) => {
-                    const areaItems = hotProperties.filter(p => getPropertyArea(p).toLowerCase() === area.toLowerCase());
-                    const areaRooms = areaItems.reduce((sum, p) => sum + (p.availableRooms || 0), 0);
-                    const isSelected = selectedHotArea.toLowerCase() === area.toLowerCase();
-                    return (
-                      <button
-                        key={area}
-                        onClick={() => setSelectedHotArea(area)}
-                        className={`px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide whitespace-nowrap transition-all duration-200 shrink-0 flex items-center gap-1.5 ${
-                          isSelected
-                            ? 'bg-gradient-to-r from-orange-500 to-rose-500 text-white shadow-md shadow-orange-500/20'
-                            : 'bg-surface border border-stroke text-muted hover:text-text-primary hover:border-stroke/80'
-                        }`}
-                      >
-                        <MapPin size={11} className={isSelected ? 'text-white' : 'text-orange-400'} />
-                        <span>{area}</span>
-                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isSelected ? 'bg-black/20 text-white' : 'bg-stroke/60 text-muted'}`}>
-                          {areaItems.length} unit ({areaRooms} kmr)
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+                {/* Sub-District Quick Navigation Bar if Jakarta Barat is selected */}
+                {selectedHotArea === 'Jakarta Barat' && (
+                  <div className="mb-6 p-3.5 bg-gradient-to-r from-orange-500/10 via-indigo-500/10 to-transparent border border-orange-500/20 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-left">
+                    <div className="flex items-center gap-2">
+                      <MapPin size={14} className="text-orange-400" />
+                      <span className="text-xs text-text-primary font-semibold">
+                        Menampilkan seluruh <span className="text-orange-400 font-bold">Jakarta Barat</span> ({filteredHotProperties.length} unit ready • {filteredHotProperties.reduce((s, p) => s + (p.availableRooms || 0), 0)} kamar).
+                      </span>
+                    </div>
+                    {jakbarDistricts.length > 0 && (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] text-muted font-semibold uppercase">Fokus ke:</span>
+                        {jakbarDistricts.map((district) => {
+                          const count = hotProperties.filter(p => propertyMatchesArea(p, district)).length;
+                          if (count === 0) return null;
+                          return (
+                            <button
+                              key={district}
+                              onClick={() => setSelectedHotArea(district)}
+                              className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-surface border border-orange-500/30 text-orange-300 hover:bg-orange-500/20 hover:text-white transition-all flex items-center gap-1"
+                            >
+                              <span>{district}</span>
+                              <span className="text-[9px] opacity-75">({count})</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Sub-District Breadcrumb Context if specific Jakbar district is selected */}
+                {jakbarDistricts.includes(selectedHotArea) && (
+                  <div className="mb-6 px-4 py-2.5 bg-surface/80 border border-orange-500/20 rounded-2xl flex items-center justify-between gap-3 text-left">
+                    <div className="flex items-center gap-1.5 text-xs text-muted">
+                      <span className="cursor-pointer hover:text-text-primary" onClick={() => setSelectedHotArea('all')}>Semua Area</span>
+                      <ChevronRight size={12} />
+                      <span className="cursor-pointer hover:text-orange-400 text-orange-400/90 font-semibold" onClick={() => setSelectedHotArea('Jakarta Barat')}>Jakarta Barat</span>
+                      <ChevronRight size={12} />
+                      <span className="text-text-primary font-bold">{selectedHotArea}</span>
+                    </div>
+                    <button
+                      onClick={() => setSelectedHotArea('Jakarta Barat')}
+                      className="text-[11px] font-semibold text-orange-400 hover:text-orange-300 flex items-center gap-1"
+                    >
+                      <ArrowLeft size={12} />
+                      <span>Lihat Seluruh Jakbar</span>
+                    </button>
+                  </div>
+                )}
 
                 {/* HOT Grid Display */}
-                {selectedHotArea === 'all' ? (
-                  /* Grouped View by Area in HOT section */
+                {selectedHotArea === 'all' || selectedHotArea === 'Jakarta Barat' ? (
+                  /* Dynamic Grouped View by Sub-District in HOT section */
                   <div className="flex flex-col gap-10">
-                    {groupedHotByArea.map((group) => (
-                      <div key={group.area} className="text-left">
-                        {/* Area Subheading inside HOT section */}
-                        <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 mb-3 sm:mb-4 pb-2 border-b border-orange-500/20">
-                          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                            <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-orange-400 shadow-sm shadow-orange-400/50 animate-pulse shrink-0" />
-                            <h4 className="text-base sm:text-lg md:text-xl font-display font-medium text-text-primary">
-                              Area {group.area}
-                            </h4>
-                            <span className="text-[9px] sm:text-[11px] text-orange-300 font-semibold bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">
-                              {group.items.length} Unit Ready • {group.totalRooms} Kamar Siap Huni
-                            </span>
+                    {groupedHotByArea
+                      .filter(group => selectedHotArea === 'all' || group.city.toLowerCase() === 'jakarta barat')
+                      .map((group) => (
+                        <div key={`${group.city}_${group.area}`} className="text-left">
+                          {/* Sub-District Subheading inside HOT section */}
+                          <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 mb-3 sm:mb-4 pb-2 border-b border-orange-500/20">
+                            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                              <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-orange-400 shadow-sm shadow-orange-400/50 animate-pulse shrink-0" />
+                              <h4 className="text-base sm:text-lg md:text-xl font-display font-medium text-text-primary">
+                                {group.label}
+                              </h4>
+                              <span className="text-[9px] sm:text-[11px] text-orange-300 font-semibold bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">
+                                {group.items.length} Unit Ready • {group.totalRooms} Kamar Siap Huni
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => setSelectedHotArea(group.area)}
+                              className="text-[11px] sm:text-xs text-orange-400 hover:text-orange-300 transition-colors font-medium flex items-center gap-1 shrink-0 ml-auto sm:ml-0"
+                            >
+                              Fokus {group.area} →
+                            </button>
                           </div>
-                          <button
-                            onClick={() => setSelectedHotArea(group.area)}
-                            className="text-[11px] sm:text-xs text-orange-400 hover:text-orange-300 transition-colors font-medium flex items-center gap-1 shrink-0 ml-auto sm:ml-0"
-                          >
-                            Fokus Area {group.area} →
-                          </button>
-                        </div>
 
-                        {/* Cards Grid */}
-                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 md:gap-7">
-                          {group.items.map((project, index) => (
-                            <PropertyCard 
-                              key={project.id || index}
-                              project={project}
-                              index={index}
-                              onPropertyClick={onPropertyClick}
-                              isHot={true}
-                            />
-                          ))}
+                          {/* Cards Grid */}
+                          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 md:gap-7">
+                            {group.items.map((project, index) => (
+                              <PropertyCard 
+                                key={project.id || index}
+                                project={project}
+                                index={index}
+                                onPropertyClick={onPropertyClick}
+                                isHot={true}
+                              />
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 ) : (
-                  /* Focused Area View in HOT section */
+                  /* Focused Single Area View in HOT section */
                   <div>
                     <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 mb-4 sm:mb-6 pb-2 border-b border-orange-500/20 text-left">
                       <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                         <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-orange-400 shadow-sm shadow-orange-400/50 shrink-0" />
                         <h4 className="text-base sm:text-lg md:text-xl font-display font-medium text-text-primary">
-                          Kamar Ready di Area: <span className="text-orange-400 font-semibold">{selectedHotArea}</span>
+                          Kamar Ready di: <span className="text-orange-400 font-semibold">{selectedHotArea}</span>
                         </h4>
-                        <span className="text-[10px] sm:text-xs text-orange-300 bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">
-                          {filteredHotProperties.length} Unit Ready
+                        <span className="text-[10px] sm:text-xs text-orange-300 bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20 font-bold">
+                          {filteredHotProperties.length} Unit Ready • {filteredHotProperties.reduce((s, p) => s + (p.availableRooms || 0), 0)} Kamar
                         </span>
                       </div>
                       <button
@@ -824,7 +797,7 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick })
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 sm:gap-6">
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 md:gap-7">
                       {filteredHotProperties.map((project, index) => (
                         <PropertyCard 
                           key={project.id || index}
@@ -840,7 +813,9 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick })
               </div>
             )}
 
-            {/* 2. AREA SECTION — PILIHAN BERDASARKAN KAWASAN */}
+            {/* =========================================================================
+                2. AREA SECTION — PILIHAN BERDASARKAN KAWASAN
+               ========================================================================= */}
             <div id="area-section" className="scroll-mt-28">
               {/* Section Header */}
               <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-6 gap-4 pb-4 border-b border-stroke text-left">
@@ -858,90 +833,119 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick })
                     Pilihan Berdasarkan <span className="italic font-normal">Area & Kawasan</span>
                   </h3>
                   <p className="text-xs md:text-sm text-muted font-light mt-1">
-                    Temukan hunian yang dekat dengan aktivitas Anda di Kebon Jeruk, Grogol, Kemayoran, dll.
+                    Cari hunian sesuai kawasan aktivitas Anda. Memilih Jakarta Barat mencakup seluruh area Kebon Jeruk, Grogol, Cengkareng, dan sekitarnya.
                   </p>
+                </div>
+
+                <div className="flex items-center gap-2 self-start sm:self-end shrink-0">
+                  <span className="px-3.5 py-1.5 rounded-full bg-surface border border-stroke text-text-primary text-xs font-semibold">
+                    Total {baseFilteredProperties.length} Unit Terdaftar
+                  </span>
                 </div>
               </div>
 
-              {/* Area Selector Tabs Bar */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-8 no-scrollbar touch-pan-x">
-                <button
-                  onClick={() => setSelectedArea('all')}
-                  className={`px-4 py-2 rounded-full text-xs font-semibold tracking-wide whitespace-nowrap transition-all duration-200 shrink-0 flex items-center gap-1.5 ${
-                    selectedArea === 'all'
-                      ? 'bg-text-primary text-bg shadow-md'
-                      : 'bg-surface border border-stroke text-muted hover:text-text-primary hover:border-stroke/80'
-                  }`}
-                >
-                  <Building2 size={13} />
-                  <span>Semua Area</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${selectedArea === 'all' ? 'bg-bg text-text-primary' : 'bg-stroke/60 text-muted'}`}>
-                    {baseFilteredProperties.length}
-                  </span>
-                </button>
+              {/* Hierarchical Area Tabs for General Area Selection (Dynamically Generated) */}
+              {renderAreaTabs(selectedArea, setSelectedArea, 'general')}
 
-                {uniqueAreas.map((area) => {
-                  const areaCount = baseFilteredProperties.filter(p => getPropertyArea(p).toLowerCase() === area.toLowerCase()).length;
-                  const isSelected = selectedArea.toLowerCase() === area.toLowerCase();
-                  return (
-                    <button
-                      key={area}
-                      onClick={() => setSelectedArea(area)}
-                      className={`px-4 py-2 rounded-full text-xs font-semibold tracking-wide whitespace-nowrap transition-all duration-200 shrink-0 flex items-center gap-1.5 ${
-                        isSelected
-                          ? 'bg-text-primary text-bg shadow-md'
-                          : 'bg-surface border border-stroke text-muted hover:text-text-primary hover:border-stroke/80'
-                      }`}
-                    >
-                      <MapPin size={12} className={isSelected ? 'text-bg' : 'text-muted'} />
-                      <span>{area}</span>
-                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isSelected ? 'bg-bg text-text-primary' : 'bg-stroke/60 text-muted'}`}>
-                        {areaCount}
+              {/* Sub-District Quick Navigation Bar if Jakarta Barat is selected */}
+              {selectedArea === 'Jakarta Barat' && (
+                <div className="mb-6 p-4 bg-gradient-to-r from-indigo-500/10 via-surface to-surface border border-indigo-500/30 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-left">
+                  <div className="flex items-center gap-2.5">
+                    <MapPin size={15} className="text-indigo-400" />
+                    <div>
+                      <span className="text-xs text-text-primary font-bold block">
+                        Kawasan Jakarta Barat ({areaFilteredProperties.length} Properti)
                       </span>
-                    </button>
-                  );
-                })}
-              </div>
+                      <span className="text-[11px] text-muted font-light">
+                        Mencakup seluruh properti di Kebon Jeruk, Grogol, Cengkareng, dan unit lainnya.
+                      </span>
+                    </div>
+                  </div>
+                  {jakbarDistricts.length > 0 && (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] text-muted font-semibold uppercase">Filter spesifik:</span>
+                      {jakbarDistricts.map((district) => {
+                        const count = baseFilteredProperties.filter(p => propertyMatchesArea(p, district)).length;
+                        if (count === 0) return null;
+                        return (
+                          <button
+                            key={district}
+                            onClick={() => setSelectedArea(district)}
+                            className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-surface border border-stroke text-text-primary hover:border-text-primary transition-all flex items-center gap-1"
+                          >
+                            <span>{district}</span>
+                            <span className="text-[9px] text-muted">({count})</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Sub-District Breadcrumb Context if specific Jakbar district is selected */}
+              {jakbarDistricts.includes(selectedArea) && (
+                <div className="mb-6 px-4 py-2.5 bg-surface/80 border border-stroke rounded-2xl flex items-center justify-between gap-3 text-left">
+                  <div className="flex items-center gap-1.5 text-xs text-muted">
+                    <span className="cursor-pointer hover:text-text-primary" onClick={() => setSelectedArea('all')}>Semua Area</span>
+                    <ChevronRight size={12} />
+                    <span className="cursor-pointer hover:text-indigo-400 text-indigo-400/90 font-semibold" onClick={() => setSelectedArea('Jakarta Barat')}>Jakarta Barat</span>
+                    <ChevronRight size={12} />
+                    <span className="text-text-primary font-bold">{selectedArea}</span>
+                  </div>
+                  <button
+                    onClick={() => setSelectedArea('Jakarta Barat')}
+                    className="text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                  >
+                    <ArrowLeft size={12} />
+                    <span>Lihat Seluruh Jakarta Barat ({baseFilteredProperties.filter(p => propertyMatchesArea(p, 'Jakarta Barat')).length} Unit)</span>
+                  </button>
+                </div>
+              )}
 
               {/* Area Content Grid */}
-              {selectedArea === 'all' ? (
-                /* Grouped by Area View */
-                <div className="flex flex-col gap-14">
-                  {groupedByArea.map((group) => (
-                    <div key={group.area} className="text-left">
-                      {/* Area Group Header */}
-                      <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 mb-3 sm:mb-5 pb-2 border-b border-stroke/40">
-                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                          <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/30 shrink-0" />
-                          <h4 className="text-base sm:text-lg md:text-xl font-display font-medium text-text-primary">
-                            Area {group.area}
-                          </h4>
-                          <span className="text-[11px] sm:text-xs text-muted font-light">
-                            ({group.items.length} Unit)
-                          </span>
+              {selectedArea === 'all' || selectedArea === 'Jakarta Barat' ? (
+                /* Dynamic Grouped by Kawasan View */
+                <div className="flex flex-col gap-12">
+                  {groupedByArea
+                    .filter(group => selectedArea === 'all' || group.city.toLowerCase() === 'jakarta barat')
+                    .map((group) => (
+                      <div key={`${group.city}_${group.area}`} className="text-left">
+                        {/* Area Group Header */}
+                        <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 mb-3 sm:mb-5 pb-2 border-b border-stroke/40">
+                          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                            <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/30 shrink-0" />
+                            <h4 className="text-base sm:text-lg md:text-xl font-display font-medium text-text-primary">
+                              {group.label}
+                            </h4>
+                            <span className="text-[11px] sm:text-xs text-muted font-light">
+                              ({group.items.length} Unit)
+                            </span>
+                          </div>
+                          {group.area.toLowerCase() !== 'jakarta barat' && (
+                            <button
+                              onClick={() => setSelectedArea(group.area)}
+                              className="text-[11px] sm:text-xs text-muted hover:text-text-primary transition-colors font-medium flex items-center gap-1 shrink-0 ml-auto sm:ml-0"
+                            >
+                              Fokus Kawasan →
+                            </button>
+                          )}
                         </div>
-                        <button
-                          onClick={() => setSelectedArea(group.area)}
-                          className="text-[11px] sm:text-xs text-muted hover:text-text-primary transition-colors font-medium flex items-center gap-1 shrink-0 ml-auto sm:ml-0"
-                        >
-                          Fokus Area →
-                        </button>
-                      </div>
 
-                      {/* Area Group Cards Grid */}
-                      <div className="grid grid-cols-2 gap-3 sm:gap-6">
-                        {group.items.map((project, index) => (
-                          <PropertyCard 
-                            key={project.id || index}
-                            project={project}
-                            index={index}
-                            onPropertyClick={onPropertyClick}
-                            isHot={Boolean(project.availableRooms && project.availableRooms > 0)}
-                          />
-                        ))}
+                        {/* Area Group Cards Grid */}
+                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 md:gap-7">
+                          {group.items.map((project, index) => (
+                            <PropertyCard 
+                              key={project.id || index}
+                              project={project}
+                              index={index}
+                              onPropertyClick={onPropertyClick}
+                              isHot={Boolean(project.availableRooms && project.availableRooms > 0)}
+                            />
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               ) : (
                 /* Specific Selected Area View */
@@ -950,7 +954,7 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick })
                     <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                       <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-400 shrink-0" />
                       <h4 className="text-base sm:text-lg md:text-xl font-display font-medium text-text-primary">
-                        Menampilkan Unit di Area: <span className="text-emerald-400 font-semibold">{selectedArea}</span>
+                        Menampilkan Kawasan: <span className="text-emerald-400 font-semibold">{selectedArea}</span>
                       </h4>
                       <span className="text-[11px] sm:text-xs text-muted">
                         ({areaFilteredProperties.length} Unit)
@@ -960,13 +964,13 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick })
                       onClick={() => setSelectedArea('all')}
                       className="text-[11px] sm:text-xs text-muted hover:text-text-primary transition-colors font-medium shrink-0 ml-auto sm:ml-0"
                     >
-                      Lihat Semua Area
+                      Lihat Semua Kawasan
                     </button>
                   </div>
 
                   {areaFilteredProperties.length === 0 ? (
                     <div className="py-16 text-center text-muted">
-                      <p className="text-sm">Tidak ada ruangan di area {selectedArea} yang cocok dengan filter.</p>
+                      <p className="text-sm">Tidak ada ruangan di kawasan {selectedArea} yang cocok dengan filter.</p>
                       <button
                         onClick={() => setSelectedArea('all')}
                         className="mt-3 text-xs text-emerald-400 underline"
@@ -975,7 +979,7 @@ export const SelectedWorks: React.FC<SelectedWorksProps> = ({ onPropertyClick })
                       </button>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 gap-3 sm:gap-6">
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 md:gap-7">
                       {areaFilteredProperties.map((project, index) => (
                         <PropertyCard 
                           key={project.id || index}

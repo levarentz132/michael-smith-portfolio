@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
 import { 
@@ -13,47 +13,10 @@ import {
 import { fetchProperties, slugify } from '../api';
 import type { Property, WebsiteSettings } from '../api';
 import { useSEO } from '../hooks/useSEO';
+import { getPropertyArea, getPropertyAreaInfo, propertyMatchesArea, buildDynamicAreaList } from '../utils/areaHierarchy';
 
 interface CatalogPageProps {
   settings?: WebsiteSettings | null;
-}
-
-const AREA_DISPLAY_ORDER = [
-  'Semua Area',
-  'Kebon Jeruk',
-  'Grogol',
-  'Kemayoran',
-  'Cengkareng',
-  'Jakarta Barat',
-  'Tangerang',
-  'Palembang'
-];
-
-function getPropertyArea(prop: Property): string {
-  const loc = (prop.kecamatan || prop.location || '').trim();
-  const lower = loc.toLowerCase();
-  if (lower.includes('kebon jeruk') || lower.includes('greenville') || lower.includes('pesing') || lower.includes('green garden')) {
-    return 'Kebon Jeruk';
-  }
-  if (lower.includes('grogol') || lower.includes('jelambar') || lower.includes('alpukat') || lower.includes('td')) {
-    return 'Grogol';
-  }
-  if (lower.includes('kemayoran') || lower.includes('rajawali')) {
-    return 'Kemayoran';
-  }
-  if (lower.includes('cengkareng') || lower.includes('pedongkelan') || lower.includes('sumur bor')) {
-    return 'Cengkareng';
-  }
-  if (lower.includes('tangerang') || lower.includes('mahkota')) {
-    return 'Tangerang';
-  }
-  if (lower.includes('palembang') || lower.includes('pak jo') || lower.includes('pakjo')) {
-    return 'Palembang';
-  }
-  if (lower.includes('jakarta') || lower.includes('daan mogot') || lower.includes('sedayu') || lower.includes('apartemen')) {
-    return 'Jakarta Barat';
-  }
-  return loc || 'Lainnya';
 }
 
 export const CatalogPage: React.FC<CatalogPageProps> = () => {
@@ -64,6 +27,11 @@ export const CatalogPage: React.FC<CatalogPageProps> = () => {
   const [selectedArea, setSelectedArea] = useState<string>('Semua Area');
   const [typeFilter, setTypeFilter] = useState<'all' | 'kos' | 'apartment'>('all');
   const [onlyAvailable, setOnlyAvailable] = useState<boolean>(false);
+
+  // Dynamically extract unique area options directly from API properties
+  const areaOptions = useMemo(() => {
+    return buildDynamicAreaList(properties);
+  }, [properties]);
 
   useSEO({
     title: 'Katalog Kamar Kos & Apartemen Siap Huni | Highlanderstay',
@@ -98,8 +66,7 @@ export const CatalogPage: React.FC<CatalogPageProps> = () => {
 
   const filteredList = properties.filter((p) => {
     if (selectedArea !== 'Semua Area') {
-      const area = getPropertyArea(p);
-      if (area.toLowerCase() !== selectedArea.toLowerCase()) return false;
+      if (!propertyMatchesArea(p, selectedArea)) return false;
     }
     if (typeFilter !== 'all') {
       if (typeFilter === 'apartment' && p.type !== 'apartment') return false;
@@ -176,9 +143,9 @@ export const CatalogPage: React.FC<CatalogPageProps> = () => {
 
         {/* Filter Badges & Toggle */}
         <div className="flex flex-wrap items-center justify-between gap-2">
-          {/* Area Filters */}
+          {/* Area Filters from API */}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 max-w-full">
-            {AREA_DISPLAY_ORDER.map((area) => {
+            {areaOptions.map((area: string) => {
               const active = selectedArea === area;
               return (
                 <button
@@ -297,7 +264,7 @@ export const CatalogPage: React.FC<CatalogPageProps> = () => {
                   {/* Top Badges */}
                   <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex items-center gap-1">
                     <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full bg-slate-950/80 backdrop-blur-md border border-white/15 text-amber-300 text-[8px] sm:text-[10px] font-black uppercase tracking-wider">
-                      {getPropertyArea(prop)}
+                      {getPropertyAreaInfo(prop).displayBadge}
                     </span>
                   </div>
 
