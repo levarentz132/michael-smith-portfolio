@@ -36,7 +36,8 @@ import {
   HelpCircle,
   Home,
   Menu,
-  Palmtree
+  Palmtree,
+  Tv
 } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -1471,35 +1472,47 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
 
                     {/* 4. KEY FACILITIES GRID */}
                     <div className="space-y-2">
-                      <span className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-1.5">
-                        <ShieldCheck size={14} className="text-amber-400" />
-                        <span>Fasilitas Kamar & Properti</span>
-                      </span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-1.5">
+                          <ShieldCheck size={14} className="text-amber-400" />
+                          <span>Fasilitas Kamar & Properti</span>
+                        </span>
+                        {prop.facilities && prop.facilities.length > 0 && (
+                          <span className="text-[10px] text-muted font-medium bg-white/5 px-2 py-0.5 rounded-full border border-white/5">
+                            {prop.facilities.length} fasilitas
+                          </span>
+                        )}
+                      </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs text-text-primary">
-                        <div className="p-2 sm:p-2.5 rounded-xl bg-white/5 border border-white/5 flex items-center gap-2">
-                          <Wind size={15} className="text-cyan-400 shrink-0" />
-                          <span>AC Dingin</span>
-                        </div>
-                        <div className="p-2 sm:p-2.5 rounded-xl bg-white/5 border border-white/5 flex items-center gap-2">
-                          <Wifi size={15} className="text-amber-400 shrink-0" />
-                          <span>WiFi Kencang</span>
-                        </div>
-                        <div className="p-2 sm:p-2.5 rounded-xl bg-white/5 border border-white/5 flex items-center gap-2">
-                          <Droplets size={15} className="text-blue-400 shrink-0" />
-                          <span>K. Mandi Dalam</span>
-                        </div>
-                        <div className="p-2 sm:p-2.5 rounded-xl bg-white/5 border border-white/5 flex items-center gap-2">
-                          <BedDouble size={15} className="text-emerald-400 shrink-0" />
-                          <span>Springbed & Lemari</span>
-                        </div>
-                        <div className="p-2 sm:p-2.5 rounded-xl bg-white/5 border border-white/5 flex items-center gap-2">
-                          <Car size={15} className="text-orange-400 shrink-0" />
-                          <span>Parkiran Aman</span>
-                        </div>
-                        <div className="p-2 sm:p-2.5 rounded-xl bg-white/5 border border-white/5 flex items-center gap-2">
-                          <Zap size={15} className="text-yellow-400 shrink-0" />
-                          <span>Listrik & Air</span>
-                        </div>
+                        {(prop.facilities && prop.facilities.length > 0
+                          ? prop.facilities
+                          : [
+                              'AC Dingin',
+                              'WiFi Kencang',
+                              'K. Mandi Dalam',
+                              'Springbed & Lemari',
+                              'Parkiran Aman',
+                              'Listrik & Air'
+                            ]
+                        ).map((facName, facIdx) => {
+                          const lower = facName.toLowerCase();
+                          let icon = <Sparkles size={14} className="text-amber-400 shrink-0" />;
+                          if (lower.includes('ac')) icon = <Wind size={14} className="text-cyan-400 shrink-0" />;
+                          else if (lower.includes('wifi') || lower.includes('internet')) icon = <Wifi size={14} className="text-amber-400 shrink-0" />;
+                          else if (lower.includes('mandi') || lower.includes('heater') || lower.includes('air')) icon = <Droplets size={14} className="text-blue-400 shrink-0" />;
+                          else if (lower.includes('kasur') || lower.includes('springbed') || lower.includes('bed')) icon = <BedDouble size={14} className="text-emerald-400 shrink-0" />;
+                          else if (lower.includes('parkir') || lower.includes('motor') || lower.includes('mobil')) icon = <Car size={14} className="text-orange-400 shrink-0" />;
+                          else if (lower.includes('cctv') || lower.includes('aman') || lower.includes('satpam') || lower.includes('security')) icon = <ShieldCheck size={14} className="text-emerald-400 shrink-0" />;
+                          else if (lower.includes('tv') || lower.includes('netflix')) icon = <Tv size={14} className="text-purple-400 shrink-0" />;
+                          else if (lower.includes('listrik')) icon = <Zap size={14} className="text-yellow-400 shrink-0" />;
+
+                          return (
+                            <div key={facIdx} className="p-2 sm:p-2.5 rounded-xl bg-white/5 border border-white/5 flex items-center gap-2">
+                              {icon}
+                              <span className="truncate" title={facName}>{facName}</span>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
 

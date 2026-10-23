@@ -43,6 +43,7 @@ export interface Property {
   transit24h?: number | null;
   mapUrl?: string;
   description?: string;
+  facilities?: string[];
   rooms?: number;
   availableRooms?: number;
   availableRoomsList?: string[];
@@ -761,6 +762,7 @@ export async function fetchProperties(): Promise<Property[]> {
             aspectRatio: idx % 3 === 0 ? 'aspect-[4/3] md:aspect-[1.5/1]' : 'aspect-[4/3] md:aspect-[1.1/1]',
             available: roomsCount > 0 && status.toLowerCase() !== 'kamar full',
             description: item.description || '',
+            facilities: Array.isArray(item.facilities) ? item.facilities : [],
             rooms: roomsCount > 0 ? roomsCount + 10 : 20,
             availableRooms: roomsCount,
             availableRoomsList: item.available_rooms || [],

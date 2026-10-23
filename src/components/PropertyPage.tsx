@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeft, MapPin, Star, Shield, Wifi, 
   Tv, Wind, ChevronRight, Sparkles, 
-  CheckCircle2, Key, Info, DoorOpen, X
+  CheckCircle2, Key, Info, DoorOpen, X,
+  Droplets, BedDouble, Car, Zap
 } from 'lucide-react';
 import { fetchPropertyById, fetchSettings, logoutTenant, clearCartToken, fetchCart, type Property, type UserSession, type WebsiteSettings } from '../api';
 import { BookingModal } from './BookingModal';
@@ -583,26 +584,48 @@ export const PropertyPage: React.FC = () => {
             <div className="bg-surface border border-stroke rounded-3xl p-6 md:p-8">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-semibold text-text-primary flex items-center gap-2">
-                  <Sparkles size={18} className="text-muted" /> Fasilitas Premium Termasuk
+                  <Sparkles size={18} className="text-amber-400" /> Fasilitas Properti Termasuk
                 </h3>
+                {property.facilities && property.facilities.length > 0 && (
+                  <span className="text-xs text-muted font-medium bg-stroke/30 px-2.5 py-1 rounded-full">
+                    {property.facilities.length} Fasilitas
+                  </span>
+                )}
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {[
-                  { icon: <Wifi size={16} />, label: 'WiFi Fiber Berkecepatan Tinggi (hingga 100Mbps)' },
-                  { icon: <Wind size={16} />, label: 'AC Dalam Kamar' },
-                  { icon: <Tv size={16} />, label: 'Smart TV dengan Netflix Terpasang' },
-                  { icon: <Shield size={16} />, label: 'Satpam & CCTV 24/7' },
-                  { icon: <Key size={16} />, label: 'Kunci Gerbang Pintar Digital' },
-                  { icon: <CheckCircle2 size={16} />, label: 'Kamar Mandi Pribadi + Air Panas' }
-                ].map((amenity, idx) => (
-                  <div key={idx} className="flex items-center gap-3.5 bg-bg/50 border border-stroke/50 p-4 rounded-2xl">
-                    <span className="w-8 h-8 rounded-full bg-stroke/50 flex items-center justify-center text-text-primary">
-                      {amenity.icon}
-                    </span>
-                    <span className="text-xs md:text-sm font-medium text-muted">{amenity.label}</span>
-                  </div>
-                ))}
+                {(property.facilities && property.facilities.length > 0
+                  ? property.facilities
+                  : [
+                      'WiFi Fiber Berkecepatan Tinggi (hingga 100Mbps)',
+                      'AC Dalam Kamar',
+                      'Smart TV dengan Netflix Terpasang',
+                      'Satpam & CCTV 24/7',
+                      'Kunci Gerbang Pintar Digital',
+                      'Kamar Mandi Pribadi + Air Panas'
+                    ]
+                ).map((facilityName, idx) => {
+                  const lower = facilityName.toLowerCase();
+                  let icon = <CheckCircle2 size={16} className="text-amber-400" />;
+                  if (lower.includes('ac')) icon = <Wind size={16} className="text-cyan-400" />;
+                  else if (lower.includes('wifi') || lower.includes('internet')) icon = <Wifi size={16} className="text-amber-400" />;
+                  else if (lower.includes('mandi') || lower.includes('heater') || lower.includes('air')) icon = <Droplets size={16} className="text-blue-400" />;
+                  else if (lower.includes('kasur') || lower.includes('springbed') || lower.includes('bed')) icon = <BedDouble size={16} className="text-emerald-400" />;
+                  else if (lower.includes('parkir') || lower.includes('motor') || lower.includes('mobil')) icon = <Car size={16} className="text-orange-400" />;
+                  else if (lower.includes('tv') || lower.includes('netflix')) icon = <Tv size={16} className="text-purple-400" />;
+                  else if (lower.includes('kunci') || lower.includes('gerbang') || lower.includes('smart lock')) icon = <Key size={16} className="text-amber-300" />;
+                  else if (lower.includes('satpam') || lower.includes('cctv') || lower.includes('aman') || lower.includes('security')) icon = <Shield size={16} className="text-emerald-400" />;
+                  else if (lower.includes('listrik')) icon = <Zap size={16} className="text-yellow-400" />;
+
+                  return (
+                    <div key={idx} className="flex items-center gap-3.5 bg-bg/50 border border-stroke/50 p-4 rounded-2xl hover:border-amber-400/30 transition-colors">
+                      <span className="w-8 h-8 rounded-full bg-stroke/50 flex items-center justify-center text-text-primary shrink-0">
+                        {icon}
+                      </span>
+                      <span className="text-xs md:text-sm font-medium text-text-primary/90">{facilityName}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
