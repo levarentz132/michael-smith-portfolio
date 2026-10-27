@@ -64,14 +64,6 @@ export const PaymentReturnModal: React.FC<PaymentReturnModalProps> = ({
         if (!matchedItem && targetRef) {
           matchedItem = cartRes.cart.items.find((i: CartItem) => i.reference === targetRef);
         }
-        // Priority 3: Look for any paid item
-        if (!matchedItem) {
-          matchedItem = cartRes.cart.items.find((i: CartItem) => i.is_paid || i.status === 'paid');
-        }
-        // Priority 4: Fallback to first available item
-        if (!matchedItem) {
-          matchedItem = cartRes.cart.items[0];
-        }
 
         if (matchedItem) {
           setCartItem(matchedItem);

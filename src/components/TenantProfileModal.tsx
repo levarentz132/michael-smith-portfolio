@@ -22,7 +22,9 @@ import {
   ArrowRight,
   ShoppingCart,
   Trash2,
-  ExternalLink
+  ExternalLink,
+  Landmark,
+  Edit3
 } from 'lucide-react';
 import type { 
   UserSession, 
@@ -37,6 +39,7 @@ import {
   sendPhoneOtp, 
   verifyPhoneOtp, 
   fetchTenantDashboard, 
+  updateTenantProfile,
   fetchTenantLeases, 
   fetchTenantInvoices, 
   createTenantInvoiceCheckout,
@@ -123,6 +126,15 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isSubmittingOtp, setIsSubmittingOtp] = useState(false);
   const [otpCountdown, setOtpCountdown] = useState(0);
+
+  // Bank Account State in Profile Tab
+  const [isEditingBank, setIsEditingBank] = useState(false);
+  const [bankName, setBankName] = useState('');
+  const [customBankName, setCustomBankName] = useState('');
+  const [bankAccountNumber, setBankAccountNumber] = useState('');
+  const [bankAccountHolder, setBankAccountHolder] = useState('');
+  const [isUpdatingBank, setIsUpdatingBank] = useState(false);
+  const [bankUpdateMsg, setBankUpdateMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Format currency helper
   const formatRupiah = (amount: number | undefined | null) => {
@@ -505,6 +517,75 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
       setOtpError(err.message || 'Kode OTP salah atau telah kadaluarsa.');
     } finally {
       setIsSubmittingOtp(false);
+    }
+  };
+
+  // Sync bank account data from dashboardData or session
+  useEffect(() => {
+    const rawBank = dashboardData?.tenant?.bank_name || session?.tenant?.bank_name || '';
+    const rawAccNum = dashboardData?.tenant?.bank_account_number || session?.tenant?.bank_account_number || '';
+    const rawAccHolder = dashboardData?.tenant?.bank_account_holder || session?.tenant?.bank_account_holder || '';
+
+    const popularBanks = ['BCA', 'Mandiri', 'BRI', 'BNI', 'BSI', 'CIMB', 'Permata', 'Danamon', 'Jago', 'SeaBank'];
+    if (rawBank && !popularBanks.includes(rawBank)) {
+      setBankName('Lainnya');
+      setCustomBankName(rawBank);
+    } else {
+      setBankName(rawBank);
+      setCustomBankName('');
+    }
+    setBankAccountNumber(rawAccNum);
+    setBankAccountHolder(rawAccHolder);
+  }, [dashboardData, session]);
+
+  // Handle Save Bank Account Details
+  const handleSaveBank = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!session?.token) return;
+    setIsUpdatingBank(true);
+    setBankUpdateMsg(null);
+    try {
+      const finalBankName = (bankName === 'Lainnya' ? customBankName : bankName).trim();
+      const res = await updateTenantProfile({
+        bank_name: finalBankName,
+        bank_account_number: bankAccountNumber.trim(),
+        bank_account_holder: bankAccountHolder.trim()
+      }, session.token);
+
+      setBankUpdateMsg({ type: 'success', text: res.message || 'Nomor rekening berhasil disimpan.' });
+      setIsEditingBank(false);
+
+      if (dashboardData) {
+        setDashboardData({
+          ...dashboardData,
+          tenant: {
+            ...dashboardData.tenant,
+            bank_name: finalBankName,
+            bank_account_number: bankAccountNumber.trim(),
+            bank_account_holder: bankAccountHolder.trim()
+          }
+        });
+      }
+
+      if (session) {
+        const updated: UserSession = {
+          ...session,
+          tenant: {
+            ...session.tenant,
+            bank_name: finalBankName,
+            bank_account_number: bankAccountNumber.trim(),
+            bank_account_holder: bankAccountHolder.trim()
+          }
+        };
+        if (onSessionUpdate) {
+          onSessionUpdate(updated);
+        }
+        localStorage.setItem('userSession', JSON.stringify(updated));
+      }
+    } catch (err: any) {
+      setBankUpdateMsg({ type: 'error', text: err.message || 'Gagal menyimpan nomor rekening.' });
+    } finally {
+      setIsUpdatingBank(false);
     }
   };
 
@@ -1731,6 +1812,174 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                         #{session.id || 'N/A'} (Sanctum Tenant Token Aktif)
                       </div>
                     </div>
+                  </div>
+
+                  {/* INFORMASI REKENING BANK */}
+                  <div className="bg-bg/50 border border-stroke rounded-2xl p-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                          <Landmark size={16} />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-text-primary">Nomor Rekening Bank</h4>
+                          <p className="text-[11px] text-muted">Untuk keperluan pencairan jaminan deposit atau pengembalian dana (refund).</p>
+                        </div>
+                      </div>
+
+                      {!isEditingBank && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsEditingBank(true);
+                            setBankUpdateMsg(null);
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface border border-stroke hover:border-emerald-500/50 text-xs font-semibold text-text-primary hover:text-emerald-400 transition-colors cursor-pointer"
+                        >
+                          <Edit3 size={13} />
+                          <span>{bankAccountNumber ? 'Ubah Rekening' : 'Tambah Rekening'}</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {bankUpdateMsg && (
+                      <div className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
+                        bankUpdateMsg.type === 'success' 
+                          ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400' 
+                          : 'bg-rose-500/10 border border-rose-500/30 text-rose-400'
+                      }`}>
+                        {bankUpdateMsg.type === 'success' ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+                        <span>{bankUpdateMsg.text}</span>
+                      </div>
+                    )}
+
+                    {!isEditingBank ? (
+                      bankAccountNumber ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-bg/80 border border-stroke/60 rounded-xl p-4">
+                          <div className="space-y-1">
+                            <span className="text-[10px] text-muted uppercase tracking-wider font-semibold">Nama Bank</span>
+                            <div className="text-sm font-bold text-text-primary flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                              {bankName || '-'}
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-[10px] text-muted uppercase tracking-wider font-semibold">Nomor Rekening</span>
+                            <div className="text-base font-mono font-bold text-emerald-400 tracking-wide">
+                              {bankAccountNumber}
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-[10px] text-muted uppercase tracking-wider font-semibold">Atas Nama (Pemilik)</span>
+                            <div className="text-sm font-medium text-text-primary">
+                              {bankAccountHolder || '-'}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-5 bg-bg/30 border border-dashed border-stroke/70 rounded-xl space-y-2">
+                          <Landmark size={28} className="mx-auto text-muted/50" />
+                          <p className="text-xs text-muted">Belum ada nomor rekening bank yang terdaftar.</p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsEditingBank(true);
+                              setBankUpdateMsg(null);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition-colors cursor-pointer"
+                          >
+                            <Plus size={13} /> Tambah Rekening Sekarang
+                          </button>
+                        </div>
+                      )
+                    ) : (
+                      <form onSubmit={handleSaveBank} className="space-y-3 bg-bg/80 border border-stroke/80 rounded-xl p-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs text-muted font-medium">Pilih Bank</label>
+                            <select
+                              value={bankName}
+                              onChange={(e) => setBankName(e.target.value)}
+                              className="bg-bg border border-stroke rounded-xl px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-emerald-500 cursor-pointer font-sans"
+                              required
+                            >
+                              <option value="">Pilih Bank...</option>
+                              <option value="BCA">BCA (Bank Central Asia)</option>
+                              <option value="Mandiri">Bank Mandiri</option>
+                              <option value="BRI">BRI (Bank Rakyat Indonesia)</option>
+                              <option value="BNI">BNI (Bank Negara Indonesia)</option>
+                              <option value="BSI">BSI (Bank Syariah Indonesia)</option>
+                              <option value="CIMB">CIMB Niaga</option>
+                              <option value="Permata">Bank Permata</option>
+                              <option value="Danamon">Bank Danamon</option>
+                              <option value="Jago">Bank Jago</option>
+                              <option value="SeaBank">SeaBank</option>
+                              <option value="Lainnya">Bank Lainnya</option>
+                            </select>
+                          </div>
+
+                          {bankName === 'Lainnya' && (
+                            <div className="flex flex-col gap-1">
+                              <label className="text-xs text-muted font-medium">Ketik Nama Bank</label>
+                              <input
+                                type="text"
+                                required
+                                value={customBankName}
+                                onChange={(e) => setCustomBankName(e.target.value)}
+                                placeholder="misal: Bank Mega / Neo"
+                                className="bg-bg border border-stroke rounded-xl px-3 py-2 text-sm text-text-primary placeholder:text-muted/50 focus:outline-none focus:border-emerald-500 font-sans"
+                              />
+                            </div>
+                          )}
+
+                          <div className={`flex flex-col gap-1 ${bankName === 'Lainnya' ? 'sm:col-span-2' : ''}`}>
+                            <label className="text-xs text-muted font-medium">Nomor Rekening</label>
+                            <input
+                              type="text"
+                              required
+                              inputMode="numeric"
+                              value={bankAccountNumber}
+                              onChange={(e) => setBankAccountNumber(e.target.value.replace(/[^0-9]/g, ''))}
+                              placeholder="misal: 1234567890"
+                              className="bg-bg border border-stroke rounded-xl px-3 py-2 text-sm font-mono text-text-primary placeholder:text-muted/50 focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs text-muted font-medium">Nama Pemilik Rekening (Sesuai Buku Tabungan)</label>
+                          <input
+                            type="text"
+                            required
+                            value={bankAccountHolder}
+                            onChange={(e) => setBankAccountHolder(e.target.value)}
+                            placeholder="misal: BUDI SANTOSO"
+                            className="bg-bg border border-stroke rounded-xl px-3 py-2 text-sm text-text-primary placeholder:text-muted/50 focus:outline-none focus:border-emerald-500 font-sans"
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-stroke/50">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsEditingBank(false);
+                              setBankUpdateMsg(null);
+                            }}
+                            disabled={isUpdatingBank}
+                            className="px-3.5 py-1.5 rounded-xl border border-stroke text-xs text-muted hover:text-text-primary transition-colors cursor-pointer"
+                          >
+                            Batal
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={isUpdatingBank || !bankAccountNumber.trim() || !bankAccountHolder.trim() || !bankName}
+                            className="px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-bg text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer"
+                          >
+                            {isUpdatingBank ? 'Menyimpan...' : 'Simpan Rekening'}
+                          </button>
+                        </div>
+                      </form>
+                    )}
                   </div>
 
                   {/* WhatsApp OTP Verification Box if unverified */}

@@ -1,39 +1,43 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Home, MessageCircle, LogIn, Building2, MapPin } from 'lucide-react';
+import { Search, Heart, Building2, MessageCircle, LogIn, User } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { UserSession } from '../api';
 import { useLiveChat } from '../utils/liveChat';
+import { useFavorites } from '../utils/favorites';
 
 export interface MobileBottomNavProps {
   userSession: UserSession | null;
   isProfileOpen?: boolean;
   isLoginOpen?: boolean;
+  isFavoritesOpen?: boolean;
   onProfileClick: () => void;
   onLoginClick: () => void;
   onCatalogClick?: () => void;
+  onFavoritesClick?: () => void;
 }
 
-export type MobileNavTab = 'home' | 'catalog' | 'map' | 'chat' | 'profile';
+export type MobileNavTab = 'search' | 'favorite' | 'mykos' | 'chat' | 'profile';
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   userSession,
   isProfileOpen = false,
   isLoginOpen = false,
+  isFavoritesOpen = false,
   onProfileClick,
   onLoginClick,
-  onCatalogClick,
+  onFavoritesClick,
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { unreadCount, openChat } = useLiveChat();
+  const { favoritesCount } = useFavorites();
 
   // Determine active tab dynamically based on route and open modals
   const activeTab: MobileNavTab = React.useMemo(() => {
     if (
       isProfileOpen ||
       isLoginOpen ||
-      location.pathname === '/portal' ||
       location.pathname === '/login' ||
       location.pathname === '/register' ||
       location.pathname === '/akun' ||
@@ -41,29 +45,19 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     ) {
       return 'profile';
     }
-    if (
-      location.pathname === '/map' ||
-      location.pathname === '/lokasi' ||
-      location.pathname === '/peta'
-    ) {
-      return 'map';
+    if (location.pathname === '/portal' || location.pathname === '/billing') {
+      return 'mykos';
     }
-    if (
-      location.pathname === '/katalog' ||
-      location.pathname === '/kamar' ||
-      location.pathname.startsWith('/kost/') ||
-      location.pathname.startsWith('/apartemen/') ||
-      location.pathname.startsWith('/property/')
-    ) {
-      return 'catalog';
+    if (isFavoritesOpen) {
+      return 'favorite';
     }
-    if (location.pathname === '/' && !location.hash) {
-      return 'home';
+    if (location.pathname === '/' || location.pathname === '/katalog') {
+      return 'search';
     }
-    return 'home';
-  }, [location.pathname, location.hash, isProfileOpen, isLoginOpen]);
+    return 'search';
+  }, [location.pathname, isProfileOpen, isLoginOpen, isFavoritesOpen]);
 
-  const handleHomeClick = () => {
+  const handleSearchClick = () => {
     if (location.pathname !== '/') {
       navigate('/');
     } else {
@@ -71,21 +65,14 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     }
   };
 
-  const handleCatalog = () => {
-    if (onCatalogClick) {
-      onCatalogClick();
-      return;
+  const handleFavoritesClick = () => {
+    if (onFavoritesClick) {
+      onFavoritesClick();
     }
-    navigate('/katalog');
   };
 
-  const handleMapClick = () => {
-    if (location.pathname !== '/map') {
-      navigate('/map');
-    } else {
-      // Already on map -> trigger a refresh / center
-      window.dispatchEvent(new CustomEvent('hs-map-center'));
-    }
+  const handleMyKosClick = () => {
+    navigate('/portal');
   };
 
   const handleChatClick = () => {
@@ -106,22 +93,23 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
 
   const navItems = [
     {
-      id: 'home' as MobileNavTab,
-      label: 'Beranda',
-      icon: Home,
-      onClick: handleHomeClick,
+      id: 'search' as MobileNavTab,
+      label: 'Cari',
+      icon: Search,
+      onClick: handleSearchClick,
     },
     {
-      id: 'catalog' as MobileNavTab,
-      label: 'Katalog',
+      id: 'favorite' as MobileNavTab,
+      label: 'Favorit',
+      icon: Heart,
+      onClick: handleFavoritesClick,
+      badge: favoritesCount > 0 ? favoritesCount : null,
+    },
+    {
+      id: 'mykos' as MobileNavTab,
+      label: 'Kos Saya',
       icon: Building2,
-      onClick: handleCatalog,
-    },
-    {
-      id: 'map' as MobileNavTab,
-      label: 'Peta',
-      icon: MapPin,
-      onClick: handleMapClick,
+      onClick: handleMyKosClick,
     },
     {
       id: 'chat' as MobileNavTab,
@@ -133,12 +121,17 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     },
     {
       id: 'profile' as MobileNavTab,
-      label: userSession ? 'Portal' : 'Masuk',
-      icon: LogIn,
+      label: userSession ? 'Akun' : 'Masuk',
+      icon: userSession ? User : LogIn,
       onClick: handleProfileClick,
       isUserAvatar: Boolean(userSession),
     },
   ];
+
+  // Hide bottom tab bar on property detail pages so the dedicated Mamikos booking bar is visible
+  if (location.pathname.startsWith('/property')) {
+    return null;
+  }
 
   return (
     <nav

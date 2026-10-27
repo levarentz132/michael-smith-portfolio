@@ -12,6 +12,7 @@ import { BookingModal } from './BookingModal';
 import { BookingCartModal } from './BookingCartModal';
 import { Navbar } from './Navbar';
 import { LoginModal } from './LoginModal';
+import { MobilePropertyDetail } from './MobilePropertyDetail';
 import { useSEO } from '../hooks/useSEO';
 
 export const PropertyPage: React.FC = () => {
@@ -328,17 +329,40 @@ export const PropertyPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-bg text-text-primary selection:bg-text-primary selection:text-bg overflow-x-hidden">
-      {/* Global Navbar */}
-      <Navbar 
-        activeSection="work" 
-        onNavClick={handleNavClick} 
-        session={userSession}
-        onLogout={handleLogout}
-        onLoginClick={() => navigate('/')} // Redirect to home for logins
-        onCartClick={() => setCartOpen(true)}
-        cartCount={cartCount}
-        settings={settings}
-      />
+      {/* Dedicated Mobile Property Detail View (Mamikos Layout) */}
+      <div className="md:hidden">
+        <MobilePropertyDetail
+          property={property}
+          settings={settings}
+          userSession={userSession}
+          selectedRoomName={selectedRoomName}
+          onSelectRoomName={(name) => setSelectedRoomName(name)}
+          onBookClick={handleBookClick}
+          onContactWhatsApp={(customText) => handleContactWhatsApp(customText)}
+          onOpenPhotoLightbox={(idx) => {
+            if (property.imageUrls && property.imageUrls[idx]) {
+              setActiveImage(property.imageUrls[idx]);
+            } else {
+              setActiveImage(property.image);
+            }
+            setIsLightboxOpen(true);
+          }}
+        />
+      </div>
+
+      {/* Desktop-Only View: Preserved Luxury Portfolio Experience */}
+      <div className="hidden md:block">
+        {/* Global Navbar */}
+        <Navbar 
+          activeSection="work" 
+          onNavClick={handleNavClick} 
+          session={userSession}
+          onLogout={handleLogout}
+          onLoginClick={() => navigate('/')} // Redirect to home for logins
+          onCartClick={() => setCartOpen(true)}
+          cartCount={cartCount}
+          settings={settings}
+        />
 
       {/* Parallax Hero Header */}
       <header className="relative w-full h-[65vh] md:h-[75vh] overflow-hidden bg-black">
@@ -594,38 +618,34 @@ export const PropertyPage: React.FC = () => {
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {(property.facilities && property.facilities.length > 0
-                  ? property.facilities
-                  : [
-                      'WiFi Fiber Berkecepatan Tinggi (hingga 100Mbps)',
-                      'AC Dalam Kamar',
-                      'Smart TV dengan Netflix Terpasang',
-                      'Satpam & CCTV 24/7',
-                      'Kunci Gerbang Pintar Digital',
-                      'Kamar Mandi Pribadi + Air Panas'
-                    ]
-                ).map((facilityName, idx) => {
-                  const lower = facilityName.toLowerCase();
-                  let icon = <CheckCircle2 size={16} className="text-amber-400" />;
-                  if (lower.includes('ac')) icon = <Wind size={16} className="text-cyan-400" />;
-                  else if (lower.includes('wifi') || lower.includes('internet')) icon = <Wifi size={16} className="text-amber-400" />;
-                  else if (lower.includes('mandi') || lower.includes('heater') || lower.includes('air')) icon = <Droplets size={16} className="text-blue-400" />;
-                  else if (lower.includes('kasur') || lower.includes('springbed') || lower.includes('bed')) icon = <BedDouble size={16} className="text-emerald-400" />;
-                  else if (lower.includes('parkir') || lower.includes('motor') || lower.includes('mobil')) icon = <Car size={16} className="text-orange-400" />;
-                  else if (lower.includes('tv') || lower.includes('netflix')) icon = <Tv size={16} className="text-purple-400" />;
-                  else if (lower.includes('kunci') || lower.includes('gerbang') || lower.includes('smart lock')) icon = <Key size={16} className="text-amber-300" />;
-                  else if (lower.includes('satpam') || lower.includes('cctv') || lower.includes('aman') || lower.includes('security')) icon = <Shield size={16} className="text-emerald-400" />;
-                  else if (lower.includes('listrik')) icon = <Zap size={16} className="text-yellow-400" />;
+                {property.facilities && property.facilities.length > 0 ? (
+                  property.facilities.map((facilityName, idx) => {
+                    const lower = facilityName.toLowerCase();
+                    let icon = <CheckCircle2 size={16} className="text-amber-400" />;
+                    if (lower.includes('ac')) icon = <Wind size={16} className="text-cyan-400" />;
+                    else if (lower.includes('wifi') || lower.includes('internet')) icon = <Wifi size={16} className="text-amber-400" />;
+                    else if (lower.includes('mandi') || lower.includes('heater') || lower.includes('air')) icon = <Droplets size={16} className="text-blue-400" />;
+                    else if (lower.includes('kasur') || lower.includes('springbed') || lower.includes('bed')) icon = <BedDouble size={16} className="text-emerald-400" />;
+                    else if (lower.includes('parkir') || lower.includes('motor') || lower.includes('mobil')) icon = <Car size={16} className="text-orange-400" />;
+                    else if (lower.includes('tv') || lower.includes('netflix')) icon = <Tv size={16} className="text-purple-400" />;
+                    else if (lower.includes('kunci') || lower.includes('gerbang') || lower.includes('smart lock')) icon = <Key size={16} className="text-amber-300" />;
+                    else if (lower.includes('satpam') || lower.includes('cctv') || lower.includes('aman') || lower.includes('security')) icon = <Shield size={16} className="text-emerald-400" />;
+                    else if (lower.includes('listrik')) icon = <Zap size={16} className="text-yellow-400" />;
 
-                  return (
-                    <div key={idx} className="flex items-center gap-3.5 bg-bg/50 border border-stroke/50 p-4 rounded-2xl hover:border-amber-400/30 transition-colors">
-                      <span className="w-8 h-8 rounded-full bg-stroke/50 flex items-center justify-center text-text-primary shrink-0">
-                        {icon}
-                      </span>
-                      <span className="text-xs md:text-sm font-medium text-text-primary/90">{facilityName}</span>
-                    </div>
-                  );
-                })}
+                    return (
+                      <div key={idx} className="flex items-center gap-3.5 bg-bg/50 border border-stroke/50 p-4 rounded-2xl hover:border-amber-400/30 transition-colors">
+                        <span className="w-8 h-8 rounded-full bg-stroke/50 flex items-center justify-center text-text-primary shrink-0">
+                          {icon}
+                        </span>
+                        <span className="text-xs md:text-sm font-medium text-text-primary/90">{facilityName}</span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-xs text-muted col-span-2 italic">
+                    Fasilitas akan dikonfirmasi langsung oleh pihak pengelola.
+                  </p>
+                )}
               </div>
             </div>
 
@@ -846,48 +866,7 @@ export const PropertyPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Mobile Sticky Booking Bar */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface/98 backdrop-blur-xl border-t border-stroke px-4 py-3 pb-safe flex items-center justify-between shadow-[0_-8px_25px_-5px_rgba(0,0,0,0.6)]">
-        <div className="flex flex-col text-left min-w-0 pr-2">
-          <span className="text-[9px] uppercase tracking-wider text-muted font-bold">Mulai dari</span>
-          {property.promoPrice ? (
-            <div className="flex items-baseline gap-1.5 flex-wrap">
-              <span className="text-base font-bold text-emerald-400">
-                Rp {Math.round(Number(property.promoPrice) / 1000)}k
-              </span>
-              <span className="text-[10px] text-muted/60 line-through">
-                Rp {Math.round(Number(property.rawPrice) / 1000)}k
-              </span>
-              <span className="text-[10px] text-muted">/bln</span>
-            </div>
-          ) : (
-            <div className="text-sm sm:text-base font-bold text-text-primary truncate">
-              {property.priceRange || property.price.replace('Rp.', 'Rp')}
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => handleContactWhatsApp(`Halo Pengelola, saya tertarik dengan properti "${property?.title || ''}" (${property?.location || ''}). Apakah masih tersedia?`)}
-            className="w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0 active:scale-95 cursor-pointer"
-            aria-label="Tanya WhatsApp"
-            title={userSession ? "Tanya WhatsApp" : "Masuk untuk Tanya WhatsApp"}
-          >
-            <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current" xmlns="http://www.w3.org/2000/svg">
-              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.746.953 3.71 1.458 5.704 1.46h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-            </svg>
-          </button>
-          <button
-            disabled={!isAvailable}
-            onClick={handleBookClick}
-            className="px-5 py-2.5 rounded-full font-bold text-xs uppercase tracking-wider bg-text-primary text-bg hover:opacity-95 active:scale-95 transition-all shadow-md flex items-center gap-1.5 disabled:opacity-50 min-h-[42px]"
-          >
-            Pesan Sekarang <ChevronRight size={14} />
-          </button>
-        </div>
-      </div>
+      </div> {/* End Desktop-Only View */}
 
       {/* Render Booking Modal inside Property Page */}
       <BookingModal 

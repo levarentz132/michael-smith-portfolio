@@ -55,7 +55,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 flex flex-col items-center pt-4 md:pt-6 px-4">
+    <nav className="hidden md:flex fixed top-0 left-0 right-0 z-50 flex-col items-center pt-4 md:pt-6 px-4">
       {/* Dynamic Promo Bar */}
       {settings?.promo_enabled === 'true' && settings?.promo_text && (
         <motion.div 

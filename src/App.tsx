@@ -24,8 +24,10 @@ import { CatalogPage } from './components/CatalogPage';
 import { CartPage } from './components/CartPage';
 import { PortalPage } from './components/PortalPage';
 import { MobileBottomNav } from './components/MobileBottomNav';
+import { MobileAppHome } from './components/MobileAppHome';
+import { FavoritesModal } from './components/FavoritesModal';
 import { ShoppingCart } from 'lucide-react';
-import { fetchSettings, slugify, logoutTenant, fetchCart, clearCartToken } from './api';
+import { fetchSettings, fetchProperties, slugify, logoutTenant, fetchCart, clearCartToken } from './api';
 import type { UserSession, Property, WebsiteSettings } from './api';
 import { useSEO } from './hooks/useSEO';
 import { useCapacitor } from './hooks/useCapacitor';
@@ -33,10 +35,25 @@ import { initNativeNotificationSystem } from './utils/liveChat';
 import { initPushNotifications } from './utils/pushNotifications';
 
 function App() {
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const isRoot = window.location.pathname === '/' || window.location.pathname === '';
+        const alreadyLoaded = sessionStorage.getItem('hs_loaded');
+        if (!isRoot || alreadyLoaded) {
+          return false;
+        }
+      }
+    } catch {
+      return false;
+    }
+    return true;
+  });
   const [activeSection, setActiveSection] = useState('home');
   const [bookingOpen, setBookingOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [favoritesOpen, setFavoritesOpen] = useState(false);
+  const [allProperties, setAllProperties] = useState<Property[]>([]);
   const [cartCount, setCartCount] = useState(0);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [loginOpen, setLoginOpen] = useState(false);
@@ -63,12 +80,13 @@ function App() {
   // Handle native Android hardware back button
   const handleNativeBackPress = useCallback(() => {
     if (paymentReturnOpen) { setPaymentReturnOpen(false); return true; }
+    if (favoritesOpen) { setFavoritesOpen(false); return true; }
     if (profileOpen) { setProfileOpen(false); return true; }
     if (loginOpen) { setLoginOpen(false); return true; }
     if (cartOpen) { setCartOpen(false); return true; }
     if (bookingOpen) { setBookingOpen(false); return true; }
     return false;
-  }, [paymentReturnOpen, profileOpen, loginOpen, cartOpen, bookingOpen]);
+  }, [paymentReturnOpen, favoritesOpen, profileOpen, loginOpen, cartOpen, bookingOpen]);
 
   useCapacitor(handleNativeBackPress);
 
@@ -87,17 +105,21 @@ function App() {
     initPushNotifications();
   }, []);
 
-  // Load branding settings
+  // Load branding settings and all properties for global modals
   useEffect(() => {
-    const loadSettings = async () => {
+    const loadInitialData = async () => {
       try {
-        const data = await fetchSettings();
-        setSettings(data);
+        const [settingsData, propsData] = await Promise.all([
+          fetchSettings().catch(() => null),
+          fetchProperties().catch(() => []),
+        ]);
+        if (settingsData) setSettings(settingsData);
+        if (Array.isArray(propsData)) setAllProperties(propsData);
       } catch (err) {
-        console.error('Failed to load website settings', err);
+        console.error('Failed to load website settings or properties', err);
       }
     };
-    loadSettings();
+    loadInitialData();
   }, []);
 
   // Sync Cart Count
@@ -338,6 +360,9 @@ function App() {
           {isLoading ? (
             <LoadingScreen 
               onComplete={() => {
+                try {
+                  sessionStorage.setItem('hs_loaded', '1');
+                } catch {}
                 setIsLoading(false);
               }} 
               logoImage={settings?.logo_image || ''}
@@ -351,47 +376,63 @@ function App() {
               transition={{ duration: 0.8, ease: "easeOut" }}
               className="w-full relative min-h-screen bg-bg"
             >
-              {/* Navbar */}
-              <Navbar 
-                activeSection={activeSection} 
-                onNavClick={handleNavClick} 
-                session={userSession}
-                onLogout={handleLogout}
-                onLoginClick={() => setLoginOpen(true)}
-                onProfileClick={() => setProfileOpen(true)}
-                onCartClick={() => setCartOpen(true)}
-                cartCount={cartCount}
-                settings={settings}
-              />
+              {/* Mobile-Only Dedicated App Home Feed (Mamikos Layout) */}
+              <div className="md:hidden">
+                <MobileAppHome 
+                  settings={settings}
+                  onOpenLiveChat={() => {
+                    const evt = new CustomEvent('hs-open-chat');
+                    window.dispatchEvent(evt);
+                  }}
+                  onOpenFavorites={() => setFavoritesOpen(true)}
+                  onOpenPortal={() => navigate('/portal')}
+                />
+              </div>
 
-              {/* Sections */}
-              <main>
-                {/* Hero Section */}
-                <Hero 
-                  onSeeWorksClick={() => handleNavClick('work')} 
-                  onReachOutClick={() => navigate('/katalog')} 
+              {/* Desktop View: Preserved Luxury Portfolio Experience */}
+              <div className="hidden md:block">
+                {/* Navbar */}
+                <Navbar 
+                  activeSection={activeSection} 
+                  onNavClick={handleNavClick} 
+                  session={userSession}
+                  onLogout={handleLogout}
+                  onLoginClick={() => setLoginOpen(true)}
+                  onProfileClick={() => setProfileOpen(true)}
+                  onCartClick={() => setCartOpen(true)}
+                  cartCount={cartCount}
+                  settings={settings}
                 />
 
-                {/* Banner Section */}
-                <Banner onCtaClick={() => navigate('/katalog')} settings={settings} />
+                {/* Sections */}
+                <main>
+                  {/* Hero Section */}
+                  <Hero 
+                    onSeeWorksClick={() => handleNavClick('work')} 
+                    onReachOutClick={() => navigate('/katalog')} 
+                  />
 
-                {/* Selected Works Section */}
-                <SelectedWorks 
-                  onPropertyClick={(id, title) => navigate(`/property/${id}-${slugify(title)}`)} 
-                />
+                  {/* Banner Section */}
+                  <Banner onCtaClick={() => navigate('/katalog')} settings={settings} />
 
-                {/* Journal Section */}
-                <Journal />
+                  {/* Selected Works Section */}
+                  <SelectedWorks 
+                    onPropertyClick={(id, title) => navigate(`/property/${id}-${slugify(title)}`)} 
+                  />
 
-                {/* Explorations (Parallax Gallery) Section */}
-                <Explorations settings={settings} />
+                  {/* Journal Section */}
+                  <Journal />
 
-                {/* Stats Section */}
-                <Stats />
-              </main>
+                  {/* Explorations (Parallax Gallery) Section */}
+                  <Explorations settings={settings} />
 
-              {/* Footer / Contact Section */}
-              <Footer />
+                  {/* Stats Section */}
+                  <Stats />
+                </main>
+
+                {/* Footer / Contact Section */}
+                <Footer />
+              </div>
 
               {/* Booking Form Modal */}
               <BookingModal 
@@ -437,6 +478,14 @@ function App() {
                 onSessionUpdate={(updated) => setUserSession(updated)}
               />
 
+              {/* Favorites / Saved Kos Modal */}
+              <FavoritesModal
+                isOpen={favoritesOpen}
+                onClose={() => setFavoritesOpen(false)}
+                properties={allProperties}
+                onPropertyClick={(id, title) => navigate(`/property/${id}-${slugify(title)}`)}
+              />
+
               {/* DOKU Hosted Checkout Return & Verification Modal */}
               <PaymentReturnModal
                 isOpen={paymentReturnOpen}
@@ -464,17 +513,23 @@ function App() {
       } />
       </Routes>
 
-      {/* Mobile App Bottom Navigation Bar (Sticky on all pages including Map) */}
-      <MobileBottomNav
-        userSession={userSession}
-        onProfileClick={() => navigate('/portal')}
-        onLoginClick={() => navigate('/portal')}
-        onCatalogClick={() => navigate('/katalog')}
-      />
+      {/* Mobile App Bottom Navigation Bar (Sticky on all pages except Property Detail) */}
+      {!location.pathname.startsWith('/property') && (
+        <MobileBottomNav
+          userSession={userSession}
+          isProfileOpen={profileOpen}
+          isLoginOpen={loginOpen}
+          isFavoritesOpen={favoritesOpen}
+          onProfileClick={() => navigate('/portal')}
+          onLoginClick={() => navigate('/portal')}
+          onCatalogClick={() => navigate('/katalog')}
+          onFavoritesClick={() => setFavoritesOpen(prev => !prev)}
+        />
+      )}
 
       {/* Unpaid Cart Floating Reminder Toast */}
       <AnimatePresence>
-        {cartCount > 0 && !cartOpen && !bookingOpen && !paymentReturnOpen && !loginOpen && !profileOpen && (
+        {cartCount > 0 && !cartOpen && !bookingOpen && !paymentReturnOpen && !loginOpen && !profileOpen && !favoritesOpen && (
           <motion.div
             initial={{ opacity: 0, y: 50, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}

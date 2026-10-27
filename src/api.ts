@@ -93,6 +93,9 @@ export interface TenantProfile {
   name?: string;
   phone?: string;
   id_card_number?: string | null;
+  bank_name?: string | null;
+  bank_account_number?: string | null;
+  bank_account_holder?: string | null;
 }
 
 export interface AuthUser {
@@ -142,6 +145,9 @@ export interface RegisterPayload {
   otp?: string;
   captcha_key?: string;
   captcha_answer?: string;
+  bank_name?: string;
+  bank_account_number?: string;
+  bank_account_holder?: string;
 }
 
 export interface RegisterResponse {
@@ -390,6 +396,9 @@ export interface TenantDashboardData {
     phone: string;
     email?: string | null;
     phone_verified: boolean;
+    bank_name?: string | null;
+    bank_account_number?: string | null;
+    bank_account_holder?: string | null;
   };
   active_lease?: TenantLease | null;
   account_summary: TenantAccountSummary;
@@ -1395,6 +1404,27 @@ async function callTenantApi<T>(path: string, token: string, options: RequestIni
 // 1. Fetch Tenant Dashboard Overview
 export async function fetchTenantDashboard(token: string): Promise<TenantDashboardData> {
   return await callTenantApi<TenantDashboardData>('/dashboard', token, { method: 'GET' });
+}
+
+// 1b. Update Tenant Profile (Bank Account & Name)
+export async function updateTenantProfile(
+  data: {
+    name?: string;
+    bank_name?: string;
+    bank_account_number?: string;
+    bank_account_holder?: string;
+  },
+  token?: string
+): Promise<{ message: string; tenant: TenantDashboardData['tenant'] }> {
+  const authToken = token || localStorage.getItem('authToken') || '';
+  return await callTenantApi<{ message: string; tenant: TenantDashboardData['tenant'] }>(
+    '/profile',
+    authToken,
+    {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }
+  );
 }
 
 // 2. Fetch Tenant Leases

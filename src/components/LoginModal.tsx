@@ -23,7 +23,8 @@ import {
   RefreshCw, 
   KeyRound, 
   Eye, 
-  EyeOff
+  EyeOff,
+  Landmark
 } from 'lucide-react';
 
 interface LoginModalProps {
@@ -48,13 +49,17 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
 
-  // Register fields (Name, Phone and Password)
+  // Register fields (Name, Phone, Password, and Bank Account)
   const [regName, setRegName] = useState('');
   const [regPhone, setRegPhone] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regPasswordConfirm, setRegPasswordConfirm] = useState('');
   const [showRegPassword, setShowRegPassword] = useState(false);
   const [showRegPasswordConfirm, setShowRegPasswordConfirm] = useState(false);
+  const [regBankName, setRegBankName] = useState('');
+  const [regCustomBankName, setRegCustomBankName] = useState('');
+  const [regBankAccountNumber, setRegBankAccountNumber] = useState('');
+  const [regBankAccountHolder, setRegBankAccountHolder] = useState('');
 
   // Captcha state (Anti-Bot Security Challenge)
   const [captchaData, setCaptchaData] = useState<CaptchaData | null>(null);
@@ -115,6 +120,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       setShowNewPassword(false);
       setShowNewPasswordConfirm(false);
       setCaptchaAnswer('');
+      setRegBankName('');
+      setRegCustomBankName('');
+      setRegBankAccountNumber('');
+      setRegBankAccountHolder('');
       if (targetMode === 'register') {
         loadCaptcha();
       }
@@ -232,7 +241,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         otp_channel: 'whatsapp',
         device_name: 'highlanderstay-web',
         captcha_key: captchaData?.captcha_key,
-        captcha_answer: captchaAnswer.trim()
+        captcha_answer: captchaAnswer.trim(),
+        bank_name: (regBankName === 'Lainnya' ? regCustomBankName : regBankName).trim() || undefined,
+        bank_account_number: regBankAccountNumber.trim() || undefined,
+        bank_account_holder: regBankAccountHolder.trim() || undefined
       });
 
       setRegistrationToken(regRes.registration_token);
@@ -664,6 +676,81 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                           >
                             {showRegPasswordConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
                           </button>
+                        </div>
+                      </div>
+
+                      {/* Informasi Rekening Bank (Opsional) */}
+                      <div className="flex flex-col gap-2.5 p-3.5 rounded-2xl bg-surface/50 border border-stroke/70">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs uppercase tracking-wider font-semibold flex items-center gap-1.5 text-emerald-400">
+                            <Landmark size={13} /> Nomor Rekening Bank
+                          </label>
+                          <span className="text-[10px] text-muted font-normal bg-bg/80 border border-stroke/60 px-2 py-0.5 rounded-full">
+                            Opsional
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-muted -mt-0.5">
+                          Dapat diisi sekarang atau nanti di dashboard untuk keperluan pengembalian deposit / refund.
+                        </p>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[11px] text-muted font-medium">Nama Bank</label>
+                            <select
+                              value={regBankName}
+                              onChange={(e) => setRegBankName(e.target.value)}
+                              className="w-full bg-bg border border-stroke rounded-xl px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:border-text-primary cursor-pointer font-sans"
+                            >
+                              <option value="">Pilih Bank...</option>
+                              <option value="BCA">BCA (Bank Central Asia)</option>
+                              <option value="Mandiri">Bank Mandiri</option>
+                              <option value="BRI">BRI (Bank Rakyat Indonesia)</option>
+                              <option value="BNI">BNI (Bank Negara Indonesia)</option>
+                              <option value="BSI">BSI (Bank Syariah Indonesia)</option>
+                              <option value="CIMB">CIMB Niaga</option>
+                              <option value="Permata">Bank Permata</option>
+                              <option value="Danamon">Bank Danamon</option>
+                              <option value="Jago">Bank Jago</option>
+                              <option value="SeaBank">SeaBank</option>
+                              <option value="Lainnya">Bank Lainnya</option>
+                            </select>
+                          </div>
+
+                          {regBankName === 'Lainnya' ? (
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[11px] text-muted font-medium">Ketik Nama Bank</label>
+                              <input
+                                type="text"
+                                value={regCustomBankName}
+                                onChange={(e) => setRegCustomBankName(e.target.value)}
+                                placeholder="misal: Bank Mega / Neo"
+                                className="w-full bg-bg border border-stroke rounded-xl px-3 py-2.5 text-sm text-text-primary placeholder:text-muted/50 focus:outline-none focus:border-text-primary font-sans"
+                              />
+                            </div>
+                          ) : null}
+
+                          <div className={`flex flex-col gap-1 ${regBankName === 'Lainnya' ? 'sm:col-span-2' : ''}`}>
+                            <label className="text-[11px] text-muted font-medium">Nomor Rekening</label>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={regBankAccountNumber}
+                              onChange={(e) => setRegBankAccountNumber(e.target.value.replace(/[^0-9]/g, ''))}
+                              placeholder="misal: 1234567890"
+                              className="w-full bg-bg border border-stroke rounded-xl px-3 py-2.5 text-sm font-mono text-text-primary placeholder:text-muted/50 focus:outline-none focus:border-text-primary"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[11px] text-muted font-medium">Nama Pemilik Rekening</label>
+                          <input
+                            type="text"
+                            value={regBankAccountHolder}
+                            onChange={(e) => setRegBankAccountHolder(e.target.value)}
+                            placeholder="Sesuai buku tabungan / m-banking"
+                            className="w-full bg-bg border border-stroke rounded-xl px-3 py-2.5 text-sm text-text-primary placeholder:text-muted/50 focus:outline-none focus:border-text-primary font-sans"
+                          />
                         </div>
                       </div>
 
