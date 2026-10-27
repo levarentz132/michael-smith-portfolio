@@ -22,7 +22,7 @@ import { MapSelectorPage } from './components/MapSelectorPage';
 import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
 import { CatalogPage } from './components/CatalogPage';
 import { CartPage } from './components/CartPage';
-import { PortalPage } from './components/PortalPage';
+import { ProfilePage } from './components/ProfilePage';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { MobileAppHome } from './components/MobileAppHome';
 import { FavoritesModal } from './components/FavoritesModal';
@@ -241,8 +241,8 @@ function App() {
       return;
     }
 
-    if (sectionId === 'portal' || sectionId === 'login' || sectionId === 'akun') {
-      navigate('/portal');
+    if (sectionId === 'portal' || sectionId === 'login' || sectionId === 'akun' || sectionId === 'profil') {
+      navigate('/akun');
       return;
     }
 
@@ -306,11 +306,11 @@ function App() {
         <Route path="/cart" element={<CartPage settings={settings} onCartChange={refreshCartCount} />} />
         <Route path="/keranjang" element={<Navigate to="/cart" replace />} />
 
-        {/* Dedicated Tenant Portal & Login Route */}
+        {/* Dedicated Tenant Profile & Account Routes */}
         <Route 
-          path="/portal" 
+          path="/akun" 
           element={
-            <PortalPage
+            <ProfilePage
               session={userSession}
               onLoginSuccess={handleLoginSuccess}
               onLogout={handleLogout}
@@ -319,10 +319,32 @@ function App() {
             />
           } 
         />
-        <Route path="/login" element={<Navigate to="/portal" replace />} />
-        <Route path="/register" element={<Navigate to="/portal" replace />} />
-        <Route path="/akun" element={<Navigate to="/portal" replace />} />
-        <Route path="/profil" element={<Navigate to="/portal" replace />} />
+        <Route 
+          path="/profil" 
+          element={
+            <ProfilePage
+              session={userSession}
+              onLoginSuccess={handleLoginSuccess}
+              onLogout={handleLogout}
+              onSessionUpdate={(updated) => setUserSession(updated)}
+              settings={settings}
+            />
+          } 
+        />
+        <Route 
+          path="/portal" 
+          element={
+            <ProfilePage
+              session={userSession}
+              onLoginSuccess={handleLoginSuccess}
+              onLogout={handleLogout}
+              onSessionUpdate={(updated) => setUserSession(updated)}
+              settings={settings}
+            />
+          } 
+        />
+        <Route path="/login" element={<Navigate to="/akun" replace />} />
+        <Route path="/register" element={<Navigate to="/akun" replace />} />
 
         {/* Map & Nearest Property Selector Route */}
         <Route 
@@ -385,7 +407,7 @@ function App() {
                     window.dispatchEvent(evt);
                   }}
                   onOpenFavorites={() => setFavoritesOpen(true)}
-                  onOpenPortal={() => navigate('/portal')}
+                  onOpenPortal={() => navigate('/akun')}
                 />
               </div>
 
@@ -398,7 +420,7 @@ function App() {
                   session={userSession}
                   onLogout={handleLogout}
                   onLoginClick={() => setLoginOpen(true)}
-                  onProfileClick={() => setProfileOpen(true)}
+                  onProfileClick={() => navigate('/akun')}
                   onCartClick={() => setCartOpen(true)}
                   cartCount={cartCount}
                   settings={settings}
@@ -520,8 +542,8 @@ function App() {
           isProfileOpen={profileOpen}
           isLoginOpen={loginOpen}
           isFavoritesOpen={favoritesOpen}
-          onProfileClick={() => navigate('/portal')}
-          onLoginClick={() => navigate('/portal')}
+          onProfileClick={() => navigate('/akun')}
+          onLoginClick={() => navigate('/akun')}
           onCatalogClick={() => navigate('/katalog')}
           onFavoritesClick={() => setFavoritesOpen(prev => !prev)}
         />

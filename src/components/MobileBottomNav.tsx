@@ -36,17 +36,21 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   // Determine active tab dynamically based on route and open modals
   const activeTab: MobileNavTab = React.useMemo(() => {
     if (
+      (location.pathname === '/akun' && location.search.includes('tab=leases')) ||
+      location.pathname === '/billing'
+    ) {
+      return 'mykos';
+    }
+    if (
       isProfileOpen ||
       isLoginOpen ||
       location.pathname === '/login' ||
       location.pathname === '/register' ||
       location.pathname === '/akun' ||
-      location.pathname === '/profil'
+      location.pathname === '/profil' ||
+      location.pathname === '/portal'
     ) {
       return 'profile';
-    }
-    if (location.pathname === '/portal' || location.pathname === '/billing') {
-      return 'mykos';
     }
     if (isFavoritesOpen) {
       return 'favorite';
@@ -55,7 +59,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       return 'search';
     }
     return 'search';
-  }, [location.pathname, isProfileOpen, isLoginOpen, isFavoritesOpen]);
+  }, [location.pathname, location.search, isProfileOpen, isLoginOpen, isFavoritesOpen]);
 
   const handleSearchClick = () => {
     if (location.pathname !== '/') {
@@ -72,7 +76,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   };
 
   const handleMyKosClick = () => {
-    navigate('/portal');
+    navigate('/akun?tab=leases');
   };
 
   const handleChatClick = () => {
@@ -80,7 +84,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   };
 
   const handleProfileClick = () => {
-    if (userSession && onProfileClick) {
+    if (onProfileClick) {
       onProfileClick();
       return;
     }
@@ -88,7 +92,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       onLoginClick();
       return;
     }
-    navigate('/portal');
+    navigate('/akun');
   };
 
   const navItems = [
