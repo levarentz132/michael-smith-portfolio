@@ -396,6 +396,9 @@ export interface TenantDashboardData {
     phone: string;
     email?: string | null;
     phone_verified: boolean;
+    id_card_number?: string | null;
+    emergency_contact_name?: string | null;
+    emergency_contact_phone?: string | null;
     bank_name?: string | null;
     bank_account_number?: string | null;
     bank_account_holder?: string | null;
@@ -1465,6 +1468,11 @@ export async function fetchTenantDashboard(token: string): Promise<TenantDashboa
 export async function updateTenantProfile(
   data: {
     name?: string;
+    phone?: string;
+    email?: string;
+    id_card_number?: string;
+    emergency_contact_name?: string;
+    emergency_contact_phone?: string;
     bank_name?: string;
     bank_account_number?: string;
     bank_account_holder?: string;

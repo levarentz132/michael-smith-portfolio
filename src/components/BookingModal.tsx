@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
+  Clock, 
+  Calendar, 
+  User, 
+  Phone, 
+  Edit2, 
+  ChevronRight, 
+  X 
+} from 'lucide-react';
+import { 
   createBooking, 
   addToCart, 
   getOrCreateCartToken, 
@@ -9,6 +18,7 @@ import {
   isValidCheckoutUrl,
   simulatePaymentSuccess,
   isOnlinePaymentEnabled,
+  updateTenantProfile,
   type SimulatePaymentResponse
 } from '../api';
 import type { Property, UserSession, Booking } from '../api';
@@ -28,8 +38,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
   const [selectedRoom, setSelectedRoom] = useState(initialRoomName || '');
   const [selectedUnitId, setSelectedUnitId] = useState<number | null>(null);
   const [bookingType, setBookingType] = useState<'monthly' | 'transit'>('monthly');
-  const [date, setDate] = useState(''); // Move-in Date for monthly, or Transit Date
+  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]); // Default to today's date
   const [durationMonths, setDurationMonths] = useState<number>(1);
+  const [isEditingDate, setIsEditingDate] = useState(false);
   const [notes, setNotes] = useState('');
   const [transitStartTime, setTransitStartTime] = useState('');
   const [transitDuration, setTransitDuration] = useState<number>(3);
@@ -45,6 +56,26 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
   const [simulationData, setSimulationData] = useState<SimulatePaymentResponse | null>(null);
   const [error, setError] = useState('');
   const [whatsappNumber, setWhatsappNumber] = useState('628123456789');
+
+  // Helper to format rental date range: e.g. "28 Okt - 28 Nov 2026"
+  const formatRentalPeriod = (startDateStr: string, months: number): string => {
+    if (!startDateStr) return '';
+    try {
+      const parts = startDateStr.split('-').map(Number);
+      if (parts.length < 3) return startDateStr;
+      const start = new Date(parts[0], parts[1] - 1, parts[2]);
+      if (isNaN(start.getTime())) return startDateStr;
+
+      const end = new Date(parts[0], parts[1] - 1 + months, parts[2]);
+      const monthsNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+      
+      const startFormatted = `${start.getDate()} ${monthsNames[start.getMonth()]}`;
+      const endFormatted = `${end.getDate()} ${monthsNames[end.getMonth()]} ${end.getFullYear()}`;
+      return `${startFormatted} - ${endFormatted}`;
+    } catch {
+      return startDateStr;
+    }
+  };
 
   useEffect(() => {
     // Load Midtrans Snap JS dynamically for transit fallback
@@ -75,10 +106,12 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => {
-        // Default reset
+        // Default reset to today's date
+        const todayIso = new Date().toISOString().split('T')[0];
         setBookingType('monthly');
-        setDate('');
+        setDate(todayIso);
         setDurationMonths(1);
+        setIsEditingDate(false);
         setNotes('');
         setTransitStartTime('');
         setTransitDuration(property?.minTransitHours || 3);
@@ -111,7 +144,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
         if (savedSession) {
           try {
             const parsed = JSON.parse(savedSession);
-            if (parsed && parsed.role === 'tenant') {
+            if (parsed && (parsed.role === 'tenant' || parsed.email)) {
               setSession(parsed);
               setName(parsed.name || '');
               setEmail(parsed.email || '');
@@ -214,9 +247,32 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !phone.trim() || !date) {
-      setError('Mohon lengkapi nama, nomor WhatsApp, dan tanggal mulai sewa.');
+    if (!name.trim()) {
+      setError('Mohon lengkapi nama penyewa.');
       return;
+    }
+    if (!phone.trim()) {
+      setError('Mohon masukkan nomor WhatsApp aktif Anda untuk konfirmasi & akses kamar.');
+      return;
+    }
+    if (!date) {
+      setError('Mohon tentukan tanggal mulai sewa.');
+      return;
+    }
+
+    // Auto-sync phone number to user session and backend profile
+    if (session && phone.trim()) {
+      const updatedSession = { ...session, phone: phone.trim(), name: name.trim() };
+      setSession(updatedSession);
+      try {
+        localStorage.setItem('userSession', JSON.stringify(updatedSession));
+        const token = session.token || localStorage.getItem('authToken');
+        if (token) {
+          updateTenantProfile({ phone: phone.trim(), name: name.trim() }, token).catch(() => {});
+        }
+      } catch (e) {
+        console.warn('Session phone sync note:', e);
+      }
     }
     
     if (bookingType === 'transit') {
@@ -452,14 +508,15 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", damping: 25, stiffness: 250 }}
-            className="relative w-full max-w-md bg-surface border border-stroke rounded-2xl sm:rounded-3xl p-4 sm:p-8 overflow-y-auto max-h-[92vh] shadow-2xl text-left"
+            className="relative w-full max-w-lg bg-surface border border-stroke rounded-2xl sm:rounded-3xl p-4 sm:p-6 overflow-y-auto max-h-[92vh] shadow-2xl text-left"
           >
             {/* Top Close Button */}
             <button 
               onClick={onClose}
-              className="absolute top-4 right-4 text-muted hover:text-text-primary text-xl transition-colors duration-200"
+              className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-bg/80 border border-stroke/80 text-muted hover:text-text-primary flex items-center justify-center transition-colors duration-200 cursor-pointer shadow-sm"
+              aria-label="Tutup"
             >
-              ✕
+              <X className="w-4 h-4" />
             </button>
 
             {/* Halftone Overlay */}
@@ -704,22 +761,59 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                 )}
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="flex flex-col gap-5 relative z-10">
-                <div className="text-left border-b border-stroke/40 pb-4">
-                  <span className="text-[10px] text-muted uppercase tracking-[0.25em] font-semibold">Reservasi Ruang</span>
-                  <h3 className="text-2xl font-display italic font-semibold text-text-primary mt-1">
-                    Pesan {propertyName}
-                  </h3>
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4 relative z-10">
+                {/* Mamikos-Style Stepper Bar */}
+                <div className="w-full pb-3 border-b border-stroke/40">
+                  <div className="flex items-center justify-between text-[11px] font-medium text-muted relative px-1 sm:px-2">
+                    {/* Stepper Connecting Line */}
+                    <div className="absolute top-3.5 left-6 right-6 h-0.5 bg-stroke -z-0">
+                      <div className="h-full bg-emerald-500 w-[12%]" />
+                    </div>
+
+                    {/* Step 1: Ajukan Sewa (Active) */}
+                    <div className="flex flex-col items-center gap-1 z-10">
+                      <div className="w-7 h-7 rounded-full bg-emerald-500 text-bg flex items-center justify-center font-bold text-xs shadow-md ring-4 ring-emerald-500/20">
+                        1
+                      </div>
+                      <span className="text-emerald-400 font-bold text-[10px]">Ajukan Sewa</span>
+                    </div>
+
+                    {/* Step 2: Konfirmasi Pemilik */}
+                    <div className="flex flex-col items-center gap-1 z-10">
+                      <div className="w-7 h-7 rounded-full bg-bg border border-stroke text-muted flex items-center justify-center font-bold text-xs">
+                        2
+                      </div>
+                      <span className="text-[10px]">Konfirmasi</span>
+                    </div>
+
+                    {/* Step 3: Bayar Sewa Pertama */}
+                    <div className="flex flex-col items-center gap-1 z-10">
+                      <div className="w-7 h-7 rounded-full bg-bg border border-stroke text-muted flex items-center justify-center font-bold text-xs">
+                        3
+                      </div>
+                      <span className="text-[10px]">Bayar Sewa</span>
+                    </div>
+
+                    {/* Step 4: Check-in */}
+                    <div className="flex flex-col items-center gap-1 z-10">
+                      <div className="w-7 h-7 rounded-full bg-bg border border-stroke text-muted flex items-center justify-center font-bold text-xs">
+                        4
+                      </div>
+                      <span className="text-[10px]">Check-in</span>
+                    </div>
+                  </div>
                 </div>
 
+                {/* Error Banner */}
                 {error && (
-                  <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs px-4 py-2.5 rounded-xl">
-                    {error}
+                  <div className="bg-rose-500/10 border border-rose-500/25 text-rose-400 text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-2">
+                    <span className="font-bold">⚠️</span>
+                    <span>{error}</span>
                   </div>
                 )}
 
                 {/* Booking Type Selector Tabs (Only show if transit is supported) */}
-                {hasTransitSupport ? (
+                {hasTransitSupport && (
                   <div className="grid grid-cols-2 bg-bg border border-stroke p-1 rounded-full">
                     <button
                       type="button"
@@ -727,7 +821,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                         setBookingType('monthly');
                         setError('');
                       }}
-                      className={`text-xs font-semibold uppercase tracking-wider rounded-full py-2.5 transition-all duration-300 ${
+                      className={`text-xs font-semibold uppercase tracking-wider rounded-full py-2 transition-all duration-300 cursor-pointer ${
                         bookingType === 'monthly' ? 'text-bg bg-text-primary' : 'text-muted hover:text-text-primary'
                       }`}
                     >
@@ -739,198 +833,261 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                         setBookingType('transit');
                         setError('');
                       }}
-                      className={`text-xs font-semibold uppercase tracking-wider rounded-full py-2.5 transition-all duration-300 ${
+                      className={`text-xs font-semibold uppercase tracking-wider rounded-full py-2 transition-all duration-300 cursor-pointer ${
                         bookingType === 'transit' ? 'text-bg bg-text-primary' : 'text-muted hover:text-text-primary'
                       }`}
                     >
                       Transit
                     </button>
                   </div>
-                ) : null}
-
-                {/* Shared User Identity Section */}
-                {session ? (
-                  <div className="bg-bg/40 border border-stroke rounded-2xl p-4 flex flex-col gap-3 relative overflow-hidden backdrop-blur-md">
-                    <div className="absolute top-0 right-0 bg-text-primary/10 px-2 py-0.5 rounded-bl-xl border-l border-b border-stroke/50">
-                      <span className="text-[8px] text-text-primary font-bold uppercase tracking-wider">Masuk</span>
-                    </div>
-                    <span className="text-[9px] text-muted uppercase tracking-wider font-semibold">Akun Penyewa</span>
-                    <div className="flex flex-col gap-2">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-muted">Nama</span>
-                        <span className="text-text-primary font-medium">{session.name}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-muted">Email</span>
-                        <span className="text-text-primary font-medium">{session.email}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-muted">Telepon</span>
-                        <span className="text-text-primary font-medium">{session.phone}</span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    {/* Input Name */}
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs text-muted uppercase tracking-wider font-medium">Nama Anda *</label>
-                      <input 
-                        type="text"
-                        required
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="Masukkan nama Anda"
-                        className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-base sm:text-sm text-text-primary placeholder:text-muted/50 focus:outline-none focus:border-white/20 transition-colors duration-200"
-                      />
-                    </div>
-
-                    {/* Input Email */}
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs text-muted uppercase tracking-wider font-medium">Alamat Email (Opsional)</label>
-                      <input 
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="anda@contoh.com"
-                        className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-base sm:text-sm text-text-primary placeholder:text-muted/50 focus:outline-none focus:border-white/20 transition-colors duration-200"
-                      />
-                    </div>
-
-                    {/* Input Phone */}
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs text-muted uppercase tracking-wider font-medium">Nomor WhatsApp *</label>
-                      <input 
-                        type="tel"
-                        required
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="cth. 081287681714"
-                        className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-base sm:text-sm text-text-primary placeholder:text-muted/50 focus:outline-none focus:border-white/20 transition-colors duration-200"
-                      />
-                    </div>
-                  </>
                 )}
 
-                {/* Conditional Fields based on bookingType */}
                 {bookingType === 'monthly' ? (
                   <>
-                    {/* Available Room Picker (if property has room details) */}
-                    {((property?.availableRoomsList && property.availableRoomsList.length > 0) || (property?.availableRoomDetails && property.availableRoomDetails.length > 0)) && (
-                      <div className="flex flex-col gap-2">
-                        <div className="flex justify-between items-center">
-                          <label className="text-xs text-muted uppercase tracking-wider font-medium">Pilihan Kamar Siap Huni *</label>
-                          {selectedRoom && (
-                            <span className="text-[10px] text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-md">
-                              Terpilih: {selectedRoom}
+                    {/* Urgency Badge (Mamikos Style) */}
+                    <div className="bg-amber-500/10 border border-amber-500/25 rounded-xl px-3.5 py-2.5 flex items-center gap-2.5 text-xs text-amber-300">
+                      <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span className="font-medium">
+                        {property?.availableRoomDetails && property.availableRoomDetails.length > 0
+                          ? `Sisa ${property.availableRoomDetails.length} kamar, jangan sampai kehabisan!`
+                          : (property?.availableRoomsList && property.availableRoomsList.length > 0
+                              ? `Sisa ${property.availableRoomsList.length} kamar, jangan sampai kehabisan!`
+                              : 'Unit siap huni dengan verifikasi instan!')}
+                      </span>
+                    </div>
+
+                    {/* Room & Property Card (Mamikos Style) */}
+                    <div className="bg-bg/60 border border-stroke rounded-2xl p-3 sm:p-4 flex gap-3.5 items-center">
+                      <div className="w-20 h-20 sm:w-22 sm:h-22 rounded-xl overflow-hidden bg-surface shrink-0 relative border border-stroke/40">
+                        <img 
+                          src={selectedRoomDetail?.image_url || property?.image || '/placeholder.jpg'} 
+                          alt={propertyName}
+                          className="w-full h-full object-cover"
+                        />
+                        <span className="absolute bottom-1 left-1 bg-black/75 backdrop-blur-md text-[9px] font-bold text-emerald-300 px-1.5 py-0.5 rounded">
+                          {property?.category || 'Campur'}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+                        <div>
+                          <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                              {selectedRoom ? selectedRoom : 'Unit Kamar Kos'}
                             </span>
-                          )}
+                            {selectedRoomDetail?.floor && (
+                              <span className="text-[10px] text-muted">Lantai {selectedRoomDetail.floor}</span>
+                            )}
+                          </div>
+                          <h4 className="text-sm font-bold text-text-primary truncate">{propertyName}</h4>
+                          <p className="text-[11px] text-muted truncate mt-0.5">{property?.location || 'Lokasi Kos'}</p>
                         </div>
+                        {/* Facilities chips snippet */}
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {(property?.facilities || ['K. Mandi Dalam', 'Kasur', 'AC', 'WiFi']).slice(0, 3).map((f, i) => (
+                            <span key={i} className="text-[9px] bg-white/5 border border-white/10 text-muted px-1.5 py-0.5 rounded">
+                              {f}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Room Unit Selector (if multiple rooms available) */}
+                    {property?.availableRoomDetails && property.availableRoomDetails.length > 1 && (
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[11px] text-muted font-medium flex items-center justify-between">
+                          <span>Pilihan Kamar Siap Huni:</span>
+                          <span className="text-[10px] text-emerald-400 font-semibold">{property.availableRoomDetails.length} unit tersedia</span>
+                        </label>
                         <select
                           value={selectedRoom}
                           onChange={(e) => handleRoomSelect(e.target.value)}
-                          className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-base sm:text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors duration-200"
+                          className="w-full bg-bg border border-stroke rounded-xl px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-emerald-500 transition-colors"
                         >
-                          <option value="">-- Pilih Kamar --</option>
-                          {(property.availableRoomDetails && property.availableRoomDetails.length > 0
-                            ? property.availableRoomDetails.map((r: any) => ({
-                                value: `Kamar ${r.name}`,
-                                label: `Kamar ${r.name}${r.floor ? ` (Lantai ${r.floor})` : ''}${r.monthly_rate ? ` - Rp ${Number(r.monthly_rate).toLocaleString('id-ID')}/bln` : ''}`
-                              }))
-                            : (property.availableRoomsList || []).map((r: string) => ({
-                                value: `Kamar ${r}`,
-                                label: `Kamar ${r}`
-                              }))
-                          ).map((opt, i) => (
-                            <option key={i} value={opt.value}>
-                              {opt.label}
+                          {property.availableRoomDetails.map((r: any) => (
+                            <option key={r.id} value={`Kamar ${r.name}`}>
+                              Kamar {r.name}{r.floor ? ` (Lt. ${r.floor})` : ''} - Rp {Number(r.monthly_rate || effectiveMonthlyRate).toLocaleString('id-ID')}/bln
                             </option>
                           ))}
                         </select>
                       </div>
                     )}
 
-                    {/* Target Move-in Date (Replaces Survey Date/Time) */}
-                    <div className="flex flex-col gap-2">
-                      <div className="flex justify-between items-center">
-                        <label className="text-xs text-muted uppercase tracking-wider font-medium">Tanggal Mulai Sewa (Move-in) *</label>
-                        <span className="text-[10px] text-emerald-400 font-medium">Kamar otomatis terkunci</span>
+                    {/* Card 1: Waktu dan Durasi Ngekos (Mamikos Style) */}
+                    <div className="bg-bg/60 border border-stroke rounded-2xl p-4 flex flex-col gap-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-stroke/40">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-emerald-400" />
+                          <span className="text-xs font-bold text-text-primary">Waktu dan durasi ngekos</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingDate(!isEditingDate)}
+                          className="text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 cursor-pointer"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                          <span>{isEditingDate ? 'Simpan' : 'Ubah'}</span>
+                        </button>
                       </div>
-                      <input 
-                        type="date"
-                        required
-                        value={date}
-                        min={new Date().toISOString().split('T')[0]}
-                        onChange={(e) => setDate(e.target.value)}
-                        className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-base sm:text-sm text-text-primary focus:outline-none focus:border-white/20 transition-colors duration-200"
-                      />
+
+                      <div className="flex flex-col gap-2.5 text-xs">
+                        <div className="flex justify-between items-center text-muted">
+                          <span>Hitungan sewa</span>
+                          <span className="font-semibold text-text-primary">Per Bulan</span>
+                        </div>
+
+                        <div className="flex justify-between items-center text-muted">
+                          <span>Durasi</span>
+                          <div className="flex gap-1.5">
+                            {[1, 3, 6, 12].map((m) => (
+                              <button
+                                key={m}
+                                type="button"
+                                onClick={() => setDurationMonths(m)}
+                                className={`px-2.5 py-1 text-[11px] rounded-lg font-semibold transition-all cursor-pointer ${
+                                  durationMonths === m
+                                    ? 'bg-emerald-500 text-bg shadow-sm'
+                                    : 'bg-surface border border-stroke text-muted hover:text-text-primary'
+                                }`}
+                              >
+                                {m} Bulan
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="flex justify-between items-center text-muted pt-1">
+                          <span>Tanggal</span>
+                          <span className="font-semibold text-emerald-400 text-xs">
+                            {formatRentalPeriod(date, durationMonths) || date}
+                          </span>
+                        </div>
+
+                        {/* Collapsible Custom Date Picker */}
+                        {isEditingDate && (
+                          <div className="pt-2 mt-1 border-t border-stroke/30 flex flex-col gap-1.5">
+                            <label className="text-[10px] text-muted uppercase font-medium">Tanggal Mulai Masuk (Move-in)</label>
+                            <input
+                              type="date"
+                              value={date}
+                              min={new Date().toISOString().split('T')[0]}
+                              onChange={(e) => setDate(e.target.value)}
+                              className="w-full bg-surface border border-stroke rounded-xl px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Rental Duration Picker */}
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs text-muted uppercase tracking-wider font-medium">Durasi Sewa *</label>
-                      <div className="grid grid-cols-4 gap-2">
-                        {[1, 3, 6, 12].map((m) => (
-                          <button
-                            key={m}
-                            type="button"
-                            onClick={() => setDurationMonths(m)}
-                            className={`py-2 px-1 text-xs rounded-xl border font-semibold transition-all duration-200 ${
-                              durationMonths === m
-                                ? 'bg-text-primary text-bg border-text-primary shadow-sm'
-                                : 'bg-bg/60 text-muted border-stroke hover:text-text-primary hover:border-text-primary/40'
+                    {/* Card 2: Biaya Sewa Kos (Mamikos Style) */}
+                    <div className="bg-bg/60 border border-stroke rounded-2xl p-4 flex flex-col gap-2.5 text-xs">
+                      <span className="text-xs font-bold text-text-primary pb-2 border-b border-stroke/40">Biaya sewa kos</span>
+                      <div className="flex justify-between text-muted">
+                        <span>Harga sewa per bulan:</span>
+                        <span className="text-text-primary font-semibold">Rp {effectiveMonthlyRate.toLocaleString('id-ID')}</span>
+                      </div>
+                      {durationMonths > 1 && (
+                        <div className="flex justify-between text-muted">
+                          <span>Total sewa ({durationMonths} Bulan):</span>
+                          <span className="text-text-primary font-semibold">Rp {(effectiveMonthlyRate * durationMonths).toLocaleString('id-ID')}</span>
+                        </div>
+                      )}
+                      {deposit > 0 && (
+                        <div className="flex justify-between text-muted">
+                          <span>Deposit jaminan (dikembalikan):</span>
+                          <span className="text-text-primary font-semibold">Rp {deposit.toLocaleString('id-ID')}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between border-t border-stroke/40 pt-2 mt-1 text-sm font-bold">
+                        <span className="text-text-primary">Total Bayar Pertama:</span>
+                        <span className="text-emerald-400 font-extrabold">Rp {totalInitialPayment.toLocaleString('id-ID')}</span>
+                      </div>
+                    </div>
+
+                    {/* Card 3: Informasi Penyewa (Mamikos Style) */}
+                    <div className="bg-bg/60 border border-stroke rounded-2xl p-4 flex flex-col gap-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-stroke/40">
+                        <div className="flex items-center gap-2">
+                          <User className="w-4 h-4 text-emerald-400" />
+                          <span className="text-xs font-bold text-text-primary">Informasi penyewa</span>
+                        </div>
+                        {session && (
+                          <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-semibold">
+                            Google Terhubung
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col gap-2.5 text-xs">
+                        <div className="flex justify-between items-center text-muted">
+                          <span>Jumlah Penyewa</span>
+                          <span className="font-semibold text-text-primary">1 Orang</span>
+                        </div>
+
+                        <div className="flex justify-between items-center text-muted">
+                          <span>Nama Penyewa</span>
+                          {session?.name ? (
+                            <span className="font-semibold text-text-primary">{name || session.name}</span>
+                          ) : (
+                            <input
+                              type="text"
+                              required
+                              value={name}
+                              onChange={(e) => setName(e.target.value)}
+                              placeholder="Nama lengkap Anda"
+                              className="bg-surface border border-stroke rounded-lg px-2.5 py-1 text-xs text-text-primary text-right focus:outline-none focus:border-emerald-500"
+                            />
+                          )}
+                        </div>
+
+                        <div className="flex justify-between items-center text-muted">
+                          <span>Alamat Email</span>
+                          <span className="font-medium text-text-primary truncate max-w-[200px]">{email || session?.email || '-'}</span>
+                        </div>
+
+                        {/* Nomor WhatsApp (Selalu bisa diisi & diedit langsung) */}
+                        <div className="pt-2 border-t border-stroke/30 flex flex-col gap-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[11px] font-semibold text-text-primary flex items-center gap-1.5">
+                              <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                              <span>Nomor WhatsApp Aktif *</span>
+                            </label>
+                            {!phone.trim() && (
+                              <span className="text-[10px] text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded font-medium">
+                                Masukkan No. HP
+                              </span>
+                            )}
+                          </div>
+                          <input
+                            type="tel"
+                            required
+                            value={phone}
+                            onChange={(e) => {
+                              setPhone(e.target.value);
+                              if (error) setError('');
+                            }}
+                            placeholder="cth. 081234567890"
+                            className={`w-full bg-surface border rounded-xl px-3.5 py-2.5 text-xs text-text-primary placeholder:text-muted/40 focus:outline-none transition-all ${
+                              !phone.trim() ? 'border-amber-500/60 bg-amber-500/5 focus:border-amber-400' : 'border-stroke focus:border-emerald-500'
                             }`}
-                          >
-                            {m} Bulan
-                          </button>
-                        ))}
+                          />
+                          <p className="text-[10px] text-muted leading-tight">
+                            Nomor ini digunakan untuk penerimaan bukti bayar DOKU & petunjuk akses kunci kamar.
+                          </p>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Notes / Special Request */}
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs text-muted uppercase tracking-wider font-medium">Catatan Tambahan (Opsional)</label>
+                    {/* Catatan Tambahan (Opsional) */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[11px] text-muted font-medium">Catatan Tambahan (Opsional):</label>
                       <input 
                         type="text"
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
-                        placeholder="cth. Perkiraan sampai jam 2 siang, butuh parkir motor"
-                        className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-base sm:text-sm text-text-primary placeholder:text-muted/50 focus:outline-none focus:border-white/20 transition-colors duration-200"
+                        placeholder="cth. Rencana check-in sore jam 16:00, bawa motor"
+                        className="w-full bg-bg border border-stroke rounded-xl px-3.5 py-2.5 text-xs text-text-primary placeholder:text-muted/40 focus:outline-none focus:border-white/20 transition-colors"
                       />
-                    </div>
-
-                    {/* Monthly pricing summary */}
-                    <div className="bg-bg border border-stroke/70 rounded-2xl p-4 flex flex-col gap-2.5 text-xs">
-                      <div className="flex justify-between text-muted">
-                        <span>Tarif Sewa Kamar:</span>
-                        <span className="text-text-primary font-semibold">
-                          Rp {effectiveMonthlyRate.toLocaleString('id-ID')} / bulan
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-muted">
-                        <span>Durasi Sewa:</span>
-                        <span className="text-text-primary font-semibold">{durationMonths} Bulan</span>
-                      </div>
-                      <div className="flex justify-between text-muted">
-                        <span>Subtotal Sewa:</span>
-                        <span className="text-text-primary font-semibold">
-                          Rp {(effectiveMonthlyRate * durationMonths).toLocaleString('id-ID')}
-                        </span>
-                      </div>
-                      {deposit > 0 && (
-                        <div className="flex justify-between text-muted">
-                          <span>Deposit Keamanan:</span>
-                          <span className="text-text-primary font-semibold">
-                            Rp {deposit.toLocaleString('id-ID')}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex justify-between border-t border-stroke/40 pt-2.5 mt-1 text-sm font-bold text-text-primary">
-                        <span>Total Tagihan Pertama:</span>
-                        <span className="text-emerald-400">
-                          Rp {totalInitialPayment.toLocaleString('id-ID')}
-                        </span>
-                      </div>
                     </div>
                   </>
                 ) : (
@@ -958,7 +1115,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                         />
                       </div>
                       <div className="flex flex-col gap-2 justify-end">
-                        {/* Empty spacing helper */}
                       </div>
                     </div>
 
@@ -1091,21 +1247,20 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                 <button
                   type="submit"
                   disabled={isSubmitting || !!(summary && 'error' in summary)}
-                  className="w-full relative group rounded-full text-xs font-semibold uppercase tracking-wider py-4 bg-text-primary text-bg hover:bg-bg hover:text-text-primary transition-all duration-300 flex items-center justify-center gap-2 border border-transparent mt-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                  className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-bg font-bold text-xs uppercase tracking-wider text-center transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-1"
                 >
-                  <span className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 p-[1px] accent-gradient" style={{ margin: '-1px' }} />
                   {isSubmitting ? (
                     <span className="flex items-center gap-2">
-                      <svg className="animate-spin h-4 w-4 text-current" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      Memproses Sewa & Tagihan...
+                      <div className="w-4 h-4 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
+                      <span>Menyiapkan Pembayaran Sewa...</span>
                     </span>
                   ) : bookingType === 'monthly' ? (
-                    'Pesan Kamar & Bayar (DOKU Checkout)'
+                    <span className="flex items-center justify-center gap-1.5">
+                      <span>Ajukan Sewa & Bayar Sekarang (Rp {totalInitialPayment.toLocaleString('id-ID')})</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </span>
                   ) : (
-                    'Kirim Pertanyaan Pemesanan'
+                    <span>Kirim Pertanyaan Pemesanan</span>
                   )}
                 </button>
               </form>

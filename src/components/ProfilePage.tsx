@@ -156,6 +156,17 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const [isUpdatingBank, setIsUpdatingBank] = useState(false);
   const [bankUpdateMsg, setBankUpdateMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Personal Information Edit State in Profile Tab
+  const [isEditingPersonalInfo, setIsEditingPersonalInfo] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editIdCardNumber, setEditIdCardNumber] = useState('');
+  const [editEmergencyName, setEditEmergencyName] = useState('');
+  const [editEmergencyPhone, setEditEmergencyPhone] = useState('');
+  const [isUpdatingPersonalInfo, setIsUpdatingPersonalInfo] = useState(false);
+  const [personalInfoUpdateMsg, setPersonalInfoUpdateMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   // Phone Verification State
   const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
   const [otpCode, setOtpCode] = useState('');
@@ -361,6 +372,23 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     setBankAccountHolder(rawAccHolder);
   }, [dashboardData, session]);
 
+  // Sync personal information from session and dashboardData
+  useEffect(() => {
+    if (session) {
+      setEditName(session.name || '');
+      setEditEmail(session.email || '');
+      setEditPhone(session.phone || '');
+    }
+    if (dashboardData?.tenant) {
+      if (dashboardData.tenant.name) setEditName(dashboardData.tenant.name);
+      if (dashboardData.tenant.email) setEditEmail(dashboardData.tenant.email);
+      if (dashboardData.tenant.phone) setEditPhone(dashboardData.tenant.phone);
+      if (dashboardData.tenant.id_card_number) setEditIdCardNumber(dashboardData.tenant.id_card_number);
+      if (dashboardData.tenant.emergency_contact_name) setEditEmergencyName(dashboardData.tenant.emergency_contact_name);
+      if (dashboardData.tenant.emergency_contact_phone) setEditEmergencyPhone(dashboardData.tenant.emergency_contact_phone);
+    }
+  }, [dashboardData, session]);
+
   // OTP Countdown timer
   useEffect(() => {
     let timer: any;
@@ -452,6 +480,80 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       });
     } finally {
       setIsUpdatingBank(false);
+    }
+  };
+
+  // Handle Save Personal Information Details
+  const handleSavePersonalInfo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!session?.token) return;
+    if (!editName.trim()) {
+      setPersonalInfoUpdateMsg({
+        type: 'error',
+        text: 'Nama lengkap wajib diisi.'
+      });
+      return;
+    }
+    setIsUpdatingPersonalInfo(true);
+    setPersonalInfoUpdateMsg(null);
+    try {
+      const res = await updateTenantProfile({
+        name: editName.trim(),
+        email: editEmail.trim() || undefined,
+        phone: editPhone.trim() || undefined,
+        id_card_number: editIdCardNumber.trim() || undefined,
+        emergency_contact_name: editEmergencyName.trim() || undefined,
+        emergency_contact_phone: editEmergencyPhone.trim() || undefined
+      }, session.token);
+
+      setPersonalInfoUpdateMsg({
+        type: 'success',
+        text: res.message || 'Informasi pribadi berhasil disimpan!'
+      });
+      setIsEditingPersonalInfo(false);
+
+      // Update local state and session
+      const updatedTenant = {
+        ...(session.tenant || {}),
+        name: editName.trim(),
+        email: editEmail.trim(),
+        phone: editPhone.trim(),
+        id_card_number: editIdCardNumber.trim(),
+        emergency_contact_name: editEmergencyName.trim(),
+        emergency_contact_phone: editEmergencyPhone.trim()
+      };
+      const updatedSession: UserSession = {
+        ...session,
+        name: editName.trim(),
+        email: editEmail.trim(),
+        phone: editPhone.trim(),
+        tenant: updatedTenant
+      };
+      onSessionUpdate(updatedSession);
+      localStorage.setItem('userSession', JSON.stringify(updatedSession));
+
+      if (dashboardData) {
+        setDashboardData({
+          ...dashboardData,
+          tenant: {
+            ...dashboardData.tenant,
+            name: editName.trim(),
+            email: editEmail.trim(),
+            phone: editPhone.trim(),
+            id_card_number: editIdCardNumber.trim(),
+            emergency_contact_name: editEmergencyName.trim(),
+            emergency_contact_phone: editEmergencyPhone.trim()
+          }
+        });
+      }
+    } catch (err: any) {
+      console.error('Update personal info error:', err);
+      setPersonalInfoUpdateMsg({
+        type: 'error',
+        text: err?.message || 'Gagal memperbarui informasi pribadi. Silakan periksa kembali data Anda.'
+      });
+    } finally {
+      setIsUpdatingPersonalInfo(false);
     }
   };
 
@@ -1304,50 +1406,189 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
 
                 {/* Personal Information & Verification */}
                 <div className="p-5 sm:p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-10 h-10 rounded-2xl bg-amber-500/15 text-amber-400 flex items-center justify-center">
-                      <User size={20} />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-bold text-white">Informasi Pribadi</h3>
-                      <p className="text-xs text-slate-400">Data identitas penyewa yang terdaftar di sistem.</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800">
-                      <span className="text-xs text-slate-500">Nama Lengkap</span>
-                      <div className="text-sm font-bold text-white mt-0.5">{session.name || '-'}</div>
-                    </div>
-
-                    <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800">
-                      <span className="text-xs text-slate-500">Alamat Email</span>
-                      <div className="text-sm font-bold text-white mt-0.5">{session.email || '-'}</div>
-                    </div>
-
-                    <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-500">Nomor WhatsApp</span>
-                        {session.phone_verified ? (
-                          <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
-                            Terverifikasi
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
-                            Belum Verifikasi
-                          </span>
-                        )}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-2xl bg-amber-500/15 text-amber-400 flex items-center justify-center">
+                        <User size={20} />
                       </div>
-                      <div className="text-sm font-bold text-white mt-0.5">{session.phone || '-'}</div>
-                    </div>
-
-                    <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800">
-                      <span className="text-xs text-slate-500">Nomor Identitas (NIK / KTP)</span>
-                      <div className="text-sm font-bold text-white mt-0.5">
-                        {dashboardData?.tenant?.id ? `ID #${dashboardData.tenant.id}` : 'Tersimpan'}
+                      <div>
+                        <h3 className="text-base font-bold text-white">Informasi Pribadi</h3>
+                        <p className="text-xs text-slate-400">Data identitas penyewa yang terdaftar di sistem.</p>
                       </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditingPersonalInfo(!isEditingPersonalInfo);
+                        setPersonalInfoUpdateMsg(null);
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border border-slate-700 shadow-sm"
+                    >
+                      <Edit3 size={13} />
+                      <span>{isEditingPersonalInfo ? 'Batal' : 'Ubah Data'}</span>
+                    </button>
                   </div>
+
+                  {personalInfoUpdateMsg && (
+                    <div className={`p-3 rounded-2xl text-xs flex items-center gap-2 ${
+                      personalInfoUpdateMsg.type === 'success' 
+                        ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-300' 
+                        : 'bg-rose-500/15 border border-rose-500/30 text-rose-300'
+                    }`}>
+                      {personalInfoUpdateMsg.type === 'success' ? <CheckCircle2 size={15} className="shrink-0" /> : <AlertCircle size={15} className="shrink-0" />}
+                      <span>{personalInfoUpdateMsg.text}</span>
+                    </div>
+                  )}
+
+                  {!isEditingPersonalInfo ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800">
+                        <span className="text-xs text-slate-500">Nama Lengkap</span>
+                        <div className="text-sm font-bold text-white mt-0.5">{session.name || '-'}</div>
+                      </div>
+
+                      <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800">
+                        <span className="text-xs text-slate-500">Alamat Email</span>
+                        <div className="text-sm font-bold text-white mt-0.5">{session.email || '-'}</div>
+                      </div>
+
+                      <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-slate-500">Nomor WhatsApp</span>
+                          {session.phone_verified ? (
+                            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                              Terverifikasi
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+                              Belum Verifikasi
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-sm font-bold text-white mt-0.5">{session.phone || '-'}</div>
+                      </div>
+
+                      <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800">
+                        <span className="text-xs text-slate-500">Nomor Identitas (NIK / KTP)</span>
+                        <div className="text-sm font-bold text-white mt-0.5">
+                          {dashboardData?.tenant?.id_card_number || 'Belum diisi'}
+                        </div>
+                      </div>
+
+                      <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 sm:col-span-2">
+                        <span className="text-xs text-slate-500">Kontak Darurat</span>
+                        <div className="text-sm font-bold text-white mt-0.5">
+                          {dashboardData?.tenant?.emergency_contact_name ? (
+                            <span>{dashboardData.tenant.emergency_contact_name} {dashboardData.tenant.emergency_contact_phone ? `(${dashboardData.tenant.emergency_contact_phone})` : ''}</span>
+                          ) : (
+                            <span className="text-slate-500 italic">Belum dicantumkan</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleSavePersonalInfo} className="space-y-3.5 pt-2 border-t border-slate-800">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-300 mb-1">Nama Lengkap</label>
+                          <input
+                            type="text"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            placeholder="Nama lengkap sesuai KTP"
+                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs sm:text-sm focus:outline-none focus:border-amber-400"
+                            required
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-300 mb-1">Alamat Email</label>
+                          <input
+                            type="email"
+                            value={editEmail}
+                            onChange={(e) => setEditEmail(e.target.value)}
+                            placeholder="alamat@email.com"
+                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs sm:text-sm focus:outline-none focus:border-amber-400"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-300 mb-1">Nomor WhatsApp / HP</label>
+                          <input
+                            type="tel"
+                            value={editPhone}
+                            onChange={(e) => setEditPhone(e.target.value)}
+                            placeholder="Contoh: 08123456789"
+                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs sm:text-sm focus:outline-none focus:border-amber-400"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-300 mb-1">Nomor Identitas (NIK / KTP)</label>
+                          <input
+                            type="text"
+                            value={editIdCardNumber}
+                            onChange={(e) => setEditIdCardNumber(e.target.value.replace(/[^0-9]/g, ''))}
+                            maxLength={16}
+                            placeholder="16 digit nomor KTP / NIK"
+                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs sm:text-sm font-mono focus:outline-none focus:border-amber-400"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-300 mb-1">Nama Kontak Darurat</label>
+                          <input
+                            type="text"
+                            value={editEmergencyName}
+                            onChange={(e) => setEditEmergencyName(e.target.value)}
+                            placeholder="Nama orang tua / kerabat terdekat"
+                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs sm:text-sm focus:outline-none focus:border-amber-400"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-300 mb-1">Nomor Telepon Kontak Darurat</label>
+                          <input
+                            type="tel"
+                            value={editEmergencyPhone}
+                            onChange={(e) => setEditEmergencyPhone(e.target.value)}
+                            placeholder="Nomor HP kontak darurat"
+                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs sm:text-sm focus:outline-none focus:border-amber-400"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsEditingPersonalInfo(false);
+                            setPersonalInfoUpdateMsg(null);
+                          }}
+                          className="px-3.5 py-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-bold transition-all cursor-pointer"
+                        >
+                          Batal
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={isUpdatingPersonalInfo}
+                          className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                        >
+                          {isUpdatingPersonalInfo ? (
+                            <>
+                              <RefreshCw size={14} className="animate-spin" />
+                              <span>Menyimpan...</span>
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 size={14} />
+                              <span>Simpan Perubahan</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  )}
 
                   {/* Phone OTP Verification Section */}
                   {!session.phone_verified && (

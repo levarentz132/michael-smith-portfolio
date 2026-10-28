@@ -79,6 +79,100 @@ app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// --- MULTI-TIER RATE LIMITING DEFENSE SYSTEM ---
+function createRateLimiter({ windowMs = 60 * 1000, max = 120, message = 'Terlalu banyak permintaan ke server Highlanderstay. Silakan coba kembali dalam beberapa detik.' }) {
+  const store = new Map();
+
+  // Periodically clean up expired IP records every 2 minutes
+  const timer = setInterval(() => {
+    const now = Date.now();
+    for (const [key, entry] of store.entries()) {
+      if (now > entry.resetTime) {
+        store.delete(key);
+      }
+    }
+  }, 2 * 60 * 1000);
+  if (timer.unref) timer.unref();
+
+  return (req, res, next) => {
+    const reqPath = req.path || '';
+    // Bypass webhooks so payment callbacks are never rejected
+    if (reqPath.includes('/webhook') || reqPath.includes('/payments/')) {
+      return next();
+    }
+
+    // Bypass automated workflows / n8n / internal servers using valid API Key
+    const apiKey = req.headers['x-api-key'] || req.headers['x-openkos-secret'] || req.query.api_key;
+    const validSecret = process.env.OPENKOS_API_SECRET || 'hs_sec_live_9a7d3f82e1';
+    if (apiKey && apiKey === validSecret) {
+      return next();
+    }
+
+    const forwarded = req.headers['x-forwarded-for'];
+    const clientIp = (typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : null) ||
+      req.headers['x-real-ip'] ||
+      req.socket.remoteAddress ||
+      req.ip ||
+      'unknown_client';
+
+    const now = Date.now();
+    let entry = store.get(clientIp);
+
+    if (!entry || now > entry.resetTime) {
+      entry = { count: 1, resetTime: now + windowMs };
+      store.set(clientIp, entry);
+    } else {
+      entry.count++;
+    }
+
+    const remaining = Math.max(0, max - entry.count);
+    const retryAfter = Math.ceil((entry.resetTime - now) / 1000);
+
+    res.setHeader('X-RateLimit-Limit', max);
+    res.setHeader('X-RateLimit-Remaining', remaining);
+    res.setHeader('X-RateLimit-Reset', Math.ceil(entry.resetTime / 1000));
+
+    if (entry.count > max) {
+      res.setHeader('Retry-After', retryAfter);
+      return res.status(429).json({
+        error: message,
+        retry_after: retryAfter
+      });
+    }
+
+    next();
+  };
+}
+
+// Tier 1: Global Limiter (120 req/min per IP across all endpoints)
+const globalLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 120,
+  message: 'Terlalu banyak permintaan ke server Highlanderstay. Silakan coba beberapa detik lagi.'
+});
+
+// Tier 2: Auth Limiter (15 req/min per IP - protects login, register, OTP, and Google Auth from brute-force/spam)
+const authLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 15,
+  message: 'Terlalu banyak percobaan autentikasi. Demi keamanan, silakan tunggu 1 menit.'
+});
+
+// Tier 3: Orders & Bookings Limiter (20 req/min per IP - prevents spam booking/cart creation)
+const orderLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 20,
+  message: 'Terlalu banyak pembuatan pesanan dalam waktu singkat. Silakan tunggu 1 menit.'
+});
+
+app.use(globalLimiter);
+app.use('/api/v1/auth', authLimiter);
+app.use('/api/auth', authLimiter);
+app.use('/api/admin/login', authLimiter);
+app.use('/api/v1/orders', orderLimiter);
+app.use('/api/v1/cart', orderLimiter);
+app.use('/api/bookings', orderLimiter);
+
 // Initialize Database Connection Check and Table Creation
 async function initializeDatabase() {
   try {

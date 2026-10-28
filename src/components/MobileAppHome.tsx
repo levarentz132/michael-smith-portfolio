@@ -13,7 +13,6 @@ import {
   SlidersHorizontal,
   Gift,
   CheckCircle2,
-  ShieldCheck,
   Star,
   Zap,
 } from 'lucide-react';
@@ -31,14 +30,14 @@ interface MobileAppHomeProps {
   settings?: WebsiteSettings | null;
   onOpenLiveChat: () => void;
   onOpenFavorites: () => void;
-  onOpenPortal: () => void;
+  onOpenPortal?: () => void;
 }
 
 export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
   settings,
   onOpenLiveChat,
   onOpenFavorites,
-  onOpenPortal,
+  onOpenPortal: _onOpenPortal,
 }) => {
   const navigate = useNavigate();
   const { isFavorited, toggle: toggleFav, favoritesCount } = useFavorites();
@@ -393,23 +392,6 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
             </div>
           </div>
           <ChevronRight size={16} className="text-slate-400" />
-        </div>
-
-        {/* Owner / Mitra Banner: "Anda Pemilik Properti? [Masuk di sini]" */}
-        <div className="mt-2.5 p-3 rounded-2xl bg-gradient-to-r from-emerald-900/60 via-emerald-800/40 to-slate-900 border border-emerald-500/40 flex items-center justify-between gap-2 shadow-md">
-          <div className="flex items-center gap-2 min-w-0">
-            <ShieldCheck size={20} className="text-emerald-400 shrink-0" />
-            <span className="text-xs font-bold text-white truncate">
-              Anda Pemilik Properti?
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={onOpenPortal}
-            className="px-3 py-1 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-[11px] font-black uppercase tracking-wider shadow active:scale-95 transition-all shrink-0"
-          >
-            Masuk di sini
-          </button>
         </div>
       </section>
 
