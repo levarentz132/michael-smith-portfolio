@@ -26,6 +26,7 @@ import {
   EyeOff,
   Landmark
 } from 'lucide-react';
+import { GoogleSignInButton } from './GoogleSignInButton';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -507,6 +508,22 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                     >
                       Daftar Akun
                     </button>
+                  </div>
+
+                  {/* Google Instant Sign-In & Registration (Zero OTP) */}
+                  <div className="mb-4">
+                    <GoogleSignInButton
+                      text={mode === 'register' ? 'signup' : 'signin'}
+                      onSuccess={(session) => {
+                        onLoginSuccess(session);
+                        onClose();
+                      }}
+                    />
+                    <div className="flex items-center gap-3 my-3">
+                      <div className="flex-1 h-px bg-stroke/50" />
+                      <span className="text-[10px] uppercase tracking-wider text-muted font-bold">atau dengan WhatsApp</span>
+                      <div className="flex-1 h-px bg-stroke/50" />
+                    </div>
                   </div>
 
                   {/* Error & Success Alerts */}

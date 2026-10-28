@@ -1193,6 +1193,61 @@ export async function loginTenant(payload: LoginPayload): Promise<{ session: Use
   };
 }
 
+export interface GoogleAuthPayload {
+  credential?: string;
+  id_token?: string;
+  access_token?: string;
+  user?: {
+    google_id?: string;
+    email: string;
+    name?: string;
+    avatar?: string;
+    phone?: string;
+  };
+  device_name?: string;
+}
+
+// 4b. Login or Register via Google (Instant - NO OTP REQUIRED)
+export async function loginWithGoogle(payload: GoogleAuthPayload): Promise<{ session: UserSession; message: string; token: string; is_new_user?: boolean }> {
+  const data = await callAuthApi<any>('/google', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...payload,
+      device_name: payload.device_name || 'highlanderstay-web-google'
+    })
+  });
+
+  if (!data) {
+    throw new Error('Gagal login Google: Respon server tidak valid.');
+  }
+
+  const userObj = data.user || (data as any)?.data?.user || (data as any)?.tenant || (data as any)?.data?.tenant;
+  if (!userObj) {
+    throw new Error(data.message || 'Gagal login Google: Data akun tidak ditemukan.');
+  }
+
+  const session: UserSession = {
+    role: 'tenant',
+    id: userObj.id,
+    name: userObj.name || 'Penyewa',
+    email: userObj.email || '',
+    phone: userObj.phone || '',
+    token: data.token || (data as any)?.access_token || '',
+    phone_verified: Boolean(userObj.phone_verified ?? (data as any)?.phone_verified ?? true),
+    phone_verified_at: userObj.phone_verified_at || new Date().toISOString(),
+    is_active: Boolean(userObj.is_active ?? true),
+    has_tenant_profile: Boolean(userObj.has_tenant_profile ?? true),
+    tenant: userObj.tenant || null
+  };
+
+  return {
+    session,
+    message: data.message || 'Berhasil masuk dengan Akun Google.',
+    token: session.token || '',
+    is_new_user: Boolean(data.is_new_user)
+  };
+}
+
 // 5. Fetch current logged in user profile
 export async function fetchCurrentUser(token: string): Promise<AuthUser> {
   const data = await callAuthApi<{ user: AuthUser } | AuthUser>('/me', {
@@ -2248,6 +2303,7 @@ export interface WebsiteSettings {
   promo_enabled: string; // 'true' or 'false'
   promo_text: string;
   logo_image?: string;
+  google_client_id?: string;
   whatsapp_number?: string;
   banners?: (string | BannerSlide)[];
   facilities_premium?: Array<{ id: number; title: string; image: string; rotation?: number }>;

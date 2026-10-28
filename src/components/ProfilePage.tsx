@@ -61,6 +61,7 @@ import {
 import { Navbar } from './Navbar';
 import { Footer } from './Footer';
 import { LoginModal } from './LoginModal';
+import { GoogleSignInButton } from './GoogleSignInButton';
 import { useSEO } from '../hooks/useSEO';
 
 export interface ProfilePageProps {
@@ -737,6 +738,22 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
               <p className="text-xs sm:text-sm text-slate-400 leading-relaxed mb-6">
                 Akses status sewa kamar, kelola nomor rekening bank untuk pencairan deposit, bayar invoice instan, dan laporkan keluhan fasilitas.
               </p>
+
+              {/* Instant Google Login / Register (No OTP needed) */}
+              <div className="mb-5">
+                <GoogleSignInButton
+                  text="continue"
+                  onSuccess={(sess) => {
+                    onLoginSuccess(sess);
+                  }}
+                  clientId={settings?.google_client_id}
+                />
+                <div className="flex items-center gap-3 my-4">
+                  <div className="flex-1 h-px bg-slate-800" />
+                  <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">atau dengan WhatsApp / Kata Sandi</span>
+                  <div className="flex-1 h-px bg-slate-800" />
+                </div>
+              </div>
 
               {/* Direct In-Page Login Form */}
               <form onSubmit={handleQuickLogin} className="space-y-3.5 text-left mb-6">

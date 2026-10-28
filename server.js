@@ -436,7 +436,7 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
 });
 
 // Proxy route for Tenant API (OpenKos)
-const TENANT_UPSTREAM_URL = process.env.OPENKOS_TENANT_URL || 'http://localhost:8000/api/v1/tenant';
+const TENANT_UPSTREAM_URL = process.env.OPENKOS_TENANT_URL || 'http://127.0.0.1:8000/api/v1/tenant';
 
 app.use('/api/v1/tenant', async (req, res) => {
   const targetUrl = `${TENANT_UPSTREAM_URL}${req.url}`;
@@ -466,17 +466,72 @@ app.use('/api/v1/tenant', async (req, res) => {
     const contentType = upstreamRes.headers.get('content-type') || '';
     res.status(upstreamRes.status);
 
-    if (contentType.includes('application/json')) {
-      const data = await upstreamRes.json();
-      return res.json(data);
+    const text = await upstreamRes.text();
+    if (contentType.includes('application/json') && text.trim().length > 0) {
+      try {
+        const data = JSON.parse(text);
+        return res.json(data);
+      } catch (e) {
+        return res.send(text);
+      }
     } else {
-      const text = await upstreamRes.text();
       return res.send(text);
     }
   } catch (err) {
     console.error(`[Proxy Tenant API] Error forwarding to ${targetUrl}:`, err);
     return res.status(502).json({
       message: 'Gagal terhubung ke server OpenKos Tenant API.',
+      error: err.message
+    });
+  }
+});
+
+// Proxy route for Auth API (OpenKos)
+const AUTH_UPSTREAM_URL = process.env.OPENKOS_AUTH_URL || 'http://127.0.0.1:8000/api/v1/auth';
+
+app.use('/api/v1/auth', async (req, res) => {
+  const targetUrl = `${AUTH_UPSTREAM_URL}${req.url}`;
+
+  try {
+    const headers = {
+      'Accept': 'application/json'
+    };
+    if (req.headers.authorization) {
+      headers['Authorization'] = req.headers.authorization;
+    }
+    if (req.headers['content-type'] && !req.headers['content-type'].includes('multipart/form-data')) {
+      headers['Content-Type'] = req.headers['content-type'];
+    }
+
+    const options = {
+      method: req.method,
+      headers
+    };
+
+    if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.body && Object.keys(req.body).length > 0) {
+      options.body = JSON.stringify(req.body);
+      headers['Content-Type'] = 'application/json';
+    }
+
+    const upstreamRes = await fetch(targetUrl, options);
+    const contentType = upstreamRes.headers.get('content-type') || '';
+    res.status(upstreamRes.status);
+
+    const text = await upstreamRes.text();
+    if (contentType.includes('application/json') && text.trim().length > 0) {
+      try {
+        const data = JSON.parse(text);
+        return res.json(data);
+      } catch (e) {
+        return res.send(text);
+      }
+    } else {
+      return res.send(text);
+    }
+  } catch (err) {
+    console.error(`[Proxy Auth API] Error forwarding to ${targetUrl}:`, err);
+    return res.status(502).json({
+      message: 'Gagal terhubung ke server OpenKos Auth API.',
       error: err.message
     });
   }

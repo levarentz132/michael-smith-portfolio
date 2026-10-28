@@ -151,6 +151,40 @@ function App() {
     };
   }, [userSession, refreshCartCount]);
 
+  // Google OAuth Callback Return detection (?auth_token=...&user=...)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const authToken = params.get('auth_token');
+    const userParam = params.get('user');
+
+    if (authToken) {
+      localStorage.setItem('authToken', authToken);
+      if (userParam) {
+        try {
+          const parsedUser = JSON.parse(decodeURIComponent(userParam));
+          const session: UserSession = {
+            role: 'tenant',
+            id: parsedUser.id,
+            name: parsedUser.name || 'Penyewa',
+            email: parsedUser.email || '',
+            phone: parsedUser.phone || '',
+            token: authToken,
+            phone_verified: Boolean(parsedUser.phone_verified ?? true),
+            phone_verified_at: parsedUser.phone_verified_at || new Date().toISOString(),
+            is_active: Boolean(parsedUser.is_active ?? true),
+            has_tenant_profile: true,
+            tenant: parsedUser.tenant || null
+          };
+          localStorage.setItem('userSession', JSON.stringify(session));
+          setUserSession(session);
+        } catch (e) {
+          console.warn('Error parsing Google OAuth user redirect:', e);
+        }
+      }
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.search, location.pathname, navigate]);
+
   // DOKU Callback / Return URL detection (/portal/billing, ?status=finish, ?order_id=..., ?reference=...)
   useEffect(() => {
     const params = new URLSearchParams(location.search);
