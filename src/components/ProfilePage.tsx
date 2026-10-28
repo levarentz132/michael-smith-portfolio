@@ -400,18 +400,24 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     return () => clearInterval(timer);
   }, [otpCountdown]);
 
-  // Quick In-Page Login handler
+  // Quick In-Page Login handler (Email Only)
   const handleQuickLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!quickLoginPhone.trim() || !quickLoginPassword.trim()) {
-      setQuickLoginError('Harap isi nomor HP / Email dan password.');
+    const cleanEmail = quickLoginPhone.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!cleanEmail || !quickLoginPassword.trim()) {
+      setQuickLoginError('Harap isi alamat email dan kata sandi.');
+      return;
+    }
+    if (!emailRegex.test(cleanEmail)) {
+      setQuickLoginError('Format alamat email tidak valid (contoh: nama@email.com).');
       return;
     }
     setIsQuickLoggingIn(true);
     setQuickLoginError('');
     try {
       const res = await loginTenant({
-        login: quickLoginPhone.trim(),
+        login: cleanEmail,
         password: quickLoginPassword.trim()
       });
       if (res?.session) {
@@ -421,7 +427,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       }
     } catch (err: any) {
       console.error('Login error:', err);
-      setQuickLoginError(err?.message || 'Nomor HP atau kata sandi tidak cocok.');
+      setQuickLoginError(err?.message || 'Alamat email atau kata sandi tidak cocok.');
     } finally {
       setIsQuickLoggingIn(false);
     }
@@ -852,7 +858,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 />
                 <div className="flex items-center gap-3 my-4">
                   <div className="flex-1 h-px bg-slate-800" />
-                  <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">atau dengan WhatsApp / Kata Sandi</span>
+                  <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">atau dengan Email & Kata Sandi</span>
                   <div className="flex-1 h-px bg-slate-800" />
                 </div>
               </div>
@@ -867,12 +873,12 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 )}
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Nomor WhatsApp atau Email</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Alamat Email</label>
                   <input
-                    type="text"
+                    type="email"
                     value={quickLoginPhone}
                     onChange={(e) => setQuickLoginPhone(e.target.value)}
-                    placeholder="Contoh: 081234567890 atau email@anda.com"
+                    placeholder="Contoh: nama@email.com"
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950/80 border border-slate-700/80 text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-amber-400 transition-colors"
                     required
                   />

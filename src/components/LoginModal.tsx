@@ -14,8 +14,8 @@ import type { UserSession } from '../api';
 import { 
   ShieldCheck, 
   Lock, 
-  Phone, 
   User,
+  Mail,
   CheckCircle2, 
   AlertCircle, 
   ArrowRight, 
@@ -50,9 +50,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
 
-  // Register fields (Name, Phone, Password, and Bank Account)
+  // Register fields (Name, Email, Password, and Bank Account)
   const [regName, setRegName] = useState('');
-  const [regPhone, setRegPhone] = useState('');
+  const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regPasswordConfirm, setRegPasswordConfirm] = useState('');
   const [showRegPassword, setShowRegPassword] = useState(false);
@@ -69,7 +69,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
   // Registration OTP state
   const [registrationToken, setRegistrationToken] = useState('');
-  const [pendingPhone, setPendingPhone] = useState('');
+  const [pendingEmail, setPendingEmail] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [regCountdown, setRegCountdown] = useState(0);
   const [isResendingRegOtp, setIsResendingRegOtp] = useState(false);
@@ -115,12 +115,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       setResetOtpCode('');
       setRegistrationToken('');
       setResetToken('');
+      setPendingEmail('');
       setShowLoginPassword(false);
       setShowRegPassword(false);
       setShowRegPasswordConfirm(false);
       setShowNewPassword(false);
       setShowNewPasswordConfirm(false);
       setCaptchaAnswer('');
+      setRegEmail('');
       setRegBankName('');
       setRegCustomBankName('');
       setRegBankAccountNumber('');
@@ -159,21 +161,28 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     return () => clearInterval(timer);
   }, [forgotCountdown]);
 
-  // 1. Handle Tenant Login
+  // 1. Handle Tenant Login (Email Only)
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
 
-    if (!loginIdentifier.trim() || !loginPassword) {
-      setError('Harap masukkan nomor WhatsApp dan kata sandi Anda.');
+    const cleanEmail = loginIdentifier.trim().toLowerCase();
+    if (!cleanEmail || !loginPassword) {
+      setError('Harap masukkan alamat email dan kata sandi Anda.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      setError('Harap masukkan format alamat email yang valid (contoh: nama@email.com).');
       return;
     }
 
     setIsSubmitting(true);
     try {
       const { session, token } = await loginTenant({
-        login: loginIdentifier.trim(),
+        login: cleanEmail,
         password: loginPassword,
         device_name: 'highlanderstay-web'
       });
@@ -187,33 +196,39 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       onClose();
     } catch (err: any) {
       console.error('Login error:', err);
-      setError(err.message || 'Login gagal. Periksa kembali nomor WhatsApp dan kata sandi Anda.');
+      setError(err.message || 'Login gagal. Periksa kembali alamat email dan kata sandi Anda.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // 2. Handle Tenant Registration (Name, Phone and Password)
+  // 2. Handle Tenant Registration (Name, Email and Password)
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
 
     const cleanName = regName.trim();
-    const cleanPhone = regPhone.trim();
+    const cleanEmail = regEmail.trim().toLowerCase();
 
     if (!cleanName) {
       setError('Nama lengkap wajib diisi.');
       return;
     }
 
-    if (!cleanPhone || !regPassword) {
-      setError('Nomor WhatsApp dan kata sandi wajib diisi.');
+    if (!cleanEmail) {
+      setError('Alamat email wajib diisi.');
       return;
     }
 
-    if (cleanPhone.length < 9) {
-      setError('Nomor WhatsApp tidak valid. Masukkan nomor yang aktif.');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      setError('Format alamat email tidak valid.');
+      return;
+    }
+
+    if (!regPassword) {
+      setError('Kata sandi wajib diisi.');
       return;
     }
 
@@ -236,10 +251,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     try {
       const regRes = await registerTenant({
         name: cleanName,
-        phone: cleanPhone,
+        email: cleanEmail,
         password: regPassword,
         password_confirmation: regPasswordConfirm,
-        otp_channel: 'whatsapp',
+        otp_channel: 'email',
         device_name: 'highlanderstay-web',
         captcha_key: captchaData?.captcha_key,
         captcha_answer: captchaAnswer.trim(),
@@ -249,13 +264,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       });
 
       setRegistrationToken(regRes.registration_token);
-      setPendingPhone(cleanPhone);
+      setPendingEmail(cleanEmail);
       setMode('reg_otp');
-      setSuccessMsg(regRes.message || 'Kode OTP telah dikirimkan ke nomor WhatsApp Anda.');
+      setSuccessMsg(regRes.message || `Kode OTP telah dikirimkan ke email ${cleanEmail}.`);
       setRegCountdown(60);
     } catch (err: any) {
       console.error('Register error:', err);
-      setError(err.message || 'Pendaftaran gagal. Silakan periksa nomor WhatsApp Anda.');
+      setError(err.message || 'Pendaftaran gagal. Silakan periksa alamat email Anda.');
       loadCaptcha();
     } finally {
       setIsSubmitting(false);
@@ -275,12 +290,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      const activePhone = (pendingPhone || regPhone).trim();
+      const activeEmail = (pendingEmail || regEmail).trim().toLowerCase();
       const { session, response } = await verifyPhoneOtp({
         registration_token: registrationToken || undefined,
-        login: activePhone || undefined,
-        phone: activePhone || undefined,
-        channel: 'whatsapp',
+        login: activeEmail || undefined,
+        email: activeEmail || undefined,
+        channel: 'email',
         code: otpCode.trim(),
         device_name: 'highlanderstay-web'
       });
@@ -310,14 +325,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     setSuccessMsg('');
     setIsResendingRegOtp(true);
     try {
-      const activePhone = (pendingPhone || regPhone).trim();
+      const activeEmail = (pendingEmail || regEmail).trim().toLowerCase();
       const res = await sendPhoneOtp({
         registration_token: registrationToken || undefined,
-        login: activePhone || undefined,
-        phone: activePhone || undefined,
-        channel: 'whatsapp'
+        login: activeEmail || undefined,
+        email: activeEmail || undefined,
+        channel: 'email'
       });
-      setSuccessMsg(res.message || 'Kode OTP baru telah dikirimkan ke WhatsApp.');
+      setSuccessMsg(res.message || `Kode OTP baru telah dikirimkan ke email ${activeEmail}.`);
       setRegCountdown(60);
     } catch (err: any) {
       setError(err.message || 'Gagal mengirim ulang OTP. Silakan tunggu beberapa saat.');
@@ -326,33 +341,39 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     }
   };
 
-  // 5. Handle Forgot Password Request (Send Reset OTP)
+  // 5. Handle Forgot Password Request (Send Reset OTP via Email)
   const handleForgotRequestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
 
-    const cleanLogin = forgotIdentifier.trim();
-    if (!cleanLogin) {
-      setError('Harap masukkan nomor WhatsApp yang terdaftar.');
+    const cleanEmail = forgotIdentifier.trim().toLowerCase();
+    if (!cleanEmail) {
+      setError('Harap masukkan alamat email yang terdaftar.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      setError('Format alamat email tidak valid.');
       return;
     }
 
     setIsSubmitting(true);
     try {
       const res = await forgotPassword({
-        login: cleanLogin,
-        channel: 'whatsapp'
+        login: cleanEmail,
+        channel: 'email'
       });
 
       setResetToken(res.reset_token);
-      setResetTarget(res.target || cleanLogin);
+      setResetTarget(res.target || cleanEmail);
       setMode('forgot_reset');
-      setSuccessMsg(res.message || 'Kode verifikasi reset password berhasil dikirimkan via WhatsApp.');
+      setSuccessMsg(res.message || `Kode verifikasi reset password berhasil dikirimkan ke email ${cleanEmail}.`);
       setForgotCountdown(60);
     } catch (err: any) {
       console.error('Forgot password error:', err);
-      setError(err.message || 'Gagal mengirim kode reset password. Pastikan akun sudah terdaftar.');
+      setError(err.message || 'Gagal mengirim kode reset password. Pastikan email sudah terdaftar.');
     } finally {
       setIsSubmitting(false);
     }
@@ -411,18 +432,19 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     }
   };
 
-  // 7. Resend Forgot Password OTP
+  // 7. Resend Forgot Password OTP (via Email)
   const handleResendForgotOtp = async () => {
     setError('');
     setSuccessMsg('');
     setIsResendingForgotOtp(true);
     try {
+      const activeEmail = forgotIdentifier.trim().toLowerCase();
       const res = await forgotPassword({
-        login: forgotIdentifier.trim(),
-        channel: 'whatsapp'
+        login: activeEmail,
+        channel: 'email'
       });
       setResetToken(res.reset_token);
-      setSuccessMsg(res.message || 'Kode OTP baru telah dikirimkan via WhatsApp.');
+      setSuccessMsg(res.message || `Kode OTP baru telah dikirimkan ke email ${activeEmail}.`);
       setForgotCountdown(60);
     } catch (err: any) {
       setError(err.message || 'Gagal mengirim ulang OTP. Silakan tunggu hitung mundur selesai.');
@@ -521,7 +543,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                     />
                     <div className="flex items-center gap-3 my-3">
                       <div className="flex-1 h-px bg-stroke/50" />
-                      <span className="text-[10px] uppercase tracking-wider text-muted font-bold">atau dengan WhatsApp</span>
+                      <span className="text-[10px] uppercase tracking-wider text-muted font-bold">atau dengan Email</span>
                       <div className="flex-1 h-px bg-stroke/50" />
                     </div>
                   </div>
@@ -549,19 +571,19 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                     </motion.div>
                   )}
 
-                  {/* FORM A: LOGIN */}
+                  {/* FORM A: LOGIN (Email Only) */}
                   {mode === 'login' ? (
                     <form onSubmit={handleLoginSubmit} className="flex flex-col gap-4">
                       <div className="flex flex-col gap-1.5">
                         <label className="text-xs text-muted uppercase tracking-wider font-medium flex items-center gap-1.5">
-                          <Phone size={12} /> Nomor WhatsApp
+                          <Mail size={12} /> Alamat Email
                         </label>
                         <input 
-                          type="tel"
+                          type="email"
                           required
                           value={loginIdentifier}
                           onChange={(e) => setLoginIdentifier(e.target.value)}
-                          placeholder="contoh: 081234567890"
+                          placeholder="contoh: nama@email.com"
                           className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-base sm:text-sm text-text-primary placeholder:text-muted/50 focus:outline-none focus:border-text-primary transition-colors duration-200 font-sans"
                         />
                       </div>
@@ -615,7 +637,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                       </button>
                     </form>
                   ) : (
-                    /* FORM B: REGISTER (Name, Phone & Password) */
+                    /* FORM B: REGISTER (Name, Email, WhatsApp & Password) */
                     <form onSubmit={handleRegisterSubmit} className="flex flex-col gap-3.5">
                       <div className="flex flex-col gap-1">
                         <label className="text-xs text-muted uppercase tracking-wider font-medium flex items-center gap-1.5">
@@ -633,18 +655,18 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
                       <div className="flex flex-col gap-1">
                         <label className="text-xs text-muted uppercase tracking-wider font-medium flex items-center gap-1.5">
-                          <Phone size={12} /> Nomor WhatsApp Aktif
+                          <Mail size={12} /> Alamat Email (Wajib)
                         </label>
                         <input 
-                          type="tel"
+                          type="email"
                           required
-                          value={regPhone}
-                          onChange={(e) => setRegPhone(e.target.value)}
-                          placeholder="contoh: 081234567890"
+                          value={regEmail}
+                          onChange={(e) => setRegEmail(e.target.value)}
+                          placeholder="contoh: budi@gmail.com"
                           className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-base sm:text-sm text-text-primary placeholder:text-muted/50 focus:outline-none focus:border-text-primary font-sans"
                         />
                         <span className="text-[10px] text-muted">
-                          Kode verifikasi OTP 6-digit akan dikirimkan ke WhatsApp ini.
+                          Kode verifikasi OTP 6-digit akan dikirimkan ke alamat email ini.
                         </span>
                       </div>
 
@@ -819,7 +841,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                         className="w-full relative group rounded-full text-xs font-semibold uppercase tracking-wider py-3.5 bg-text-primary text-bg hover:bg-bg hover:text-text-primary transition-all duration-300 flex items-center justify-center gap-2 border border-transparent mt-2 shadow-lg disabled:opacity-50 cursor-pointer"
                       >
                         <span className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 p-[1px] accent-gradient" style={{ margin: '-1px' }} />
-                        {isSubmitting ? 'Mendaftarkan...' : 'Daftar dengan WhatsApp'}
+                        {isSubmitting ? 'Mendaftarkan...' : 'Daftar dengan Email'}
                         <ArrowRight size={14} />
                       </button>
 
@@ -858,14 +880,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 >
                   <div className="border-b border-stroke/40 pb-4">
                     <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mb-3">
-                      <ShieldCheck size={24} />
+                      <Mail size={24} />
                     </div>
                     <span className="text-[10px] text-muted uppercase tracking-[0.2em] font-bold">Verifikasi Pendaftaran</span>
                     <h3 className="text-2xl font-display italic font-semibold text-text-primary mt-1">
-                      Verifikasi Nomor WhatsApp
+                      Verifikasi Kode Email
                     </h3>
                     <p className="text-xs text-muted leading-relaxed mt-1">
-                      Masukkan 6 digit kode OTP yang kami kirimkan ke WhatsApp Anda (<strong>{pendingPhone || regPhone}</strong>).
+                      Masukkan 6 digit kode OTP yang kami kirimkan ke email Anda (<strong>{pendingEmail || regEmail}</strong>). Periksa juga folder Spam atau Promosi Anda jika belum muncul.
                     </p>
                   </div>
 
@@ -958,7 +980,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                       Lupa Kata Sandi?
                     </h3>
                     <p className="text-xs text-muted leading-relaxed mt-1">
-                      Masukkan nomor WhatsApp Anda yang terdaftar. Kami akan mengirimkan 6-digit kode verifikasi OTP via WhatsApp.
+                      Masukkan alamat email Anda yang terdaftar. Kami akan mengirimkan 6-digit kode verifikasi OTP ke email Anda.
                     </p>
                   </div>
 
@@ -979,15 +1001,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   <form onSubmit={handleForgotRequestSubmit} className="flex flex-col gap-4">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs text-muted uppercase tracking-wider font-medium flex items-center gap-1.5">
-                        <Phone size={12} /> Nomor WhatsApp Terdaftar
+                        <Mail size={12} /> Alamat Email Terdaftar
                       </label>
                       <input 
-                        type="tel"
+                        type="email"
                         required
                         autoFocus
                         value={forgotIdentifier}
                         onChange={(e) => setForgotIdentifier(e.target.value)}
-                        placeholder="contoh: 081234567890"
+                        placeholder="contoh: nama@email.com"
                         className="w-full bg-bg border border-stroke rounded-xl px-4 py-3 text-base sm:text-sm text-text-primary placeholder:text-muted/50 focus:outline-none focus:border-text-primary font-sans"
                       />
                     </div>
@@ -997,7 +1019,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                       disabled={isSubmitting}
                       className="w-full relative group rounded-full text-xs font-semibold uppercase tracking-wider py-3.5 bg-amber-400 text-bg hover:bg-amber-300 transition-all duration-300 flex items-center justify-center gap-2 border border-transparent shadow-lg disabled:opacity-50 cursor-pointer font-bold"
                     >
-                      {isSubmitting ? 'Mengirim Kode OTP...' : 'Kirim Kode OTP WhatsApp'}
+                      {isSubmitting ? 'Mengirim Kode OTP...' : 'Kirim Kode OTP Email'}
                       <ArrowRight size={14} />
                     </button>
 
@@ -1035,7 +1057,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                       Buat Kata Sandi Baru
                     </h3>
                     <p className="text-xs text-muted leading-relaxed mt-1">
-                      Masukkan kode OTP yang dikirimkan ke WhatsApp (<strong>{resetTarget || forgotIdentifier}</strong>) dan kata sandi baru Anda.
+                      Masukkan kode OTP yang dikirimkan ke email (<strong>{resetTarget || forgotIdentifier}</strong>) dan kata sandi baru Anda.
                     </p>
                   </div>
 
@@ -1056,7 +1078,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   <form onSubmit={handleResetPasswordSubmit} className="flex flex-col gap-3">
                     <div className="flex flex-col gap-1 items-center bg-bg/50 border border-stroke/50 rounded-2xl p-3">
                       <label className="text-[11px] text-muted font-medium uppercase tracking-wider">
-                        Kode OTP 6-Digit WhatsApp
+                        Kode OTP 6-Digit Email
                       </label>
                       <input 
                         type="text"

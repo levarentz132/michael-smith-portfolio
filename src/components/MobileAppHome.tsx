@@ -880,13 +880,24 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
       <footer className="mt-8 px-4 text-center text-slate-500 text-[11px]">
         <p className="font-semibold text-slate-400">HighlanderStay Mobile App</p>
         <p className="text-[10px] mt-0.5">Hunian Kost & Apartemen Modern di Jakarta</p>
-        <button
-          type="button"
-          onClick={onOpenLiveChat}
-          className="mt-2 text-[10px] text-amber-400/90 underline hover:text-amber-300"
-        >
-          Butuh Bantuan? Hubungi Customer Service
-        </button>
+        <div className="mt-2.5 flex items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate('/map')}
+            className="text-[11px] text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1 transition-colors"
+          >
+            <MapPin className="w-3.5 h-3.5 text-emerald-400" />
+            Peta Lokasi (/map)
+          </button>
+          <span className="text-slate-600">•</span>
+          <button
+            type="button"
+            onClick={onOpenLiveChat}
+            className="text-[10px] text-amber-400/90 underline hover:text-amber-300"
+          >
+            Hubungi CS
+          </button>
+        </div>
       </footer>
     </div>
   );

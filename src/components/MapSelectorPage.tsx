@@ -186,8 +186,8 @@ export const MapSelectorPage: React.FC<MapSelectorPageProps> = ({
   const [selectedArea, setSelectedArea] = useState<string>('Semua Area');
   // Default to true for only available rooms on map
   const [onlyAvailable, setOnlyAvailable] = useState<boolean>(true);
-  // Show left sidebar room list by default
-  const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(true);
+  // Default to false so map is directly visible without room list covering on load
+  const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
   // Left sidebar room list defaults to showing ALL rooms
   const [drawerOnlyAvailable, setDrawerOnlyAvailable] = useState<boolean>(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);

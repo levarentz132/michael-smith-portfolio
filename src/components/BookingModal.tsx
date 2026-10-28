@@ -295,10 +295,13 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
       try {
         // Resolve unit_id from selected room or available rooms list
         let resolvedUnitId = selectedUnitId;
-        if (!resolvedUnitId && property?.availableRoomDetails && property.availableRoomDetails.length > 0) {
+        if (property?.availableRoomDetails && property.availableRoomDetails.length > 0) {
           if (selectedRoom) {
             const clean = selectedRoom.replace(/^Kamar\s+/i, '').trim().toLowerCase();
-            const match = property.availableRoomDetails.find(r => r.name.toLowerCase() === clean);
+            const match = property.availableRoomDetails.find(r => 
+              r.name.toLowerCase() === clean || 
+              `kamar ${r.name.toLowerCase()}` === clean
+            );
             if (match) resolvedUnitId = match.id;
           }
           if (!resolvedUnitId) {
@@ -394,9 +397,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                            err?.message?.toLowerCase().includes('sudah diisi') ||
                            err?.message?.toLowerCase().includes('already paid') ||
                            err?.message?.toLowerCase().includes('tidak tersedia') ||
+                           err?.message?.toLowerCase().includes('maintenance') ||
+                           err?.message?.toLowerCase().includes('unavailable') ||
                            err?.message?.toLowerCase().includes('conflict');
         if (isConflict) {
-          setError(err?.message || 'Kamar ini sudah dibayar atau dipesan oleh calon penghuni lain. Silakan pilih unit kamar lain yang masih tersedia.');
+          setError('Kamar ini sedang dalam pemeliharaan atau sudah tidak tersedia. Silakan pilih unit kamar lain yang masih tersedia.');
         } else {
           setError(err?.message || 'Gagal menambahkan kamar ke keranjang pemesanan. Silakan coba lagi.');
         }

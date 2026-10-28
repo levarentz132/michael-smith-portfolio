@@ -1,4 +1,6 @@
 import React, { useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import { MapPin } from 'lucide-react';
 import Hls from 'hls.js';
 import { gsap } from 'gsap';
 
@@ -133,6 +135,13 @@ export const Footer: React.FC = () => {
 
         {/* Social & Policy Links */}
         <div className="flex flex-wrap items-center gap-4 sm:gap-6 order-1 md:order-2">
+          <Link
+            to="/map"
+            className="text-[10px] sm:text-xs text-emerald-400 hover:text-emerald-300 uppercase tracking-[0.15em] font-semibold transition-colors duration-300 flex items-center gap-1.5"
+          >
+            <MapPin className="w-3.5 h-3.5 text-emerald-400" />
+            Peta Lokasi / Map
+          </Link>
           {socials.map((social) => (
             <a 
               key={social.name}

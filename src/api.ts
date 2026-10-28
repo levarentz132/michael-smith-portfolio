@@ -135,10 +135,10 @@ export interface CaptchaData {
 }
 
 export interface RegisterPayload {
-  phone: string;
+  email: string;
   password: string;
+  phone?: string;
   name?: string;
-  email?: string;
   password_confirmation?: string;
   otp_channel?: 'whatsapp' | 'email';
   device_name?: string;
@@ -977,12 +977,15 @@ export async function deleteBooking(id: number): Promise<{ id: number }> {
   return handleResponse<{ id: number }>(res, 'Failed to delete booking');
 }
 
+const isBrowserLocalhost = typeof window !== 'undefined' && 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
 export const AUTH_API_PROXY = '/api/v1/auth';
 export const AUTH_API_BASE = 
   (import.meta as any).env?.VITE_AUTH_API_URL || 
   (import.meta as any).env?.VITE_API_BASE_URL || 
   (import.meta as any).env?.API_BASE_URL || 
-  'https://dashboard.highlanderstay.com/api/v1/auth';
+  (isBrowserLocalhost ? 'http://127.0.0.1:8000/api/v1/auth' : 'https://dashboard.highlanderstay.com/api/v1/auth');
 
 async function callAuthApi<T>(path: string, options: RequestInit = {}): Promise<T> {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
@@ -1073,25 +1076,29 @@ export async function fetchCaptcha(): Promise<CaptchaData> {
   });
 }
 
-// 1. Register a new tenant account (Staged Anti-Spam Registration with phone, password & captcha)
+// 1. Register a new tenant account (Staged Anti-Spam Registration with email, password & captcha)
 export async function registerTenant(payload: RegisterPayload): Promise<RegisterResponse> {
-  const phone = payload.phone.trim();
+  const email = payload.email.trim();
+  const phone = payload.phone?.trim() || undefined;
   const password = payload.password;
-  const name = payload.name?.trim() || `Penyewa ${phone}`;
+  const name = payload.name?.trim() || (email ? email.split('@')[0] : 'Penyewa');
   const password_confirmation = payload.password_confirmation || password;
 
   return await callAuthApi<RegisterResponse>('/register', {
     method: 'POST',
     body: JSON.stringify({
       name,
-      email: payload.email?.trim() || '',
+      email,
       phone,
       password,
       password_confirmation,
-      otp_channel: payload.otp_channel || 'whatsapp',
+      otp_channel: payload.otp_channel || 'email',
       device_name: payload.device_name || 'highlanderstay-mobile',
       captcha_key: payload.captcha_key,
-      captcha_answer: payload.captcha_answer
+      captcha_answer: payload.captcha_answer,
+      bank_name: payload.bank_name,
+      bank_account_number: payload.bank_account_number,
+      bank_account_holder: payload.bank_account_holder
     })
   });
 }
@@ -1106,7 +1113,7 @@ export async function sendPhoneOtp(payload: SendOtpPayload, token?: string): Pro
     method: 'POST',
     headers,
     body: JSON.stringify({
-      channel: 'whatsapp',
+      channel: payload.channel || 'email',
       ...payload
     })
   });
@@ -1123,6 +1130,7 @@ export async function verifyPhoneOtp(payload: VerifyOtpPayload, token?: string):
     headers,
     body: JSON.stringify({
       device_name: 'highlanderstay-mobile',
+      channel: payload.channel || 'email',
       ...payload
     })
   });
@@ -1374,7 +1382,7 @@ export const TENANT_API_PROXY = '/api/v1/tenant';
 export const TENANT_API_BASE = 
   (import.meta as any).env?.VITE_TENANT_API_URL || 
   (import.meta as any).env?.VITE_API_BASE_URL?.replace(/\/auth$/, '/tenant') || 
-  'https://dashboard.highlanderstay.com/api/v1/tenant';
+  (isBrowserLocalhost ? 'http://127.0.0.1:8000/api/v1/tenant' : 'https://dashboard.highlanderstay.com/api/v1/tenant');
 
 async function callTenantApi<T>(path: string, token: string, options: RequestInit = {}): Promise<T> {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
@@ -1539,7 +1547,7 @@ export const ORDERS_API_PROXY = '/api/v1/orders';
 export const ORDERS_API_BASE = 
   (import.meta as any).env?.VITE_ORDERS_API_URL || 
   (import.meta as any).env?.VITE_API_BASE_URL?.replace(/\/auth$/, '/orders') || 
-  'https://dashboard.highlanderstay.com/api/v1/orders';
+  (isBrowserLocalhost ? 'http://127.0.0.1:8000/api/v1/orders' : 'https://dashboard.highlanderstay.com/api/v1/orders');
 
 export async function createOpenKosOrder(payload: CreateOrderPayload): Promise<CreateOrderResponse> {
   const reqBody = {
@@ -1638,7 +1646,7 @@ export const CART_API_PROXY = '/api/v1/cart';
 export const CART_API_BASE =
   (import.meta as any).env?.VITE_CART_API_URL ||
   (import.meta as any).env?.VITE_API_BASE_URL?.replace(/\/auth$/, '/cart') ||
-  'https://dashboard.highlanderstay.com/api/v1/cart';
+  (isBrowserLocalhost ? 'http://127.0.0.1:8000/api/v1/cart' : 'https://dashboard.highlanderstay.com/api/v1/cart');
 
 export function getStoredUserSession(): UserSession | null {
   try {
@@ -2068,7 +2076,7 @@ export async function refreshCartCheckout(orderId: number): Promise<RefreshCheck
 export const SANDBOX_API_PROXY = '/api/v1/sandbox';
 export const SANDBOX_API_BASE =
   (import.meta as any).env?.VITE_SANDBOX_API_URL ||
-  'https://dashboard.highlanderstay.com/api/v1/sandbox';
+  (isBrowserLocalhost ? 'http://127.0.0.1:8000/api/v1/sandbox' : 'https://dashboard.highlanderstay.com/api/v1/sandbox');
 
 export interface SimulatePaymentResponse {
   success: boolean;
