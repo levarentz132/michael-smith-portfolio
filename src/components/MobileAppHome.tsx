@@ -55,7 +55,7 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
-  // Flash Sale Countdown Timer (Simulates dynamic 28-day promo ticker)
+  // Flash Sale Countdown Timer (Uses admin promo_ngebut_end_date if available, else relative ticker)
   const [timeLeft, setTimeLeft] = useState({
     days: 28,
     hours: 12,
@@ -64,7 +64,22 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
   });
 
   useEffect(() => {
-    const timer = setInterval(() => {
+    const updateCountdown = () => {
+      if (settings?.promo_ngebut_end_date) {
+        const target = new Date(settings.promo_ngebut_end_date).getTime();
+        const now = Date.now();
+        if (!isNaN(target) && target > now) {
+          const diff = target - now;
+          const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+          const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+          const minutes = Math.floor((diff / (1000 * 60)) % 60);
+          const seconds = Math.floor((diff / 1000) % 60);
+          setTimeLeft({ days, hours, minutes, seconds });
+          return;
+        }
+      }
+
+      // Default relative timer
       setTimeLeft((prev) => {
         if (prev.seconds > 0) {
           return { ...prev, seconds: prev.seconds - 1 };
@@ -80,9 +95,12 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
         }
         return prev;
       });
-    }, 1000);
+    };
+
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [settings?.promo_ngebut_end_date]);
 
   // Back to top scroll listener
   useEffect(() => {
@@ -164,6 +182,30 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
     return buildDynamicAreaList(properties);
   }, [properties]);
 
+  // Area Category Tabs (Regional / Area categories only, as requested)
+  const areaCategoryTabs = useMemo(() => {
+    if (settings?.featured_areas && settings.featured_areas.trim()) {
+      const customAreas = settings.featured_areas
+        .split(',')
+        .map((a) => a.trim())
+        .filter(Boolean);
+      if (customAreas.length > 0) {
+        return [
+          { id: 'Semua Area', label: 'Semua Kos' },
+          ...customAreas.map((a) => ({ id: a, label: a })),
+        ];
+      }
+    }
+
+    const tabs: Array<{ id: string; label: string }> = [{ id: 'Semua Area', label: 'Semua Kos' }];
+    areaOptions.forEach((area) => {
+      if (area !== 'Semua Area' && !tabs.some((t) => t.id.toLowerCase() === area.toLowerCase())) {
+        tabs.push({ id: area, label: area });
+      }
+    });
+    return tabs;
+  }, [areaOptions, settings?.featured_areas]);
+
   // Filter properties
   const filteredProperties = useMemo(() => {
     return properties.filter((p) => {
@@ -186,10 +228,16 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
     });
   }, [properties, selectedArea, selectedCategory, searchQuery]);
 
-  // Featured promo list (properties with promo or discounts)
+  // Featured promo list (HANYA KAMAR KOSONG: availableRooms > 0)
   const promoProperties = useMemo(() => {
-    const withPromo = properties.filter((p) => p.promoPrice || p.promoLabel);
-    return withPromo.length > 0 ? withPromo : properties.slice(0, 4);
+    // Strictly filter out any property with 0 available rooms
+    const availableOnly = properties.filter((p) => {
+      const count = typeof p.availableRooms === 'number' ? p.availableRooms : 0;
+      return count > 0;
+    });
+
+    const withPromo = availableOnly.filter((p) => p.promoPrice || p.promoLabel);
+    return withPromo.length > 0 ? withPromo : availableOnly.slice(0, 8);
   }, [properties]);
 
   const handleCardClick = (p: Property) => {
@@ -322,7 +370,7 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
         <div className="flex items-center gap-2 min-w-0">
           <div className="px-2 py-0.5 rounded-md bg-rose-600 text-white text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shrink-0 animate-pulse">
             <Zap size={11} className="fill-white" />
-            PROMO NGEBUT
+            {settings?.promo_ngebut_badge_text || 'PROMO NGEBUT'}
           </div>
 
           {/* Countdown Boxes */}
@@ -348,30 +396,29 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
         <ChevronRight size={16} className="text-rose-400 shrink-0" />
       </div>
 
-      {/* 3. HERO QUICK SHORTCUTS & CATEGORIES (Screenshot 2 Reference) */}
+      {/* 3. HERO QUICK SHORTCUTS & CATEGORIES (Kategori Daerah Saja) */}
       <section className="px-3 mt-3">
-        {/* Horizontal Category Badges */}
+        {/* Horizontal Category Badges (Daerah) */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {[
-            { id: 'all', label: 'Semua Kos' },
-            { id: 'campur', label: 'Campur' },
-            { id: 'putri', label: 'Putri' },
-            { id: 'putra', label: 'Putra' },
-            { id: 'apartment', label: 'Apartemen' },
-          ].map((cat) => {
-            const isActive = selectedCategory === cat.id;
+          {areaCategoryTabs.map((areaTab) => {
+            const isActive =
+              selectedArea === areaTab.id ||
+              (areaTab.id === 'Semua Area' && (selectedArea === 'Semua Area' || !selectedArea));
             return (
               <button
-                key={cat.id}
+                key={areaTab.id}
                 type="button"
-                onClick={() => setSelectedCategory(cat.id as any)}
+                onClick={() => {
+                  setSelectedArea(areaTab.id);
+                  setSelectedCategory('all');
+                }}
                 className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 active:scale-95 ${
                   isActive
                     ? 'bg-amber-400 text-black shadow-md shadow-amber-400/30'
                     : 'bg-white/[0.06] text-slate-300 border border-white/10 hover:border-white/20'
                 }`}
               >
-                {cat.label}
+                {areaTab.label}
               </button>
             );
           })}
@@ -454,43 +501,48 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
         </section>
       )}
 
-      {/* 5. PURPLE PROMO SECTION (Screenshot 3 Reference: PROMO NGEBUT DEALS) */}
-      <section id="promo-ngebut-section" className="px-3 mt-5">
-        <div className="rounded-3xl bg-gradient-to-br from-[#2f1155] via-[#1b0d36] to-[#0c051a] border border-purple-500/30 p-3.5 shadow-xl overflow-hidden relative">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-400/30">
-                <Sparkles size={16} />
-              </span>
-              <div>
-                <h3 className="text-sm font-black text-white">Promo Ngebut Spesial</h3>
-                <p className="text-[10px] text-purple-300">Potongan harga eksklusif bulan ini</p>
+      {/* 5. PURPLE PROMO SECTION: PROMO NGEBUT (Hanya Kamar Kosong) */}
+      {(settings?.promo_ngebut_enabled !== false && settings?.promo_ngebut_enabled !== 'false') && promoProperties.length > 0 && (
+        <section id="promo-ngebut-section" className="px-3 mt-5">
+          <div className="rounded-3xl bg-gradient-to-br from-[#2f1155] via-[#1b0d36] to-[#0c051a] border border-purple-500/30 p-3.5 shadow-xl overflow-hidden relative">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-400/30">
+                  <Sparkles size={16} />
+                </span>
+                <div>
+                  <h3 className="text-sm font-black text-white">
+                    {settings?.promo_ngebut_title || 'Promo Ngebut Spesial'}
+                  </h3>
+                  <p className="text-[10px] text-purple-300">
+                    {settings?.promo_ngebut_subtitle || 'Potongan harga eksklusif bulan ini'}
+                  </p>
+                </div>
               </div>
+
+              <button
+                type="button"
+                onClick={() => navigate('/katalog')}
+                className="text-[11px] font-bold text-purple-300 hover:text-white flex items-center gap-1 active:scale-95"
+              >
+                Lihat Semua <ChevronRight size={13} />
+              </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() => navigate('/katalog')}
-              className="text-[11px] font-bold text-purple-300 hover:text-white flex items-center gap-1 active:scale-95"
-            >
-              Lihat Semua <ChevronRight size={13} />
-            </button>
-          </div>
+            {/* Horizontal Card Scroll for Promo Items */}
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory">
+              {promoProperties.map((prop) => {
+                const areaInfo = getPropertyAreaInfo(prop);
+                const fav = prop.id ? isFavorited(prop.id) : false;
+                const roomsCount = typeof prop.availableRooms === 'number' ? prop.availableRooms : 0;
 
-          {/* Horizontal Card Scroll for Promo Items */}
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory">
-            {promoProperties.map((prop) => {
-              const areaInfo = getPropertyAreaInfo(prop);
-              const fav = prop.id ? isFavorited(prop.id) : false;
-              const roomsCount = prop.availableRooms ?? 2;
-
-              return (
-                <div
-                  key={prop.id}
-                  onClick={() => handleCardClick(prop)}
-                  className="snap-start shrink-0 w-[240px] rounded-2xl bg-white/[0.07] border border-white/10 hover:border-purple-400/50 overflow-hidden cursor-pointer shadow-lg active:scale-[0.98] transition-all flex flex-col"
-                >
+                return (
+                  <div
+                    key={prop.id}
+                    onClick={() => handleCardClick(prop)}
+                    className="snap-start shrink-0 w-[240px] rounded-2xl bg-white/[0.07] border border-white/10 hover:border-purple-400/50 overflow-hidden cursor-pointer shadow-lg active:scale-[0.98] transition-all flex flex-col"
+                  >
                   {/* Image Container */}
                   <div className="relative aspect-[16/10] bg-black/50 overflow-hidden">
                     <img
@@ -530,7 +582,7 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
                           {prop.category || 'Campur'}
                         </span>
                         <span className="text-[10px] font-black text-rose-400">
-                          Sisa {roomsCount} Kamar
+                          Sisa {roomsCount} Kamar Kosong
                         </span>
                       </div>
 
@@ -580,6 +632,7 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
           </div>
         </div>
       </section>
+      )}
 
       {/* 6. MAIN FEED: "Pilihan Kos Baru Buatmu >" (Screenshot 1 Reference) */}
       <section className="px-3 mt-6">
@@ -630,7 +683,7 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
             {filteredProperties.map((prop) => {
               const areaInfo = getPropertyAreaInfo(prop);
               const fav = prop.id ? isFavorited(prop.id) : false;
-              const roomsCount = prop.availableRooms ?? 2;
+              const roomsCount = typeof prop.availableRooms === 'number' ? prop.availableRooms : 0;
 
               return (
                 <div
@@ -674,9 +727,15 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
                       <span className="px-1.5 py-0.5 rounded bg-black/75 text-white">
                         {prop.category || 'Campur'}
                       </span>
-                      <span className="px-1.5 py-0.5 rounded bg-rose-600/90 text-white font-black">
-                        Sisa {roomsCount}
-                      </span>
+                      {roomsCount > 0 ? (
+                        <span className="px-1.5 py-0.5 rounded bg-rose-600/90 text-white font-black">
+                          Sisa {roomsCount}
+                        </span>
+                      ) : (
+                        <span className="px-1.5 py-0.5 rounded bg-zinc-700/90 text-zinc-300 font-medium">
+                          Penuh
+                        </span>
+                      )}
                     </div>
                   </div>
 

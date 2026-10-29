@@ -2325,6 +2325,12 @@ export interface WebsiteSettings {
   facilities_premium?: Array<{ id: number; title: string; image: string; rotation?: number }>;
   resort_page?: ResortPageSettings;
   resort_property_ids?: number[];
+  promo_ngebut_enabled?: boolean | string;
+  promo_ngebut_title?: string;
+  promo_ngebut_subtitle?: string;
+  promo_ngebut_end_date?: string;
+  promo_ngebut_badge_text?: string;
+  featured_areas?: string;
 }
 
 // Fetch Website Settings
