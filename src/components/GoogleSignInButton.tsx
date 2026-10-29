@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RefreshCw, AlertCircle } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { GoogleSignIn } from '@capawesome/capacitor-google-sign-in';
 import { loginWithGoogle, type UserSession } from '../api';
 
 export interface GoogleSignInButtonProps {
@@ -22,9 +24,9 @@ export const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
   const effectiveClientId = clientId || (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID || '';
   const gisButtonRef = useRef<HTMLDivElement>(null);
 
-  // Initialize Google Identity Services if client ID is available
+  // Initialize Google Identity Services if client ID is available (Web only)
   useEffect(() => {
-    if (!effectiveClientId) return;
+    if (!effectiveClientId || Capacitor.isNativePlatform()) return;
 
     let isMounted = true;
     const interval = setInterval(() => {
@@ -88,12 +90,63 @@ export const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
     }
   };
 
-  // Trigger Google Sign-In Popup (OAuth 2.0 Token Client)
-  const handleClick = () => {
+  // Trigger Google Sign-In (Native on Mobile App, Web OAuth popup on browser)
+  const handleClick = async () => {
     setErrorMsg(null);
     setNeedsClientId(false);
 
-    // If Google Client ID is configured, open Google Account Chooser popup
+    // 1. Mobile Native Flow: Uses native Android/iOS Credential Manager bottom sheet
+    if (Capacitor.isNativePlatform()) {
+      if (!effectiveClientId) {
+        setNeedsClientId(true);
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        await GoogleSignIn.initialize({
+          clientId: effectiveClientId,
+        });
+
+        const result = await GoogleSignIn.signIn();
+        if (result?.idToken) {
+          const res = await loginWithGoogle({
+            credential: result.idToken,
+            id_token: result.idToken,
+            user: {
+              google_id: result.userId,
+              email: result.email || '',
+              name: result.displayName || '',
+              avatar: result.imageUrl || '',
+            },
+            device_name: 'highlanderstay-mobile-app'
+          });
+
+          if (res?.session) {
+            onSuccess(res.session);
+          }
+          return;
+        } else {
+          throw new Error('Tidak menerima token ID dari akun Google.');
+        }
+      } catch (nativeErr: any) {
+        console.error('Native Google Sign-In error:', nativeErr);
+        const errorText = nativeErr?.message || String(nativeErr || '');
+        if (
+          errorText.toLowerCase().includes('cancel') ||
+          errorText.toLowerCase().includes('abort') ||
+          nativeErr?.code === 'SIGN_IN_CANCELLED'
+        ) {
+          return;
+        }
+        setErrorMsg(errorText || 'Gagal masuk dengan Google.');
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // 2. Web Browser Flow (Desktop / Mobile Browser)
     if (effectiveClientId) {
       if (window.google?.accounts?.oauth2) {
         try {
