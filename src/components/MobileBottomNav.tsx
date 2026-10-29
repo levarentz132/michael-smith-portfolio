@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Search, Heart, Building2, MessageCircle, LogIn, User } from 'lucide-react';
+import { Search, MapPin, Heart, Building2, MessageCircle, LogIn, User } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { UserSession } from '../api';
 import { useLiveChat } from '../utils/liveChat';
@@ -17,7 +17,7 @@ export interface MobileBottomNavProps {
   onFavoritesClick?: () => void;
 }
 
-export type MobileNavTab = 'search' | 'favorite' | 'mykos' | 'chat' | 'profile';
+export type MobileNavTab = 'search' | 'map' | 'favorite' | 'mykos' | 'chat' | 'profile';
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   userSession,
@@ -35,6 +35,9 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
 
   // Determine active tab dynamically based on route and open modals
   const activeTab: MobileNavTab = React.useMemo(() => {
+    if (location.pathname === '/map') {
+      return 'map';
+    }
     if (
       (location.pathname === '/akun' && location.search.includes('tab=leases')) ||
       location.pathname === '/billing'
@@ -69,6 +72,10 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     }
   };
 
+  const handleMapClick = () => {
+    navigate('/map');
+  };
+
   const handleFavoritesClick = () => {
     if (onFavoritesClick) {
       onFavoritesClick();
@@ -101,6 +108,12 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       label: 'Cari',
       icon: Search,
       onClick: handleSearchClick,
+    },
+    {
+      id: 'map' as MobileNavTab,
+      label: 'Peta',
+      icon: MapPin,
+      onClick: handleMapClick,
     },
     {
       id: 'favorite' as MobileNavTab,
