@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core';
+
 export interface AvailableRoomDetail {
   id: number;
   name: string;
@@ -977,15 +979,22 @@ export async function deleteBooking(id: number): Promise<{ id: number }> {
   return handleResponse<{ id: number }>(res, 'Failed to delete booking');
 }
 
-const isBrowserLocalhost = typeof window !== 'undefined' && 
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+const isNativeApp = typeof window !== 'undefined' && (
+  Capacitor.isNativePlatform() ||
+  window.location.protocol === 'capacitor:' ||
+  (window.location.hostname === 'localhost' && window.location.port === '')
+);
+
+const isBrowserLocalhost = !isNativeApp && typeof window !== 'undefined' && 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
+  (window.location.port === '5173' || window.location.port === '3000' || window.location.port === '5000');
+
+const LIVE_API_ROOT = 'https://dashboard.highlanderstay.com/api/v1';
 
 export const AUTH_API_PROXY = '/api/v1/auth';
-export const AUTH_API_BASE = 
-  (import.meta as any).env?.VITE_AUTH_API_URL || 
-  (import.meta as any).env?.VITE_API_BASE_URL || 
-  (import.meta as any).env?.API_BASE_URL || 
-  (isBrowserLocalhost ? 'http://127.0.0.1:8000/api/v1/auth' : 'https://dashboard.highlanderstay.com/api/v1/auth');
+export const AUTH_API_BASE = isNativeApp 
+  ? `${LIVE_API_ROOT}/auth`
+  : ((isBrowserLocalhost ? ((import.meta as any).env?.VITE_AUTH_API_URL || 'http://127.0.0.1:8000/api/v1/auth') : `${LIVE_API_ROOT}/auth`));
 
 async function callAuthApi<T>(path: string, options: RequestInit = {}): Promise<T> {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
@@ -1379,10 +1388,9 @@ export async function resetPassword(payload: ResetPasswordPayload): Promise<{ se
 
 // --- TENANT PORTAL SECURED API ---
 export const TENANT_API_PROXY = '/api/v1/tenant';
-export const TENANT_API_BASE = 
-  (import.meta as any).env?.VITE_TENANT_API_URL || 
-  (import.meta as any).env?.VITE_API_BASE_URL?.replace(/\/auth$/, '/tenant') || 
-  (isBrowserLocalhost ? 'http://127.0.0.1:8000/api/v1/tenant' : 'https://dashboard.highlanderstay.com/api/v1/tenant');
+export const TENANT_API_BASE = isNativeApp
+  ? `${LIVE_API_ROOT}/tenant`
+  : ((isBrowserLocalhost ? ((import.meta as any).env?.VITE_TENANT_API_URL || 'http://127.0.0.1:8000/api/v1/tenant') : `${LIVE_API_ROOT}/tenant`));
 
 async function callTenantApi<T>(path: string, token: string, options: RequestInit = {}): Promise<T> {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
@@ -1544,10 +1552,9 @@ export async function createTenantInvoiceCheckout(
 
 // 5c. Create New Room Order & Lease (OpenKos Orders API with automatic DOKU Checkout URL)
 export const ORDERS_API_PROXY = '/api/v1/orders';
-export const ORDERS_API_BASE = 
-  (import.meta as any).env?.VITE_ORDERS_API_URL || 
-  (import.meta as any).env?.VITE_API_BASE_URL?.replace(/\/auth$/, '/orders') || 
-  (isBrowserLocalhost ? 'http://127.0.0.1:8000/api/v1/orders' : 'https://dashboard.highlanderstay.com/api/v1/orders');
+export const ORDERS_API_BASE = isNativeApp
+  ? `${LIVE_API_ROOT}/orders`
+  : ((isBrowserLocalhost ? ((import.meta as any).env?.VITE_ORDERS_API_URL || 'http://127.0.0.1:8000/api/v1/orders') : `${LIVE_API_ROOT}/orders`));
 
 export async function createOpenKosOrder(payload: CreateOrderPayload): Promise<CreateOrderResponse> {
   const reqBody = {
@@ -1643,10 +1650,9 @@ export async function createOpenKosOrder(payload: CreateOrderPayload): Promise<C
 
 // --- 5d. Cart-First Booking API Functions ---
 export const CART_API_PROXY = '/api/v1/cart';
-export const CART_API_BASE =
-  (import.meta as any).env?.VITE_CART_API_URL ||
-  (import.meta as any).env?.VITE_API_BASE_URL?.replace(/\/auth$/, '/cart') ||
-  (isBrowserLocalhost ? 'http://127.0.0.1:8000/api/v1/cart' : 'https://dashboard.highlanderstay.com/api/v1/cart');
+export const CART_API_BASE = isNativeApp
+  ? `${LIVE_API_ROOT}/cart`
+  : ((isBrowserLocalhost ? ((import.meta as any).env?.VITE_CART_API_URL || 'http://127.0.0.1:8000/api/v1/cart') : `${LIVE_API_ROOT}/cart`));
 
 export function getStoredUserSession(): UserSession | null {
   try {
@@ -2074,9 +2080,9 @@ export async function refreshCartCheckout(orderId: number): Promise<RefreshCheck
 
 // 5e. Sandbox / Payment Simulation API
 export const SANDBOX_API_PROXY = '/api/v1/sandbox';
-export const SANDBOX_API_BASE =
-  (import.meta as any).env?.VITE_SANDBOX_API_URL ||
-  (isBrowserLocalhost ? 'http://127.0.0.1:8000/api/v1/sandbox' : 'https://dashboard.highlanderstay.com/api/v1/sandbox');
+export const SANDBOX_API_BASE = isNativeApp
+  ? `${LIVE_API_ROOT}/sandbox`
+  : ((isBrowserLocalhost ? ((import.meta as any).env?.VITE_SANDBOX_API_URL || 'http://127.0.0.1:8000/api/v1/sandbox') : `${LIVE_API_ROOT}/sandbox`));
 
 export interface SimulatePaymentResponse {
   success: boolean;
