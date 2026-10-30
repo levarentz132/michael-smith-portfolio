@@ -11,15 +11,13 @@ import {
   ExternalLink,
   Building2,
   Calendar,
-  AlertCircle,
-  Zap
+  AlertCircle
 } from 'lucide-react';
 import { 
   fetchCart, 
   removeFromCart, 
   refreshCartCheckout, 
   isValidCheckoutUrl,
-  simulatePaymentSuccess,
   isOnlinePaymentEnabled
 } from '../api';
 import type { CartItem, CartData } from '../api';
@@ -190,22 +188,6 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
     } catch (err: any) {
       setErrorMessage(err?.message || 'Gagal membatalkan pesanan kamar dari keranjang.');
       await loadCart();
-    } finally {
-      setActionLoadingId(null);
-    }
-  };
-
-  const handleSimulatePay = async (item: CartItem) => {
-    setActionLoadingId(item.id);
-    setErrorMessage(null);
-    setSuccessMessage(null);
-    try {
-      const res = await simulatePaymentSuccess(item.id);
-      setSuccessMessage(`Simulasi Sukses! Kontrak Sewa #${res.order.lease_id} aktif, unit terkunci occupied, & Invoice #${res.order.invoice_id} lunas.`);
-      await loadCart();
-    } catch (err: any) {
-      console.error('Simulate payment error:', err);
-      setErrorMessage(err?.message || 'Gagal melakukan simulasi pembayaran sandbox.');
     } finally {
       setActionLoadingId(null);
     }
@@ -442,54 +424,34 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
                         ) : isAvailable ? (
                           <div className="flex items-center gap-1.5">
                             {isOnlinePaymentEnabled() ? (
-                              <>
-                                <button
-                                  onClick={() => handleSimulatePay(item)}
-                                  disabled={actionLoadingId === item.id}
-                                  className="px-2.5 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-400 rounded-full text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                                  title="Simulasikan pembayaran lunas di OpenKos Sandbox"
-                                >
-                                  <Zap size={11} />
-                                  <span>Simulasi</span>
-                                </button>
-                                <button
-                                  onClick={() => handlePay(item)}
-                                  disabled={actionLoadingId === item.id}
-                                  className="px-3.5 py-1.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-bg rounded-full text-xs font-bold transition shadow flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                                >
-                                  {actionLoadingId === item.id ? (
-                                    <>
-                                      <div className="w-3.5 h-3.5 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
-                                      <span>Memverifikasi...</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <CreditCard size={13} />
-                                      <span>Bayar</span>
-                                      <ExternalLink size={12} />
-                                    </>
-                                  )}
-                                </button>
-                              </>
-                            ) : (
                               <button
-                                onClick={() => handleSimulatePay(item)}
+                                onClick={() => handlePay(item)}
                                 disabled={actionLoadingId === item.id}
-                                className="px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-bg rounded-full text-xs font-bold transition shadow flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                                title="Konfirmasi sewa langsung di OpenKos lokal"
+                                className="px-3.5 py-1.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-bg rounded-full text-xs font-bold transition shadow flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                               >
                                 {actionLoadingId === item.id ? (
                                   <>
                                     <div className="w-3.5 h-3.5 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
-                                    <span>Memproses...</span>
+                                    <span>Memverifikasi...</span>
                                   </>
                                 ) : (
                                   <>
-                                    <CheckCircle2 size={13} />
-                                    <span>Konfirmasi (Lokal)</span>
+                                    <CreditCard size={13} />
+                                    <span>Bayar</span>
+                                    <ExternalLink size={12} />
                                   </>
                                 )}
                               </button>
+                            ) : (
+                              <a
+                                href={`https://wa.me/6281234567890?text=${encodeURIComponent(`Halo Admin Highlanderstay, saya ingin konfirmasi sewa untuk item #${item.id} (${item.unit_name || 'Kamar'}).`)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-bg rounded-full text-xs font-bold transition shadow flex items-center gap-1.5"
+                              >
+                                <CheckCircle2 size={13} />
+                                <span>Konfirmasi</span>
+                              </a>
                             )}
                           </div>
                         ) : (
@@ -537,46 +499,17 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
                           </>
                         )}
                       </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleSimulatePay(activeItem)}
-                        disabled={actionLoadingId !== null}
-                        className="w-full py-2.5 px-4 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-400 font-semibold text-xs tracking-wider text-center transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                        title="Simulasikan pembayaran sukses (sandbox OpenKos) tanpa gateway DOKU"
-                      >
-                        {actionLoadingId === activeItem.id ? (
-                          <>
-                            <div className="w-3.5 h-3.5 border-2 border-amber-400/40 border-t-amber-400 rounded-full animate-spin" />
-                            <span>Memproses Simulasi...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Zap size={14} />
-                            <span>⚡ Simulasikan Sukses Bayar (Sandbox Test)</span>
-                          </>
-                        )}
-                      </button>
                     </>
                   ) : (
-                    <button
-                      onClick={() => handleSimulatePay(activeItem)}
-                      disabled={actionLoadingId !== null}
-                      className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-bg font-bold text-xs sm:text-sm rounded-xl transition shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    <a
+                      href={`https://wa.me/6281234567890?text=${encodeURIComponent(`Halo Admin Highlanderstay, saya ingin konfirmasi sewa untuk pesanan #${activeItem.id} (${activeItem.unit_name || 'Kamar'}).`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-bg font-bold text-xs sm:text-sm rounded-xl transition shadow-lg flex items-center justify-center gap-2"
                     >
-                      {actionLoadingId === activeItem.id ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
-                          <span>Memproses Konfirmasi Sewa...</span>
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 size={16} />
-                          <span>⚡ Konfirmasi Sewa Langsung (Mode Uji Lokal)</span>
-                          <ArrowRight size={15} />
-                        </>
-                      )}
-                    </button>
+                      <span>Konfirmasi Pembayaran via WhatsApp</span>
+                      <ArrowRight size={15} />
+                    </a>
                   )}
                 </div>
               ) : (

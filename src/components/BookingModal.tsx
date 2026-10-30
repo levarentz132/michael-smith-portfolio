@@ -16,10 +16,8 @@ import {
   fetchSettings, 
   refreshCartCheckout, 
   isValidCheckoutUrl,
-  simulatePaymentSuccess,
   isOnlinePaymentEnabled,
-  updateTenantProfile,
-  type SimulatePaymentResponse
+  updateTenantProfile
 } from '../api';
 import type { Property, UserSession, Booking } from '../api';
 
@@ -52,8 +50,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [isPayingCheckout, setIsPayingCheckout] = useState(false);
-  const [isSimulatingPayment, setIsSimulatingPayment] = useState(false);
-  const [simulationData, setSimulationData] = useState<SimulatePaymentResponse | null>(null);
   const [error, setError] = useState('');
   const [whatsappNumber, setWhatsappNumber] = useState('628123456789');
 
@@ -533,17 +529,13 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                   <span className="text-2xl text-emerald-400">✓</span>
                 </div>
                 <h3 className="text-xl font-display font-semibold text-text-primary mb-1">
-                  {simulationData 
-                    ? 'Pemesanan Berhasil & Terverifikasi!' 
-                    : createdOrder 
-                      ? (isOnlinePaymentEnabled() ? 'Pesanan Kamar Siap Dibayar!' : 'Pesanan Kamar Tercatat (Mode Lokal)!') 
-                      : 'Pemesanan Terkirim!'}
+                  {createdOrder 
+                    ? 'Pesanan Kamar Siap Dibayar!' 
+                    : 'Pemesanan Terkirim!'}
                 </h3>
                 <p className="text-xs text-muted max-w-sm leading-relaxed mb-4">
                   {createdOrder 
-                    ? (isOnlinePaymentEnabled()
-                        ? `Pesanan kamar ${createdOrder.unit?.name || selectedRoom} untuk ${createdOrder.property?.name || propertyName} telah disimpan ke keranjang. Mengarahkan Anda ke halaman pembayaran DOKU Checkout...`
-                        : `Pesanan kamar ${createdOrder.unit?.name || selectedRoom} untuk ${createdOrder.property?.name || propertyName} telah berhasil disimpan ke database OpenKos lokal. Klik tombol di bawah untuk konfirmasi sewa langsung tanpa gateway DOKU.`)
+                    ? `Pesanan kamar ${createdOrder.unit?.name || selectedRoom} untuk ${createdOrder.property?.name || propertyName} telah disimpan ke keranjang. Silakan selesaikan pembayaran untuk mengonfirmasi sewa kamar Anda.`
                     : `Kami telah menerima permintaan pemesanan Anda untuk ${propertyName}.`}
                 </p>
 
@@ -580,42 +572,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                   </div>
                 )}
 
-                {simulationData ? (
-                  <div className="w-full flex flex-col gap-3">
-                    <div className="w-full bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 text-left flex flex-col gap-2 text-xs">
-                      <div className="flex items-center gap-2 text-emerald-400 font-bold pb-2 border-b border-emerald-500/20">
-                        <span>✓</span>
-                        <span>Pembayaran Sukses Terverifikasi (Sandbox)</span>
-                      </div>
-                      <div className="flex justify-between items-center text-text-primary">
-                        <span className="text-muted">Kontrak Sewa (Lease):</span>
-                        <span className="font-mono font-bold text-emerald-400">ID #{simulationData.order.lease_id} (Active)</span>
-                      </div>
-                      <div className="flex justify-between items-center text-text-primary">
-                        <span className="text-muted">No. Tagihan (Invoice):</span>
-                        <span className="font-mono font-bold text-emerald-400">ID #{simulationData.order.invoice_id} (Paid)</span>
-                      </div>
-                      <div className="flex justify-between items-center text-text-primary">
-                        <span className="text-muted">Status Kamar:</span>
-                        <span className="font-semibold text-amber-400">Occupied (Terkunci)</span>
-                      </div>
-                      <p className="text-[11px] text-muted mt-1 leading-relaxed">
-                        Akun penghuni Anda telah otomatis dibuat untuk nomor HP <span className="font-mono text-text-primary">{phone}</span>. Anda kini dapat mengakses kontrak sewa dan tagihan lunas di portal penghuni.
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onClose();
-                        window.location.reload();
-                      }}
-                      className="w-full py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-bg font-bold text-xs uppercase tracking-wider text-center transition-colors shadow-lg cursor-pointer"
-                    >
-                      Selesai & Segarkan Halaman
-                    </button>
-                  </div>
-                ) : createdOrder ? (
+                {createdOrder ? (
                   <div className="w-full flex flex-col gap-2.5">
                     {isOnlinePaymentEnabled() ? (
                       <button
@@ -657,66 +614,15 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                         )}
                       </button>
                     ) : (
-                      <button
-                        type="button"
-                        disabled={isSimulatingPayment}
-                        onClick={async () => {
-                          try {
-                            setIsSimulatingPayment(true);
-                            const res = await simulatePaymentSuccess(createdOrder.id || createdOrder.reference);
-                            setSimulationData(res);
-                          } catch (err: any) {
-                            alert(err?.message || 'Gagal konfirmasi pembayaran lokal.');
-                          } finally {
-                            setIsSimulatingPayment(false);
-                          }
-                        }}
-                        className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-bg font-bold text-xs uppercase tracking-wider text-center transition-colors shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                        title="Klik untuk menyelesaikan pesanan & terbitkan kontrak sewa di OpenKos lokal"
+                      <a
+                        href={`https://wa.me/6281234567890?text=${encodeURIComponent(`Halo Admin Highlanderstay, saya telah mengajukan pesanan kamar #${createdOrder.id || createdOrder.reference} (${property?.title || 'Kamar'}). Mohon info pembayaran sewa.`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-bg font-bold text-xs uppercase tracking-wider text-center transition-colors shadow-lg flex items-center justify-center gap-2"
                       >
-                        {isSimulatingPayment ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
-                            <span>Memproses Konfirmasi Sewa...</span>
-                          </>
-                        ) : (
-                          <>
-                            <span>⚡ Konfirmasi Sewa Langsung (Mode Uji Lokal)</span>
-                            <span>✓</span>
-                          </>
-                        )}
-                      </button>
-                    )}
-
-                    {isOnlinePaymentEnabled() && (
-                      <button
-                        type="button"
-                        disabled={isSimulatingPayment}
-                        onClick={async () => {
-                          try {
-                            setIsSimulatingPayment(true);
-                            const res = await simulatePaymentSuccess(createdOrder.id || createdOrder.reference);
-                            setSimulationData(res);
-                          } catch (err: any) {
-                            alert(err?.message || 'Gagal simulasi pembayaran sandbox.');
-                          } finally {
-                            setIsSimulatingPayment(false);
-                          }
-                        }}
-                        className="w-full py-2.5 px-4 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-400 font-semibold text-xs tracking-wider text-center transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                        title="Klik untuk mensimulasikan pembayaran lunas di OpenKos tanpa gateway eksternal"
-                      >
-                        {isSimulatingPayment ? (
-                          <>
-                            <div className="w-3.5 h-3.5 border-2 border-amber-400/40 border-t-amber-400 rounded-full animate-spin" />
-                            <span>Memproses Simulasi Pembayaran...</span>
-                          </>
-                        ) : (
-                          <>
-                            <span>⚡ Simulasikan Sukses Bayar (Sandbox Test)</span>
-                          </>
-                        )}
-                      </button>
+                        <span>Konfirmasi Pembayaran via WhatsApp</span>
+                        <span>→</span>
+                      </a>
                     )}
 
                     <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-left text-[11px] text-muted leading-relaxed">
