@@ -21,8 +21,38 @@ export const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [needsClientId, setNeedsClientId] = useState(false);
 
-  const effectiveClientId = clientId || (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID || '';
+  const DEFAULT_GOOGLE_CLIENT_ID = '79744959362-jbjp788mdtl4fu8tm2kmc97ojrbh2c4o.apps.googleusercontent.com';
+  const effectiveClientId = clientId || (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID || DEFAULT_GOOGLE_CLIENT_ID;
   const gisButtonRef = useRef<HTMLDivElement>(null);
+
+  // Ensure Google Identity Services script is loaded in the document
+  const ensureGisScriptLoaded = (): Promise<void> => {
+    return new Promise((resolve) => {
+      if (window.google?.accounts) {
+        resolve();
+        return;
+      }
+      const existingScript = document.querySelector('script[src*="accounts.google.com/gsi/client"]') as HTMLScriptElement | null;
+      if (existingScript) {
+        let attempts = 0;
+        const timer = setInterval(() => {
+          attempts++;
+          if (window.google?.accounts || attempts > 20) {
+            clearInterval(timer);
+            resolve();
+          }
+        }, 150);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = () => resolve();
+      script.onerror = () => resolve();
+      document.head.appendChild(script);
+    });
+  };
 
   // Initialize Google Identity Services if client ID is available (Web only)
   useEffect(() => {
@@ -148,6 +178,12 @@ export const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
 
     // 2. Web Browser Flow (Desktop / Mobile Browser)
     if (effectiveClientId) {
+      if (!window.google?.accounts) {
+        setIsLoading(true);
+        await ensureGisScriptLoaded();
+        setIsLoading(false);
+      }
+
       if (window.google?.accounts?.oauth2) {
         try {
           const client = window.google.accounts.oauth2.initTokenClient({
@@ -189,8 +225,7 @@ export const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
         try {
           window.google.accounts.id.prompt((notification) => {
             if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-              // Direct OAuth redirect as last resort
-              window.location.href = `/api/v1/auth/google/redirect`;
+              window.location.href = `https://dashboard.highlanderstay.com/api/v1/auth/google/redirect`;
             }
           });
           return;
@@ -198,6 +233,9 @@ export const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
           console.warn('GIS prompt error:', err);
         }
       }
+
+      setErrorMsg('Layanan Google Sign-In diblokir oleh browser/ekstensi. Silakan nonaktifkan AdBlocker atau coba browser lain.');
+      return;
     }
 
     // If client ID is missing in environment
