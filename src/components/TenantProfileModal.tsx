@@ -1,23 +1,23 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  User,
-  Phone,
-  Mail,
-  ShieldCheck,
-  AlertCircle,
-  LogOut,
-  CheckCircle2,
-  Building2,
-  Calendar,
-  CreditCard,
-  Wrench,
-  Clock,
-  Plus,
-  Upload,
-  RefreshCw,
-  AlertTriangle,
-  Receipt,
+import { 
+  User, 
+  Phone, 
+  Mail, 
+  ShieldCheck, 
+  AlertCircle, 
+  LogOut, 
+  CheckCircle2, 
+  Building2, 
+  Calendar, 
+  CreditCard, 
+  Wrench, 
+  Clock, 
+  Plus, 
+  Upload, 
+  RefreshCw, 
+  AlertTriangle, 
+  Receipt, 
   Sparkles,
   ArrowRight,
   ShoppingCart,
@@ -26,25 +26,25 @@ import {
   Landmark,
   Edit3
 } from 'lucide-react';
-import type {
-  UserSession,
-  TenantDashboardData,
-  TenantLease,
-  TenantInvoice,
+import type { 
+  UserSession, 
+  TenantDashboardData, 
+  TenantLease, 
+  TenantInvoice, 
   MaintenanceTicket,
   CartData,
   CartItem
 } from '../api';
-import {
-  sendPhoneOtp,
-  verifyPhoneOtp,
-  fetchTenantDashboard,
+import { 
+  sendPhoneOtp, 
+  verifyPhoneOtp, 
+  fetchTenantDashboard, 
   updateTenantProfile,
-  fetchTenantLeases,
-  fetchTenantInvoices,
+  fetchTenantLeases, 
+  fetchTenantInvoices, 
   createTenantInvoiceCheckout,
-  submitInvoicePaymentProof,
-  fetchMaintenanceTickets,
+  submitInvoicePaymentProof, 
+  fetchMaintenanceTickets, 
   createMaintenanceTicket,
   fetchCart,
   removeFromCart,
@@ -217,13 +217,13 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
       }
     } catch (err: any) {
       console.error('Pay cart error:', err);
-      const isConflict = err?.code === 'ROOM_ALREADY_PAID' ||
-        err?.response?.data?.code === 'ROOM_ALREADY_PAID' ||
-        err?.message?.toLowerCase().includes('sudah dibayar') ||
-        err?.message?.toLowerCase().includes('sudah diisi') ||
-        err?.message?.toLowerCase().includes('already paid') ||
-        err?.message?.toLowerCase().includes('tidak tersedia') ||
-        err?.message?.toLowerCase().includes('conflict');
+      const isConflict = err?.code === 'ROOM_ALREADY_PAID' || 
+                         err?.response?.data?.code === 'ROOM_ALREADY_PAID' ||
+                         err?.message?.toLowerCase().includes('sudah dibayar') || 
+                         err?.message?.toLowerCase().includes('sudah diisi') ||
+                         err?.message?.toLowerCase().includes('already paid') ||
+                         err?.message?.toLowerCase().includes('tidak tersedia') ||
+                         err?.message?.toLowerCase().includes('conflict');
 
       if (isConflict) {
         setCartErrorMessage(err?.response?.data?.message || err.message || 'Kamar pada pesanan ini telah dibayar oleh orang lain.');
@@ -359,9 +359,9 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
         session.token
       );
 
-      setPaymentMessage({
-        type: 'success',
-        text: res.message || 'Bukti pembayaran berhasil dikirimkan! Menunggu verifikasi manajemen.'
+      setPaymentMessage({ 
+        type: 'success', 
+        text: res.message || 'Bukti pembayaran berhasil dikirimkan! Menunggu verifikasi manajemen.' 
       });
 
       // Reload invoices
@@ -596,7 +596,7 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
       {isOpen && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-5">
           {/* Backdrop */}
-          <motion.div
+          <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -605,7 +605,7 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
           />
 
           {/* Modal Container */}
-          <motion.div
+          <motion.div 
             initial={{ opacity: 0, scale: 0.96, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 15 }}
@@ -680,20 +680,22 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
             <div className="relative z-10 px-3 sm:px-6 pt-2.5 pb-2 border-b border-stroke/40 bg-surface/80 flex items-center gap-1.5 overflow-x-auto no-scrollbar touch-pan-x">
               <button
                 onClick={() => setActiveTab('overview')}
-                className={`text-xs font-semibold px-4 py-2 rounded-full transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'overview'
+                className={`text-xs font-semibold px-4 py-2 rounded-full transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap ${
+                  activeTab === 'overview'
                     ? 'bg-text-primary text-bg shadow'
                     : 'text-muted hover:text-text-primary hover:bg-stroke/30'
-                  }`}
+                }`}
               >
                 <Sparkles size={13} /> Ringkasan
               </button>
 
               <button
                 onClick={() => setActiveTab('cart')}
-                className={`text-xs font-semibold px-4 py-2 rounded-full transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'cart'
+                className={`text-xs font-semibold px-4 py-2 rounded-full transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap ${
+                  activeTab === 'cart'
                     ? 'bg-text-primary text-bg shadow'
                     : 'text-muted hover:text-text-primary hover:bg-stroke/30'
-                  }`}
+                }`}
               >
                 <ShoppingCart size={13} /> Keranjang Kamar
                 {(cartData?.count || 0) > 0 && (
@@ -705,10 +707,11 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
 
               <button
                 onClick={() => setActiveTab('leases')}
-                className={`text-xs font-semibold px-4 py-2 rounded-full transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'leases'
+                className={`text-xs font-semibold px-4 py-2 rounded-full transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap ${
+                  activeTab === 'leases'
                     ? 'bg-text-primary text-bg shadow'
                     : 'text-muted hover:text-text-primary hover:bg-stroke/30'
-                  }`}
+                }`}
               >
                 <Building2 size={13} /> Sewa Kamar
                 {leases.length > 0 && (
@@ -720,10 +723,11 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
 
               <button
                 onClick={() => setActiveTab('invoices')}
-                className={`text-xs font-semibold px-4 py-2 rounded-full transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'invoices'
+                className={`text-xs font-semibold px-4 py-2 rounded-full transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap ${
+                  activeTab === 'invoices'
                     ? 'bg-text-primary text-bg shadow'
                     : 'text-muted hover:text-text-primary hover:bg-stroke/30'
-                  }`}
+                }`}
               >
                 <CreditCard size={13} /> Tagihan & Pembayaran
                 {invoices.filter(i => i.status !== 'paid').length > 0 && (
@@ -735,10 +739,11 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
 
               <button
                 onClick={() => setActiveTab('maintenance')}
-                className={`text-xs font-semibold px-4 py-2 rounded-full transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'maintenance'
+                className={`text-xs font-semibold px-4 py-2 rounded-full transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap ${
+                  activeTab === 'maintenance'
                     ? 'bg-text-primary text-bg shadow'
                     : 'text-muted hover:text-text-primary hover:bg-stroke/30'
-                  }`}
+                }`}
               >
                 <Wrench size={13} /> Layanan & Perbaikan
                 {tickets.filter(t => t.status !== 'resolved').length > 0 && (
@@ -750,10 +755,11 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
 
               <button
                 onClick={() => setActiveTab('profile')}
-                className={`text-xs font-semibold px-4 py-2 rounded-full transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'profile'
+                className={`text-xs font-semibold px-4 py-2 rounded-full transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap ${
+                  activeTab === 'profile'
                     ? 'bg-text-primary text-bg shadow'
                     : 'text-muted hover:text-text-primary hover:bg-stroke/30'
-                  }`}
+                }`}
               >
                 <User size={13} /> Profil Akun
               </button>
@@ -811,8 +817,8 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                           <div className="text-[10px] sm:text-[11px] text-amber-300/80 mt-0.5 truncate">
                             {dashboardData?.account_summary?.days_until_due !== null && dashboardData?.account_summary?.days_until_due !== undefined
                               ? (dashboardData.account_summary.days_until_due < 0
-                                ? `Terlambat ${Math.abs(dashboardData.account_summary.days_until_due)} hari`
-                                : dashboardData.account_summary.days_until_due === 0
+                                  ? `Terlambat ${Math.abs(dashboardData.account_summary.days_until_due)} hari`
+                                  : dashboardData.account_summary.days_until_due === 0
                                   ? 'Jatuh tempo hari ini'
                                   : `Jatuh tempo ${dashboardData.account_summary.days_until_due} hari lagi`)
                               : 'Segera lakukan pembayaran'}
@@ -825,7 +831,7 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                             <span className="text-xs font-normal text-muted">✨</span>
                           </div>
                           <div className="text-[10px] sm:text-[11px] text-muted mt-0.5 truncate">
-                            {dashboardData?.account_summary?.next_due_date
+                            {dashboardData?.account_summary?.next_due_date 
                               ? `Tempo berikutnya: ${formatDate(dashboardData.account_summary.next_due_date)}`
                               : 'Tidak ada tagihan tertunda'}
                           </div>
@@ -862,7 +868,7 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
 
                   {/* UNPAID CART CALLOUT (if any unpaid cart items) */}
                   {cartData && cartData.count > 0 && (
-                    <motion.div
+                    <motion.div 
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       className="bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-transparent border border-amber-500/40 rounded-2xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4"
@@ -894,23 +900,25 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
 
                   {/* NEXT ACTION CALLOUT (Smart Urgency Filter: >10 days = Calm & Early Pay Option, <=10 days = Due Alert) */}
                   {dashboardData?.next_action && dashboardData.next_action.type !== 'none' && (
-                    <motion.div
+                    <motion.div 
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className={`border rounded-2xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 transition-all ${dashboardData.next_action.urgency === 'overdue'
+                      className={`border rounded-2xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 transition-all ${
+                        dashboardData.next_action.urgency === 'overdue'
                           ? 'bg-gradient-to-r from-rose-500/15 via-rose-500/5 to-transparent border-rose-500/35'
                           : dashboardData.next_action.urgency === 'due_soon'
-                            ? 'bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent border-amber-500/35'
-                            : 'bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent border-emerald-500/25'
-                        }`}
+                          ? 'bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent border-amber-500/35'
+                          : 'bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent border-emerald-500/25'
+                      }`}
                     >
                       <div className="flex items-start gap-3.5">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${dashboardData.next_action.urgency === 'overdue'
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                          dashboardData.next_action.urgency === 'overdue'
                             ? 'bg-rose-500/20 text-rose-400'
                             : dashboardData.next_action.urgency === 'due_soon'
-                              ? 'bg-amber-500/20 text-amber-400'
-                              : 'bg-emerald-500/15 text-emerald-400'
-                          }`}>
+                            ? 'bg-amber-500/20 text-amber-400'
+                            : 'bg-emerald-500/15 text-emerald-400'
+                        }`}>
                           {dashboardData.next_action.urgency === 'overdue' ? (
                             <AlertTriangle size={20} />
                           ) : dashboardData.next_action.urgency === 'due_soon' ? (
@@ -920,17 +928,18 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                           )}
                         </div>
                         <div>
-                          <div className={`text-[10px] uppercase font-bold tracking-wider ${dashboardData.next_action.urgency === 'overdue'
+                          <div className={`text-[10px] uppercase font-bold tracking-wider ${
+                            dashboardData.next_action.urgency === 'overdue'
                               ? 'text-rose-400'
                               : dashboardData.next_action.urgency === 'due_soon'
-                                ? 'text-amber-400'
-                                : 'text-emerald-400'
-                            }`}>
+                              ? 'text-amber-400'
+                              : 'text-emerald-400'
+                          }`}>
                             {dashboardData.next_action.urgency === 'overdue'
                               ? 'Tagihan Terlambat'
                               : dashboardData.next_action.urgency === 'due_soon'
-                                ? 'Jatuh Tempo Segera'
-                                : 'Status Sewa Aktif & Lancar'}
+                              ? 'Jatuh Tempo Segera'
+                              : 'Status Sewa Aktif & Lancar'}
                           </div>
                           <h4 className="text-sm sm:text-base font-semibold text-text-primary mt-0.5">
                             {dashboardData.next_action.title}
@@ -1087,10 +1096,11 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                                 </div>
                                 <div className="text-right">
                                   <div className="font-bold text-text-primary">{formatRupiah(inv.total)}</div>
-                                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase ${inv.status === 'paid'
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase ${
+                                    inv.status === 'paid'
                                       ? 'text-emerald-400 bg-emerald-500/10'
                                       : 'text-amber-400 bg-amber-500/10'
-                                    }`}>
+                                  }`}>
                                     {inv.status}
                                   </span>
                                 </div>
@@ -1128,10 +1138,11 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                                   <div className="text-[11px] text-muted">{tkt.location || 'Lokasi kamar'} • {formatDate(tkt.created_at)}</div>
                                 </div>
                                 <div className="text-right">
-                                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase ${tkt.status === 'resolved'
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase ${
+                                    tkt.status === 'resolved'
                                       ? 'text-emerald-400 bg-emerald-500/10'
                                       : 'text-blue-400 bg-blue-500/10'
-                                    }`}>
+                                  }`}>
                                     {tkt.status}
                                   </span>
                                 </div>
@@ -1212,16 +1223,18 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                           return (
                             <div
                               key={item.id}
-                              className={`border rounded-2xl p-4 sm:p-5 transition-all space-y-4 ${isAvailable
+                              className={`border rounded-2xl p-4 sm:p-5 transition-all space-y-4 ${
+                                isAvailable
                                   ? 'bg-bg/50 border-stroke hover:border-stroke/80'
                                   : 'bg-rose-500/5 border-rose-500/30'
-                                }`}
+                              }`}
                             >
                               {/* Header */}
                               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stroke/40 pb-3">
                                 <div className="flex items-center gap-3">
-                                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs uppercase ${isAvailable ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/15 text-rose-400'
-                                    }`}>
+                                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs uppercase ${
+                                    isAvailable ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/15 text-rose-400'
+                                  }`}>
                                     {unitName.substring(0, 3)}
                                   </div>
                                   <div>
@@ -1409,8 +1422,8 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                   {leases.length > 0 ? (
                     <div className="grid grid-cols-1 gap-4">
                       {leases.map((lease) => (
-                        <div
-                          key={lease.id}
+                        <div 
+                          key={lease.id} 
                           className="bg-bg/50 border border-stroke rounded-2xl p-5 hover:border-stroke/80 transition-all"
                         >
                           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stroke/40 pb-3 mb-4">
@@ -1506,10 +1519,11 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                         <button
                           key={filterKey}
                           onClick={() => handleFilterChange(filterKey)}
-                          className={`text-xs font-semibold px-3 py-1 rounded-full capitalize transition-colors ${invoiceFilter === filterKey
+                          className={`text-xs font-semibold px-3 py-1 rounded-full capitalize transition-colors ${
+                            invoiceFilter === filterKey
                               ? 'bg-text-primary text-bg shadow'
                               : 'text-muted hover:text-text-primary'
-                            }`}
+                          }`}
                         >
                           {filterKey === 'all' ? 'Semua' : filterKey === 'unpaid' ? 'Belum Bayar' : filterKey === 'paid' ? 'Lunas' : 'Terlambat'}
                         </button>
@@ -1543,45 +1557,47 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                               today.setHours(0, 0, 0, 0);
                               daysUntilDue = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
                             }
-                          } catch { }
+                          } catch {}
                         }
                         const isOverdue = inv.is_overdue || (daysUntilDue !== null && daysUntilDue < 0);
                         const isDueSoon = daysUntilDue !== null && daysUntilDue <= 10;
 
                         return (
-                          <div
-                            key={inv.id}
+                          <div 
+                            key={inv.id} 
                             className="bg-bg/50 border border-stroke rounded-2xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 hover:border-stroke/80 transition-all"
                           >
                             <div className="flex items-start gap-3">
-                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${isPaid
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                                isPaid
                                   ? 'bg-emerald-500/10 text-emerald-400'
                                   : isOverdue
-                                    ? 'bg-rose-500/10 text-rose-400'
-                                    : isDueSoon
-                                      ? 'bg-amber-500/10 text-amber-400'
-                                      : 'bg-teal-500/10 text-teal-400'
-                                }`}>
+                                  ? 'bg-rose-500/10 text-rose-400'
+                                  : isDueSoon
+                                  ? 'bg-amber-500/10 text-amber-400'
+                                  : 'bg-teal-500/10 text-teal-400'
+                              }`}>
                                 <Receipt size={20} />
                               </div>
                               <div>
                                 <div className="flex items-center gap-2">
                                   <span className="font-mono text-sm font-bold text-text-primary">{inv.reference}</span>
-                                  <span className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full ${isPaid
+                                  <span className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full ${
+                                    isPaid
                                       ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
                                       : isOverdue
-                                        ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
-                                        : isDueSoon
-                                          ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
-                                          : 'bg-teal-500/10 text-teal-300 border border-teal-500/30'
-                                    }`}>
+                                      ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
+                                      : isDueSoon
+                                      ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                                      : 'bg-teal-500/10 text-teal-300 border border-teal-500/30'
+                                  }`}>
                                     {isPaid
                                       ? 'Lunas'
                                       : isOverdue
-                                        ? 'Terlambat'
-                                        : isDueSoon
-                                          ? 'Jatuh Tempo Segera'
-                                          : 'Periode Berikutnya'}
+                                      ? 'Terlambat'
+                                      : isDueSoon
+                                      ? 'Jatuh Tempo Segera'
+                                      : 'Periode Berikutnya'}
                                   </span>
                                 </div>
                                 <p className="text-xs text-muted mt-1">
@@ -1591,8 +1607,9 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                                   <Clock size={12} />
                                   Jatuh Tempo: <strong className="text-text-primary">{formatDate(inv.due_date)}</strong>
                                   {!isPaid && daysUntilDue !== null && (
-                                    <span className={`text-[10px] ${isOverdue ? 'text-rose-400 font-semibold' : isDueSoon ? 'text-amber-400 font-semibold' : 'text-teal-300/80'
-                                      }`}>
+                                    <span className={`text-[10px] ${
+                                      isOverdue ? 'text-rose-400 font-semibold' : isDueSoon ? 'text-amber-400 font-semibold' : 'text-teal-300/80'
+                                    }`}>
                                       ({isOverdue ? `Lewat ${Math.abs(daysUntilDue)} hari` : daysUntilDue === 0 ? 'Hari ini' : `${daysUntilDue} hari lagi`})
                                     </span>
                                   )}
@@ -1616,10 +1633,11 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                                   <button
                                     onClick={() => handleDokuOnlinePayment(inv)}
                                     disabled={dokuLoadingInvoiceId === inv.id}
-                                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all shadow-md flex items-center gap-1.5 disabled:opacity-50 cursor-pointer ${isDueSoon || isOverdue
+                                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all shadow-md flex items-center gap-1.5 disabled:opacity-50 cursor-pointer ${
+                                      isDueSoon || isOverdue
                                         ? 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-bg'
                                         : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-bg'
-                                      }`}
+                                    }`}
                                     title={!isDueSoon && !isOverdue ? 'Bayar tagihan periode berikutnya lebih awal' : 'Bayar tagihan sekarang'}
                                   >
                                     {dokuLoadingInvoiceId === inv.id ? (
@@ -1695,28 +1713,30 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                   {tickets.length > 0 ? (
                     <div className="grid grid-cols-1 gap-3.5">
                       {tickets.map((ticket) => (
-                        <div
-                          key={ticket.id}
+                        <div 
+                          key={ticket.id} 
                           className="bg-bg/50 border border-stroke rounded-2xl p-4 sm:p-5 hover:border-stroke/80 transition-all"
                         >
                           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stroke/40 pb-2.5 mb-3">
                             <div className="flex items-center gap-2">
                               <span className="font-mono text-xs font-bold text-text-primary">{ticket.reference}</span>
-                              <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${ticket.priority === 'urgent'
+                              <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                                ticket.priority === 'urgent'
                                   ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
                                   : ticket.priority === 'high'
-                                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
-                                    : 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
-                                }`}>
+                                  ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                                  : 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
+                              }`}>
                                 Prioritas: {ticket.priority}
                               </span>
                             </div>
-                            <span className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full ${ticket.status === 'resolved'
+                            <span className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full ${
+                              ticket.status === 'resolved'
                                 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
                                 : ticket.status === 'in_progress'
-                                  ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
-                                  : 'bg-stroke/40 text-muted'
-                              }`}>
+                                ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
+                                : 'bg-stroke/40 text-muted'
+                            }`}>
                               Status: {ticket.status === 'reported' ? 'Dilaporkan' : ticket.status === 'in_progress' ? 'Diproses' : ticket.status === 'resolved' ? 'Selesai' : ticket.status}
                             </span>
                           </div>
@@ -1828,10 +1848,11 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                     </div>
 
                     {bankUpdateMsg && (
-                      <div className={`p-3 rounded-xl text-xs flex items-center gap-2 ${bankUpdateMsg.type === 'success'
-                          ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
+                      <div className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
+                        bankUpdateMsg.type === 'success' 
+                          ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400' 
                           : 'bg-rose-500/10 border border-rose-500/30 text-rose-400'
-                        }`}>
+                      }`}>
                         {bankUpdateMsg.type === 'success' ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
                         <span>{bankUpdateMsg.text}</span>
                       </div>
@@ -2078,10 +2099,11 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                     </div>
 
                     {paymentMessage && (
-                      <div className={`text-xs px-3.5 py-2.5 rounded-xl flex items-start gap-2 ${paymentMessage.type === 'success'
+                      <div className={`text-xs px-3.5 py-2.5 rounded-xl flex items-start gap-2 ${
+                        paymentMessage.type === 'success'
                           ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
                           : 'bg-rose-500/10 border border-rose-500/20 text-rose-400'
-                        }`}>
+                      }`}>
                         {paymentMessage.type === 'success' ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />}
                         <span>{paymentMessage.text}</span>
                       </div>
@@ -2192,10 +2214,11 @@ export const TenantProfileModal: React.FC<TenantProfileModalProps> = ({
                     </div>
 
                     {ticketMessage && (
-                      <div className={`text-xs px-3.5 py-2.5 rounded-xl flex items-start gap-2 ${ticketMessage.type === 'success'
+                      <div className={`text-xs px-3.5 py-2.5 rounded-xl flex items-start gap-2 ${
+                        ticketMessage.type === 'success'
                           ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
                           : 'bg-rose-500/10 border border-rose-500/20 text-rose-400'
-                        }`}>
+                      }`}>
                         {ticketMessage.type === 'success' ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />}
                         <span>{ticketMessage.text}</span>
                       </div>
