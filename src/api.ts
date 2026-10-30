@@ -91,6 +91,8 @@ export interface Booking {
 }
 
 export interface TenantProfile {
+  tenant_code?: string;
+  unique_name?: string;
   id?: number;
   name?: string;
   phone?: string;
@@ -101,6 +103,8 @@ export interface TenantProfile {
 }
 
 export interface AuthUser {
+  tenant_code?: string;
+  unique_name?: string;
   id: number;
   name: string;
   email: string;
@@ -114,6 +118,8 @@ export interface AuthUser {
 }
 
 export interface UserSession {
+  tenant_code?: string;
+  unique_name?: string;
   role: 'tenant';
   id: number;
   name: string;
@@ -1157,6 +1163,8 @@ export async function verifyPhoneOtp(payload: VerifyOtpPayload, token?: string):
     role: 'tenant',
     id: userObj.id,
     name: userObj.name || 'Penyewa',
+    tenant_code: userObj.tenant_code || userObj.tenant?.tenant_code || (userObj.id ? `TNT-${String(userObj.id).padStart(4, '0')}` : undefined),
+    unique_name: userObj.unique_name || userObj.tenant?.unique_name,
     email: userObj.email || '',
     phone: userObj.phone || '',
     token: data.token || (data as any)?.access_token || token || '',
@@ -1196,6 +1204,8 @@ export async function loginTenant(payload: LoginPayload): Promise<{ session: Use
     role: 'tenant',
     id: userObj.id,
     name: userObj.name || 'Penyewa',
+    tenant_code: userObj.tenant_code || userObj.tenant?.tenant_code || (userObj.id ? `TNT-${String(userObj.id).padStart(4, '0')}` : undefined),
+    unique_name: userObj.unique_name || userObj.tenant?.unique_name,
     email: userObj.email || '',
     phone: userObj.phone || '',
     token: data.token || (data as any)?.access_token || '',
@@ -1250,6 +1260,8 @@ export async function loginWithGoogle(payload: GoogleAuthPayload): Promise<{ ses
     role: 'tenant',
     id: userObj.id,
     name: userObj.name || 'Penyewa',
+    tenant_code: userObj.tenant_code || userObj.tenant?.tenant_code || (userObj.id ? `TNT-${String(userObj.id).padStart(4, '0')}` : undefined),
+    unique_name: userObj.unique_name || userObj.tenant?.unique_name,
     email: userObj.email || '',
     phone: userObj.phone || '',
     token: data.token || (data as any)?.access_token || '',
@@ -1369,6 +1381,8 @@ export async function resetPassword(payload: ResetPasswordPayload): Promise<{ se
     role: 'tenant',
     id: userObj.id,
     name: userObj.name || 'Penyewa',
+    tenant_code: userObj.tenant_code || userObj.tenant?.tenant_code || (userObj.id ? `TNT-${String(userObj.id).padStart(4, '0')}` : undefined),
+    unique_name: userObj.unique_name || userObj.tenant?.unique_name,
     email: userObj.email || '',
     phone: userObj.phone || '',
     token: data.token || '',

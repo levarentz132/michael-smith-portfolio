@@ -948,6 +948,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h2 className="text-lg sm:text-xl font-bold text-white truncate">{session.name}</h2>
+                      <span className="inline-flex items-center font-mono text-[10px] font-bold text-slate-300 bg-slate-800/90 border border-slate-700 px-2 py-0.5 rounded-full">
+                        {session.tenant_code || session.tenant?.tenant_code || `TNT-${String(session.id).padStart(4, '0')}`}
+                      </span>
                       {session.phone_verified ? (
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-full">
                           <BadgeCheck size={12} />
