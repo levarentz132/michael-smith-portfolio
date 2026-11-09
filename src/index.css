@@ -11,6 +11,16 @@
   --accent: 0 0% 96%;
 }
 
+html.light,
+html[data-theme="light"] {
+  --bg: 210 20% 98%;
+  --surface: 0 0% 100%;
+  --text: 222 47% 11%;
+  --muted: 215 16% 47%;
+  --stroke: 214 32% 91%;
+  --accent: 222 47% 11%;
+}
+
 html {
   scroll-behavior: smooth;
   background-color: hsl(var(--bg));
@@ -18,6 +28,7 @@ html {
   font-family: 'Inter', sans-serif;
   -webkit-tap-highlight-color: transparent;
   -webkit-text-size-adjust: 100%;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 body {

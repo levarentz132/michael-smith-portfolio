@@ -26,6 +26,9 @@ import { ProfilePage } from './components/ProfilePage';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { MobileAppHome } from './components/MobileAppHome';
 import { FavoritesModal } from './components/FavoritesModal';
+import { SettingsModal } from './components/SettingsModal';
+import { AppWalkthroughModal } from './components/AppWalkthroughModal';
+import { FeedbackModal } from './components/FeedbackModal';
 import { ShoppingCart } from 'lucide-react';
 import { fetchSettings, fetchProperties, slugify, logoutTenant, fetchCart, clearCartToken } from './api';
 import type { UserSession, Property, WebsiteSettings } from './api';
@@ -33,6 +36,7 @@ import { useSEO } from './hooks/useSEO';
 import { useCapacitor } from './hooks/useCapacitor';
 import { initNativeNotificationSystem } from './utils/liveChat';
 import { initPushNotifications } from './utils/pushNotifications';
+import { initTheme } from './utils/theme';
 
 function App() {
   const [isLoading, setIsLoading] = useState(() => {
@@ -53,6 +57,9 @@ function App() {
   const [bookingOpen, setBookingOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [favoritesOpen, setFavoritesOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [walkthroughOpen, setWalkthroughOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [allProperties, setAllProperties] = useState<Property[]>([]);
   const [cartCount, setCartCount] = useState(0);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
@@ -79,6 +86,9 @@ function App() {
 
   // Handle native Android hardware back button
   const handleNativeBackPress = useCallback(() => {
+    if (feedbackOpen) { setFeedbackOpen(false); return true; }
+    if (settingsOpen) { setSettingsOpen(false); return true; }
+    if (walkthroughOpen) { setWalkthroughOpen(false); return true; }
     if (paymentReturnOpen) { setPaymentReturnOpen(false); return true; }
     if (favoritesOpen) { setFavoritesOpen(false); return true; }
     if (profileOpen) { setProfileOpen(false); return true; }
@@ -86,9 +96,37 @@ function App() {
     if (cartOpen) { setCartOpen(false); return true; }
     if (bookingOpen) { setBookingOpen(false); return true; }
     return false;
-  }, [paymentReturnOpen, favoritesOpen, profileOpen, loginOpen, cartOpen, bookingOpen]);
+  }, [feedbackOpen, settingsOpen, walkthroughOpen, paymentReturnOpen, favoritesOpen, profileOpen, loginOpen, cartOpen, bookingOpen]);
 
   useCapacitor(handleNativeBackPress);
+
+  // Init Theme and Auto-launch Walkthrough on first run
+  useEffect(() => {
+    initTheme();
+    try {
+      const done = localStorage.getItem('hs_walkthrough_completed');
+      if (!done) {
+        setWalkthroughOpen(true);
+      }
+    } catch {}
+  }, []);
+
+  // Global event listeners for modals triggered from anywhere
+  useEffect(() => {
+    const openSettingsHandler = () => setSettingsOpen(true);
+    const openFeedbackHandler = () => setFeedbackOpen(true);
+    const openWalkthroughHandler = () => setWalkthroughOpen(true);
+
+    window.addEventListener('hs-open-settings', openSettingsHandler);
+    window.addEventListener('hs-open-feedback', openFeedbackHandler);
+    window.addEventListener('hs-open-walkthrough', openWalkthroughHandler);
+
+    return () => {
+      window.removeEventListener('hs-open-settings', openSettingsHandler);
+      window.removeEventListener('hs-open-feedback', openFeedbackHandler);
+      window.removeEventListener('hs-open-walkthrough', openWalkthroughHandler);
+    };
+  }, []);
 
   // SEO optimization for Home Page
   useSEO({
@@ -442,6 +480,7 @@ function App() {
                   }}
                   onOpenFavorites={() => setFavoritesOpen(true)}
                   onOpenPortal={() => navigate('/akun')}
+                  onOpenSettings={() => setSettingsOpen(true)}
                 />
               </div>
 
@@ -456,6 +495,7 @@ function App() {
                   onLoginClick={() => setLoginOpen(true)}
                   onProfileClick={() => navigate('/akun')}
                   onCartClick={() => setCartOpen(true)}
+                  onOpenSettings={() => setSettingsOpen(true)}
                   cartCount={cartCount}
                   settings={settings}
                 />
@@ -627,6 +667,33 @@ function App() {
           </motion.div>
         )}
       </AnimatePresence>
+      {/* Settings Modal (Theme, Language, Notifications, Walkthrough Replay, Feedback) */}
+      <SettingsModal
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onReplayWalkthrough={() => {
+          setSettingsOpen(false);
+          setWalkthroughOpen(true);
+        }}
+        onOpenFeedback={() => {
+          setSettingsOpen(false);
+          setFeedbackOpen(true);
+        }}
+      />
+
+      {/* Dynamic First-Time / Onboarding Walkthrough Tour */}
+      <AppWalkthroughModal
+        isOpen={walkthroughOpen}
+        onClose={() => setWalkthroughOpen(false)}
+      />
+
+      {/* User In-App Feedback & Suggestion Modal */}
+      <FeedbackModal
+        isOpen={feedbackOpen}
+        onClose={() => setFeedbackOpen(false)}
+        userEmail={userSession?.email}
+        userName={userSession?.name}
+      />
     </>
   );
 }

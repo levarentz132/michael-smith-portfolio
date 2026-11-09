@@ -29,7 +29,8 @@ import {
   ChevronRight,
   X,
   BadgeCheck,
-  Send
+  Send,
+  Settings
 } from 'lucide-react';
 import type { 
   UserSession, 
@@ -807,29 +808,41 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
             </div>
           </div>
 
-          {session ? (
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={onLogout}
-              className="px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-sm"
-              title="Keluar dari Akun"
+              onClick={() => window.dispatchEvent(new CustomEvent('hs-open-settings'))}
+              className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-slate-300 hover:text-amber-400 hover:border-amber-500/40 transition-all active:scale-95 shadow-md flex items-center justify-center cursor-pointer"
+              title="Pengaturan Aplikasi"
+              aria-label="Pengaturan"
             >
-              <LogOut size={14} />
-              <span className="hidden xs:inline">Keluar</span>
+              <Settings size={16} />
             </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                setLoginTab('login');
-                setLoginModalOpen(true);
-              }}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-lg shadow-amber-500/20 active:scale-95 transition-all cursor-pointer"
-            >
-              <User size={14} />
-              <span>Masuk / Daftar</span>
-            </button>
-          )}
+
+            {session ? (
+              <button
+                type="button"
+                onClick={onLogout}
+                className="px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-sm"
+                title="Keluar dari Akun"
+              >
+                <LogOut size={14} />
+                <span className="hidden xs:inline">Keluar</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginTab('login');
+                  setLoginModalOpen(true);
+                }}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-lg shadow-amber-500/20 active:scale-95 transition-all cursor-pointer"
+              >
+                <User size={14} />
+                <span>Masuk / Daftar</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* =========================================================================

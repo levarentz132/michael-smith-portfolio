@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { UserSession, WebsiteSettings } from '../api';
-import { Menu, X, LogIn, LogOut, User, ShoppingCart, MessageCircle } from 'lucide-react';
+import { Menu, X, LogIn, LogOut, User, ShoppingCart, MessageCircle, Settings } from 'lucide-react';
 import { useLiveChat } from '../utils/liveChat';
 
 interface NavbarProps {
@@ -12,6 +12,7 @@ interface NavbarProps {
   onLoginClick: () => void;
   onProfileClick?: () => void;
   onCartClick?: () => void;
+  onOpenSettings?: () => void;
   cartCount?: number;
   settings?: WebsiteSettings | null;
 }
@@ -24,6 +25,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLoginClick,
   onProfileClick,
   onCartClick,
+  onOpenSettings,
   cartCount,
   settings
 }) => {
@@ -203,6 +205,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {cartCount}
                 </span>
               )}
+            </button>
+          )}
+
+          {/* Settings Button (Desktop) */}
+          {onOpenSettings && (
+            <button
+              onClick={onOpenSettings}
+              className="p-2 rounded-full border border-white/10 hover:border-amber-500/40 bg-stroke/30 text-text-primary hover:text-amber-400 transition-all mr-2 cursor-pointer flex items-center justify-center"
+              title="Pengaturan Aplikasi"
+              aria-label="Pengaturan"
+            >
+              <Settings size={15} />
             </button>
           )}
 

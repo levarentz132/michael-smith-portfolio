@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   Star,
   Zap,
+  Settings,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { Property, WebsiteSettings } from '../api';
@@ -31,6 +32,7 @@ interface MobileAppHomeProps {
   onOpenLiveChat: () => void;
   onOpenFavorites: () => void;
   onOpenPortal?: () => void;
+  onOpenSettings?: () => void;
 }
 
 export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
@@ -38,6 +40,7 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
   onOpenLiveChat,
   onOpenFavorites,
   onOpenPortal: _onOpenPortal,
+  onOpenSettings,
 }) => {
   const navigate = useNavigate();
   const { isFavorited, toggle: toggleFav, favoritesCount } = useFavorites();
@@ -304,6 +307,18 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
               <Bell size={18} />
               <span className="absolute 1.5 top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-400 animate-pulse ring-2 ring-[#07090e]" />
             </button>
+
+            {onOpenSettings && (
+              <button
+                type="button"
+                onClick={onOpenSettings}
+                className="relative p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white transition-all active:scale-95"
+                aria-label="Pengaturan Aplikasi"
+                title="Pengaturan"
+              >
+                <Settings size={18} />
+              </button>
+            )}
           </div>
         </div>
 
