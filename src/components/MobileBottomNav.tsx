@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import type { UserSession } from '../api';
 import { useLiveChat } from '../utils/liveChat';
 import { useFavorites } from '../utils/favorites';
+import { useI18n } from '../utils/i18n';
 
 export interface MobileBottomNavProps {
   userSession: UserSession | null;
@@ -32,6 +33,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   const navigate = useNavigate();
   const { unreadCount, openChat } = useLiveChat();
   const { favoritesCount } = useFavorites();
+  const { t } = useI18n();
 
   // Determine active tab dynamically based on route and open modals
   const activeTab: MobileNavTab = React.useMemo(() => {
@@ -105,32 +107,32 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   const navItems = [
     {
       id: 'search' as MobileNavTab,
-      label: 'Cari',
+      label: t('tab_search'),
       icon: Search,
       onClick: handleSearchClick,
     },
     {
       id: 'map' as MobileNavTab,
-      label: 'Peta',
+      label: t('tab_map'),
       icon: MapPin,
       onClick: handleMapClick,
     },
     {
       id: 'favorite' as MobileNavTab,
-      label: 'Favorit',
+      label: t('tab_favorite'),
       icon: Heart,
       onClick: handleFavoritesClick,
       badge: favoritesCount > 0 ? favoritesCount : null,
     },
     {
       id: 'mykos' as MobileNavTab,
-      label: 'Kos Saya',
+      label: t('tab_mykos'),
       icon: Building2,
       onClick: handleMyKosClick,
     },
     {
       id: 'chat' as MobileNavTab,
-      label: 'Chat',
+      label: t('tab_chat'),
       icon: MessageCircle,
       onClick: handleChatClick,
       badge: unreadCount > 0 ? (unreadCount > 9 ? '9+' : unreadCount) : null,
@@ -138,7 +140,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     },
     {
       id: 'profile' as MobileNavTab,
-      label: userSession ? 'Akun' : 'Masuk',
+      label: userSession ? t('tab_profile') : t('nav_login'),
       icon: userSession ? User : LogIn,
       onClick: handleProfileClick,
       isUserAvatar: Boolean(userSession),

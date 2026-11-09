@@ -21,6 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import type { Property, WebsiteSettings } from '../api';
 import { fetchProperties, fetchBanners, slugify } from '../api';
 import { useFavorites } from '../utils/favorites';
+import { useI18n } from '../utils/i18n';
 import {
   getPropertyAreaInfo,
   propertyMatchesArea,
@@ -44,6 +45,7 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
 }) => {
   const navigate = useNavigate();
   const { isFavorited, toggle: toggleFav, favoritesCount } = useFavorites();
+  const { t } = useI18n();
 
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
@@ -277,7 +279,7 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
                 </span>
               </span>
               <p className="text-[10px] text-slate-400 font-medium -mt-0.5">
-                #TinggalNyaman Cari & Sewa Kos Mudah
+                {t('home_tagline')}
               </p>
             </div>
           </div>
@@ -330,7 +332,7 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Mau cari kos di mana?"
+              placeholder={t('home_search_placeholder')}
               className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-white/[0.06] border border-white/10 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-amber-400 focus:bg-white/[0.09] transition-all shadow-inner"
             />
             {searchQuery && (
@@ -677,9 +679,9 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
         ) : filteredProperties.length === 0 ? (
           <div className="py-12 px-4 text-center rounded-2xl bg-white/[0.03] border border-white/5 mt-3">
             <Building2 size={32} className="mx-auto text-slate-500 mb-2" />
-            <p className="text-xs font-bold text-white">Tidak ada kos yang cocok</p>
+            <p className="text-xs font-bold text-white">{t('home_empty_title')}</p>
             <p className="text-[10px] text-slate-400 mt-1">
-              Coba ganti kata kunci atau pilih area lain
+              {t('home_empty_desc')}
             </p>
             <button
               type="button"
@@ -690,7 +692,7 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
               }}
               className="mt-3 px-3.5 py-1.5 rounded-xl bg-amber-400 text-black font-bold text-xs"
             >
-              Reset Filter
+              {t('home_reset_filter')}
             </button>
           </div>
         ) : (

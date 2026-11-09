@@ -64,6 +64,7 @@ import { Footer } from './Footer';
 import { LoginModal } from './LoginModal';
 import { GoogleSignInButton } from './GoogleSignInButton';
 import { useSEO } from '../hooks/useSEO';
+import { useI18n } from '../utils/i18n';
 
 export interface ProfilePageProps {
   session: UserSession | null;
@@ -100,6 +101,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useI18n();
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
@@ -797,13 +799,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
             </Link>
             <div>
               <h1 className="text-lg sm:text-2xl font-black font-display text-white tracking-tight flex items-center gap-2">
-                <span>Profil & Akun Penghuni</span>
+                <span>{t('portal_title')}</span>
                 <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full">
                   Tenant
                 </span>
               </h1>
               <p className="text-xs text-slate-400 hidden sm:block">
-                Kelola informasi akun, rekening bank, tagihan sewa kamar, dan komplain perbaikan.
+                {t('portal_subtitle')}
               </p>
             </div>
           </div>
@@ -813,7 +815,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
               type="button"
               onClick={() => window.dispatchEvent(new CustomEvent('hs-open-settings'))}
               className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-slate-300 hover:text-amber-400 hover:border-amber-500/40 transition-all active:scale-95 shadow-md flex items-center justify-center cursor-pointer"
-              title="Pengaturan Aplikasi"
+              title={t('settings_title')}
               aria-label="Pengaturan"
             >
               <Settings size={16} />
@@ -824,10 +826,10 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 type="button"
                 onClick={onLogout}
                 className="px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-sm"
-                title="Keluar dari Akun"
+                title={t('portal_logout_btn')}
               >
                 <LogOut size={14} />
-                <span className="hidden xs:inline">Keluar</span>
+                <span className="hidden xs:inline">{t('portal_logout_btn')}</span>
               </button>
             ) : (
               <button
@@ -839,7 +841,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-lg shadow-amber-500/20 active:scale-95 transition-all cursor-pointer"
               >
                 <User size={14} />
-                <span>Masuk / Daftar</span>
+                <span>{t('portal_login_btn')}</span>
               </button>
             )}
           </div>
@@ -1024,7 +1026,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 }`}
               >
                 <Sparkles size={14} />
-                <span>Ringkasan</span>
+                <span>{t('portal_tab_overview')}</span>
               </button>
 
               <button
@@ -1037,7 +1039,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 }`}
               >
                 <User size={14} />
-                <span>Biodata & Rekening Bank</span>
+                <span>{t('portal_tab_profile')}</span>
               </button>
 
               <button
@@ -1050,7 +1052,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 }`}
               >
                 <Building2 size={14} />
-                <span>Kamar & Sewa Aktif</span>
+                <span>{t('portal_tab_leases')}</span>
                 {leases.length > 0 && (
                   <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${activeTab === 'leases' ? 'bg-slate-950 text-amber-400' : 'bg-slate-800 text-slate-300'}`}>
                     {leases.length}
@@ -1068,7 +1070,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 }`}
               >
                 <Receipt size={14} />
-                <span>Tagihan & Bayar</span>
+                <span>{t('portal_tab_invoices')}</span>
                 {unpaidInvoicesCount > 0 && (
                   <span className="text-[10px] px-1.5 py-0.2 rounded-full font-mono bg-rose-500 text-white font-bold animate-pulse">
                     {unpaidInvoicesCount}
@@ -1086,7 +1088,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 }`}
               >
                 <Wrench size={14} />
-                <span>Komplain Kendala</span>
+                <span>{t('portal_tab_maintenance')}</span>
                 {openTicketsCount > 0 && (
                   <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${activeTab === 'maintenance' ? 'bg-slate-950 text-amber-400' : 'bg-sky-500/20 text-sky-300'}`}>
                     {openTicketsCount}
@@ -1105,7 +1107,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                   }`}
                 >
                   <ShoppingCart size={14} />
-                  <span>Pesanan Pending</span>
+                  <span>{t('portal_tab_cart')}</span>
                   <span className="text-[10px] px-1.5 py-0.2 rounded-full font-mono bg-amber-500 text-slate-950 font-bold">
                     {cartItemsCount}
                   </span>

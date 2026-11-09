@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { UserSession, WebsiteSettings } from '../api';
 import { Menu, X, LogIn, LogOut, User, ShoppingCart, MessageCircle, Settings } from 'lucide-react';
 import { useLiveChat } from '../utils/liveChat';
+import { useI18n } from '../utils/i18n';
 
 interface NavbarProps {
   activeSection: string;
@@ -32,6 +33,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { unreadCount, openChat } = useLiveChat();
+  const { t } = useI18n();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -49,11 +51,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   const endColor = settings?.logo_gradient_end || '#D97706';
 
   const navLinks = [
-    { label: 'Beranda', target: 'home' },
-    { label: 'Ruangan', target: 'work' },
-    { label: 'Peta Lokasi', target: 'map' },
-    { label: 'Fasilitas', target: 'resume' },
-    { label: 'Resort', target: 'resort' },
+    { label: t('nav_home'), target: 'home' },
+    { label: t('nav_rooms'), target: 'work' },
+    { label: t('nav_map'), target: 'map' },
+    { label: t('nav_facilities'), target: 'resume' },
+    { label: t('nav_resort'), target: 'resort' },
   ];
 
   return (
@@ -150,7 +152,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             )}
             <MessageCircle size={14} className={unreadCount > 0 ? 'text-emerald-400' : 'text-text-primary/80'} />
-            <span className="text-text-primary">Chat Admin</span>
+            <span className="text-text-primary">{t('tab_chat')}</span>
             {unreadCount > 0 && (
               <motion.span 
                 initial={{ scale: 0 }}
@@ -237,10 +239,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 onClick={onLogout}
                 className="text-xs sm:text-sm font-medium rounded-full px-4 py-2 hover:bg-rose-500/10 text-rose-400 transition-colors flex items-center gap-1"
-                title="Keluar Akun"
+                title={t('nav_logout')}
               >
                 <LogOut size={13} />
-                Keluar
+                {t('nav_logout')}
               </button>
             </div>
           ) : (
@@ -249,7 +251,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               className="text-xs sm:text-sm font-medium rounded-full px-4 py-2 bg-text-primary text-bg hover:bg-text-primary/95 transition-colors flex items-center gap-1.5 font-semibold"
             >
               <LogIn size={13} />
-              Masuk / Daftar
+              {t('nav_login')}
             </button>
           )}
         </div>
