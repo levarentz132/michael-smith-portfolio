@@ -2341,6 +2341,10 @@ export interface WebsiteSettings {
   logo_image?: string;
   google_client_id?: string;
   whatsapp_number?: string;
+  instagram_url?: string;
+  tiktok_url?: string;
+  facebook_url?: string;
+  youtube_url?: string;
   banners?: (string | BannerSlide)[];
   facilities_premium?: Array<{ id: number; title: string; image: string; rotation?: number }>;
   resort_page?: ResortPageSettings;

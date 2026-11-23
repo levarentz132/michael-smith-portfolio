@@ -41,8 +41,9 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       return 'map';
     }
     if (
-      (location.pathname === '/akun' && location.search.includes('tab=leases')) ||
-      location.pathname === '/billing'
+      location.pathname === '/sewa' ||
+      location.pathname === '/kos-saya' ||
+      (location.pathname === '/akun' && location.search.includes('tab=leases'))
     ) {
       return 'mykos';
     }
@@ -57,7 +58,11 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     ) {
       return 'profile';
     }
-    if (isFavoritesOpen) {
+    if (
+      location.pathname === '/favorit' ||
+      location.pathname === '/favorites' ||
+      isFavoritesOpen
+    ) {
       return 'favorite';
     }
     if (location.pathname === '/' || location.pathname === '/katalog') {
@@ -81,11 +86,13 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   const handleFavoritesClick = () => {
     if (onFavoritesClick) {
       onFavoritesClick();
+    } else {
+      navigate('/favorit');
     }
   };
 
   const handleMyKosClick = () => {
-    navigate('/akun?tab=leases');
+    navigate('/sewa');
   };
 
   const handleChatClick = () => {

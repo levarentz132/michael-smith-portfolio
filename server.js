@@ -280,6 +280,19 @@ async function initializeDatabase() {
         const val = JSON.stringify('628123456789');
         await dbConnection.query('INSERT INTO settings (`setting_key`, `setting_value`) VALUES (?, ?)', ['whatsapp_number', val]);
       }
+      // Ensure social media rows are created if table was previously seeded
+      const socialDefaults = [
+        ['instagram_url', 'https://instagram.com/highlanderstay'],
+        ['tiktok_url', 'https://tiktok.com/@highlanderstay'],
+        ['facebook_url', 'https://facebook.com/highlanderstay'],
+        ['youtube_url', 'https://youtube.com/@highlanderstay'],
+      ];
+      for (const [sKey, sVal] of socialDefaults) {
+        const [sRows] = await dbConnection.query("SELECT COUNT(*) AS count FROM settings WHERE `setting_key` = ?", [sKey]);
+        if (sRows[0].count === 0) {
+          await dbConnection.query('INSERT INTO settings (`setting_key`, `setting_value`) VALUES (?, ?)', [sKey, JSON.stringify(sVal)]);
+        }
+      }
       // Ensure banners row is created if table was previously seeded
       const [bannersRows] = await dbConnection.query("SELECT COUNT(*) AS count FROM settings WHERE `setting_key` = 'banners'");
       if (bannersRows[0].count === 0) {

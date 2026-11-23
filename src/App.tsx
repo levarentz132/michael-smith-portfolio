@@ -22,7 +22,11 @@ import { MapSelectorPage } from './components/MapSelectorPage';
 import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
 import { CatalogPage } from './components/CatalogPage';
 import { CartPage } from './components/CartPage';
+import { FavoritesPage } from './components/FavoritesPage';
 import { ProfilePage } from './components/ProfilePage';
+import { MyLeasesPage } from './components/MyLeasesPage';
+import { InvoicesPage } from './components/InvoicesPage';
+import { MaintenancePage } from './components/MaintenancePage';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { MobileAppHome } from './components/MobileAppHome';
 import { FavoritesModal } from './components/FavoritesModal';
@@ -378,6 +382,55 @@ function App() {
         <Route path="/cart" element={<CartPage settings={settings} onCartChange={refreshCartCount} />} />
         <Route path="/keranjang" element={<Navigate to="/cart" replace />} />
 
+        {/* Dedicated Favorites Route */}
+        <Route path="/favorit" element={<FavoritesPage settings={settings} />} />
+        <Route path="/favorites" element={<Navigate to="/favorit" replace />} />
+
+        {/* Dedicated Tenant Leases (Kos Saya) Route */}
+        <Route 
+          path="/sewa" 
+          element={
+            <MyLeasesPage
+              session={userSession}
+              onLoginSuccess={handleLoginSuccess}
+              onLogout={handleLogout}
+              settings={settings}
+            />
+          } 
+        />
+        <Route path="/kos-saya" element={<Navigate to="/sewa" replace />} />
+
+        {/* Dedicated Invoices & Billing Route */}
+        <Route 
+          path="/tagihan" 
+          element={
+            <InvoicesPage
+              session={userSession}
+              onLoginSuccess={handleLoginSuccess}
+              onLogout={handleLogout}
+              settings={settings}
+            />
+          } 
+        />
+        <Route path="/billing" element={<Navigate to="/tagihan" replace />} />
+        <Route path="/portal/billing" element={<Navigate to="/tagihan" replace />} />
+
+        {/* Dedicated Maintenance & Complaints Route */}
+        <Route 
+          path="/komplain" 
+          element={
+            <MaintenancePage
+              session={userSession}
+              onLoginSuccess={handleLoginSuccess}
+              onLogout={handleLogout}
+              settings={settings}
+            />
+          } 
+        />
+        <Route path="/kendala" element={<Navigate to="/komplain" replace />} />
+        <Route path="/tiket" element={<Navigate to="/komplain" replace />} />
+        <Route path="/bantuan" element={<Navigate to="/komplain" replace />} />
+
         {/* Dedicated Tenant Profile & Account Routes */}
         <Route 
           path="/akun" 
@@ -445,8 +498,8 @@ function App() {
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
 
         {/* DOKU Hosted Checkout Callback Return Routes */}
-        <Route path="/portal/billing" element={<Navigate to="/portal" replace />} />
-        <Route path="/billing" element={<Navigate to="/portal" replace />} />
+        <Route path="/portal/billing" element={<Navigate to="/tagihan" replace />} />
+        <Route path="/billing" element={<Navigate to="/tagihan" replace />} />
 
       {/* Landing Page Route */}
       <Route path="/" element={
@@ -478,7 +531,7 @@ function App() {
                     const evt = new CustomEvent('hs-open-chat');
                     window.dispatchEvent(evt);
                   }}
-                  onOpenFavorites={() => setFavoritesOpen(true)}
+                  onOpenFavorites={() => navigate('/favorit')}
                   onOpenPortal={() => navigate('/akun')}
                   onOpenSettings={() => setSettingsOpen(true)}
                 />
@@ -527,7 +580,7 @@ function App() {
                 </main>
 
                 {/* Footer / Contact Section */}
-                <Footer />
+                <Footer settings={settings} />
               </div>
 
               {/* Booking Form Modal */}
@@ -619,7 +672,7 @@ function App() {
           onProfileClick={() => navigate('/akun')}
           onLoginClick={() => navigate('/akun')}
           onCatalogClick={() => navigate('/katalog')}
-          onFavoritesClick={() => setFavoritesOpen(prev => !prev)}
+          onFavoritesClick={() => navigate('/favorit')}
         />
       )}
 

@@ -63,6 +63,7 @@ import { Navbar } from './Navbar';
 import { Footer } from './Footer';
 import { LoginModal } from './LoginModal';
 import { GoogleSignInButton } from './GoogleSignInButton';
+import { SocialLinks } from './SocialLinks';
 import { useSEO } from '../hooks/useSEO';
 import { useI18n } from '../utils/i18n';
 
@@ -97,7 +98,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   onLogout,
   onSessionUpdate,
   settings,
-  initialTab = 'overview'
+  initialTab = 'profile'
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -109,11 +110,27 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   // Parse URL tab query if provided, e.g. /akun?tab=leases or /profil?tab=invoices
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const tabParam = params.get('tab') as TabType | null;
-    if (tabParam && ['overview', 'profile', 'leases', 'invoices', 'maintenance', 'cart'].includes(tabParam)) {
-      setActiveTab(tabParam);
+    const tabParam = params.get('tab');
+    if (tabParam === 'leases') {
+      navigate('/sewa', { replace: true });
+      return;
     }
-  }, [location.search]);
+    if (tabParam === 'invoices') {
+      navigate('/tagihan', { replace: true });
+      return;
+    }
+    if (tabParam === 'maintenance') {
+      navigate('/komplain', { replace: true });
+      return;
+    }
+    if (tabParam === 'cart') {
+      navigate('/cart', { replace: true });
+      return;
+    }
+    if (tabParam && ['overview', 'profile'].includes(tabParam)) {
+      setActiveTab(tabParam as TabType);
+    }
+  }, [location.search, navigate]);
 
   // SEO metadata
   useSEO({
@@ -755,7 +772,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       .reduce((acc, curr) => acc + (curr.outstanding || curr.total || 0), 0);
 
   const unpaidInvoicesCount = invoices.filter(i => i.status === 'unpaid' || i.status === 'overdue').length;
-  const openTicketsCount = tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length;
   const cartItemsCount = cartData?.items?.length || 0;
 
   return (
@@ -1004,7 +1020,10 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 <div className="flex items-center gap-2 w-full sm:w-auto">
                   <button
                     type="button"
-                    onClick={() => setActiveTab('profile')}
+                    onClick={() => {
+                      setIsEditingPersonalInfo(true);
+                      setIsEditingBank(true);
+                    }}
                     className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700/80 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
                   >
                     <Edit3 size={13} className="text-amber-400" />
@@ -1012,107 +1031,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                   </button>
                 </div>
               </div>
-            </div>
-
-            {/* Horizontal Nav Tabs for Mobile & Desktop */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none border-b border-slate-800/80">
-              <button
-                type="button"
-                onClick={() => setActiveTab('overview')}
-                className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer ${
-                  activeTab === 'overview'
-                    ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                }`}
-              >
-                <Sparkles size={14} />
-                <span>{t('portal_tab_overview')}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('profile')}
-                className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer ${
-                  activeTab === 'profile'
-                    ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                }`}
-              >
-                <User size={14} />
-                <span>{t('portal_tab_profile')}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('leases')}
-                className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer ${
-                  activeTab === 'leases'
-                    ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                }`}
-              >
-                <Building2 size={14} />
-                <span>{t('portal_tab_leases')}</span>
-                {leases.length > 0 && (
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${activeTab === 'leases' ? 'bg-slate-950 text-amber-400' : 'bg-slate-800 text-slate-300'}`}>
-                    {leases.length}
-                  </span>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('invoices')}
-                className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer ${
-                  activeTab === 'invoices'
-                    ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                }`}
-              >
-                <Receipt size={14} />
-                <span>{t('portal_tab_invoices')}</span>
-                {unpaidInvoicesCount > 0 && (
-                  <span className="text-[10px] px-1.5 py-0.2 rounded-full font-mono bg-rose-500 text-white font-bold animate-pulse">
-                    {unpaidInvoicesCount}
-                  </span>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('maintenance')}
-                className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer ${
-                  activeTab === 'maintenance'
-                    ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                }`}
-              >
-                <Wrench size={14} />
-                <span>{t('portal_tab_maintenance')}</span>
-                {openTicketsCount > 0 && (
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${activeTab === 'maintenance' ? 'bg-slate-950 text-amber-400' : 'bg-sky-500/20 text-sky-300'}`}>
-                    {openTicketsCount}
-                  </span>
-                )}
-              </button>
-
-              {cartItemsCount > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('cart')}
-                  className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer ${
-                    activeTab === 'cart'
-                      ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                  }`}
-                >
-                  <ShoppingCart size={14} />
-                  <span>{t('portal_tab_cart')}</span>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded-full font-mono bg-amber-500 text-slate-950 font-bold">
-                    {cartItemsCount}
-                  </span>
-                </button>
-              )}
             </div>
 
             {/* Loading state indicator */}
@@ -1164,7 +1082,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                     {unpaidInvoicesCount > 0 && (
                       <button
                         type="button"
-                        onClick={() => setActiveTab('invoices')}
+                        onClick={() => navigate('/tagihan')}
                         className="w-full py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
                       >
                         <span>Bayar Sekarang</span>
@@ -1191,7 +1109,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                     </div>
                     <button
                       type="button"
-                      onClick={() => setActiveTab('leases')}
+                      onClick={() => navigate('/sewa')}
                       className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <span>Lihat Detail Kamar</span>
@@ -1242,7 +1160,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
 
                     <button
                       type="button"
-                      onClick={() => setActiveTab('invoices')}
+                      onClick={() => navigate('/tagihan')}
                       className="p-3.5 rounded-2xl bg-slate-950/80 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/40 transition-all text-left group cursor-pointer"
                     >
                       <Receipt size={18} className="text-emerald-400 mb-2 group-hover:scale-110 transition-transform" />
@@ -1252,10 +1170,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
 
                     <button
                       type="button"
-                      onClick={() => {
-                        setActiveTab('maintenance');
-                        setShowCreateTicket(true);
-                      }}
+                      onClick={() => navigate('/komplain')}
                       className="p-3.5 rounded-2xl bg-slate-950/80 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/40 transition-all text-left group cursor-pointer"
                     >
                       <Wrench size={18} className="text-sky-400 mb-2 group-hover:scale-110 transition-transform" />
@@ -2085,12 +2000,25 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 )}
               </div>
             )}
+            {/* Social Media & Official Channels */}
+            <div className="pt-6 border-t border-slate-800/80 space-y-3">
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Sparkles size={15} className="text-amber-400" />
+                  <span>Media Sosial & Layanan Resmi</span>
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Ikuti info promo sewa, room tour, dan update properti terbaru Highlanderstay
+                </p>
+              </div>
+              <SocialLinks settings={settings} variant="cards" />
+            </div>
           </div>
         )}
       </main>
 
       {/* Global Footer */}
-      <Footer />
+      <Footer settings={settings} />
 
       {/* =========================================================================
           MODAL: Submit Payment Proof
