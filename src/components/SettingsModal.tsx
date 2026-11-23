@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useI18n, type AppLanguage } from '../utils/i18n';
 import { getStoredTheme, applyTheme, type ThemeMode } from '../utils/theme';
+import { PlayStoreBadge } from './PlayStoreBadge';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -348,6 +349,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </svg>
                   <span className="text-[10px] font-semibold">WA</span>
                 </a>
+              </div>
+              <div className="pt-1">
+                <PlayStoreBadge variant="button" subtext="Download Gratis di" className="w-full justify-center" />
               </div>
             </div>
 

@@ -104,13 +104,23 @@
     </image:image>
   </url>
   <url>
-    <loc>https://highlanderstay.com/property/10-pedongkelan</loc>
+    <loc>https://highlanderstay.com/property/10-pedongkelan-tipe-kamar-ac</loc>
     <lastmod>2026-11-23</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
     <image:image>
       <image:loc>https://dashboard.highlanderstay.com/storage/properties/P6f1pw1DJqrELtrDZ5g0zz85aLlYupW8k8fN2Yym.jpg</image:loc>
-      <image:title>Pedongkelan</image:title>
+      <image:title>Pedongkelan tipe kamar AC</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://highlanderstay.com/property/29-pedongkelan-tipe-kamar-non-ac</loc>
+    <lastmod>2026-11-23</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://dashboard.highlanderstay.com/storage/properties/PNe6WBACwIzb96kLFnN7gDlDa1R8IzFhQoF3lULz.jpg</image:loc>
+      <image:title>Pedongkelan Tipe kamar Non AC</image:title>
     </image:image>
   </url>
   <url>

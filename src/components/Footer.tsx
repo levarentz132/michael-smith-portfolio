@@ -4,6 +4,7 @@ import { MapPin } from 'lucide-react';
 import Hls from 'hls.js';
 import { gsap } from 'gsap';
 import { fetchSettings, type WebsiteSettings } from '../api';
+import { PlayStoreBadge, PLAYSTORE_URL } from './PlayStoreBadge';
 
 export interface FooterProps {
   settings?: WebsiteSettings | null;
@@ -86,7 +87,8 @@ export const Footer: React.FC<FooterProps> = ({ settings: propSettings, compact 
     { name: "TikTok", url: activeSettings?.tiktok_url || "https://tiktok.com/@highlanderstay" },
     { name: "Facebook", url: activeSettings?.facebook_url || "https://facebook.com/highlanderstay" },
     { name: "YouTube", url: activeSettings?.youtube_url || "https://youtube.com/@highlanderstay" },
-    { name: "WhatsApp", url: waUrl }
+    { name: "WhatsApp", url: waUrl },
+    { name: "Play Store", url: PLAYSTORE_URL }
   ];
 
   if (compact) {
@@ -177,21 +179,25 @@ export const Footer: React.FC<FooterProps> = ({ settings: propSettings, compact 
           Siap menemukan <span className="font-semibold not-italic">ruang hunian estetis</span> Anda berikutnya?
         </h2>
 
-        {/* Email button with gradient hover border */}
-        <a 
-          href="mailto:hello@highlanderstay.com" 
-          className="relative group rounded-full text-xs sm:text-base md:text-xl font-display italic font-semibold px-6 sm:px-10 py-3.5 sm:py-5 bg-surface border border-stroke text-text-primary hover:text-white transition-all duration-300 hover:scale-105 hover:border-transparent flex items-center justify-center gap-2 max-w-[90vw] truncate shadow-lg"
-        >
-          {/* Accent gradient ring */}
-          <span 
-            className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 p-[1.5px] accent-gradient"
-            style={{
-              margin: '-1.5px',
-            }}
-          />
-          <span className="truncate">hello@highlanderstay.com</span>
-          <span className="inline-block transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-200 font-sans not-italic text-sm shrink-0">↗</span>
-        </a>
+        {/* Email button with gradient hover border & Google Play Store Button */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
+          <a 
+            href="mailto:hello@highlanderstay.com" 
+            className="relative group rounded-full text-xs sm:text-base md:text-xl font-display italic font-semibold px-6 sm:px-10 py-3.5 sm:py-5 bg-surface border border-stroke text-text-primary hover:text-white transition-all duration-300 hover:scale-105 hover:border-transparent flex items-center justify-center gap-2 max-w-[90vw] truncate shadow-lg"
+          >
+            {/* Accent gradient ring */}
+            <span 
+              className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 p-[1.5px] accent-gradient"
+              style={{
+                margin: '-1.5px',
+              }}
+            />
+            <span className="truncate">hello@highlanderstay.com</span>
+            <span className="inline-block transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-200 font-sans not-italic text-sm shrink-0">↗</span>
+          </a>
+
+          <PlayStoreBadge variant="button" subtext="Download di" className="px-6 py-3.5 sm:py-4" />
+        </div>
       </div>
 
       {/* Footer Bottom Bar */}

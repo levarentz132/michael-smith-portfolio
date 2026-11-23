@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import gsap from 'gsap';
+import { PlayStoreBadge } from './PlayStoreBadge';
 
 interface HeroProps {
   onSeeWorksClick: () => void;
@@ -174,6 +175,9 @@ export const Hero: React.FC<HeroProps> = ({ onSeeWorksClick, onReachOutClick }) 
             <span className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 p-[1.5px] accent-gradient" style={{ margin: '-1.5px' }} />
             Jadwalkan Tur
           </button>
+
+          {/* Google Play Store Badge */}
+          <PlayStoreBadge variant="button" subtext="Download di" className="min-h-[44px]" />
         </div>
       </div>
 

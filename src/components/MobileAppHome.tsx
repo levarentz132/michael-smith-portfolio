@@ -22,6 +22,7 @@ import type { Property, WebsiteSettings } from '../api';
 import { fetchProperties, fetchBanners, slugify } from '../api';
 import { useFavorites } from '../utils/favorites';
 import { useI18n } from '../utils/i18n';
+import { PlayStoreBadge, PlayStoreSmartBanner, PlayStoreCard } from './PlayStoreBadge';
 import {
   getPropertyAreaInfo,
   propertyMatchesArea,
@@ -256,6 +257,9 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
 
   return (
     <div className="md:hidden min-h-screen bg-[#07090e] text-white pb-24 selection:bg-amber-500 selection:text-black">
+      {/* Smart Install Banner for Mobile Web Browsers */}
+      <PlayStoreSmartBanner />
+
       {/* 1. STICKY TOP APP BAR (Mamikos Style) */}
       <header className="sticky top-0 z-40 bg-[#07090e]/95 backdrop-blur-xl border-b border-white/[0.08] px-3.5 pt-3 pb-2.5 shadow-md">
         {/* Top Mascot / Logo Row */}
@@ -517,6 +521,11 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
           </div>
         </section>
       )}
+
+      {/* Play Store Download Promo Card for Mobile Web */}
+      <div className="px-3 mt-3">
+        <PlayStoreCard />
+      </div>
 
       {/* 5. PURPLE PROMO SECTION: PROMO NGEBUT (Hanya Kamar Kosong) */}
       {(settings?.promo_ngebut_enabled !== false && settings?.promo_ngebut_enabled !== 'false') && promoProperties.length > 0 && (
@@ -954,6 +963,10 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
 
       {/* Compact App Footer */}
       <footer className="mt-8 px-4 text-center text-slate-500 text-[11px]">
+        {/* Play Store App CTA in Mobile Web Footer */}
+        <div className="flex justify-center mb-3">
+          <PlayStoreBadge variant="compact" subtext="Download di" />
+        </div>
         <p className="font-semibold text-slate-400">HighlanderStay Mobile App</p>
         <p className="text-[10px] mt-0.5">Hunian Kost & Apartemen Modern di Jakarta</p>
         <div className="mt-2.5 flex items-center justify-center gap-3">

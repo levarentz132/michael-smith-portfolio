@@ -4,6 +4,7 @@ import type { UserSession, WebsiteSettings } from '../api';
 import { Menu, X, LogIn, LogOut, User, ShoppingCart, MessageCircle, Settings } from 'lucide-react';
 import { useLiveChat } from '../utils/liveChat';
 import { useI18n } from '../utils/i18n';
+import { PlayStoreBadge } from './PlayStoreBadge';
 
 interface NavbarProps {
   activeSection: string;
@@ -131,6 +132,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Desktop Dividers and Buttons */}
         <div className="hidden sm:flex items-center">
+          {/* Google Play Store Badge on Desktop */}
+          <PlayStoreBadge variant="pill" className="mr-1 hidden xl:inline-flex" />
+
           <div className="w-px h-5 bg-stroke mx-3" />
 
           {/* Chat Admin Navigation Menu Button (Desktop) */}
@@ -425,6 +429,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span>Pesan Sekarang</span>
                 <span className="text-[10px] bg-stroke/50 text-text-primary px-2.5 py-1 rounded-full font-bold">Reservasi</span>
               </a>
+
+              {/* Install Google Play in Mobile Menu */}
+              <PlayStoreBadge variant="button" subtext="Download di" className="w-full justify-center my-1" />
             </div>
 
             <div className="flex flex-col gap-2">
