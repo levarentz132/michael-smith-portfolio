@@ -170,8 +170,18 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
     (selectedRoom && r.name.toLowerCase() === selectedRoom.replace(/^Kamar\s+/i, '').trim().toLowerCase())
   );
 
-  const effectiveMonthlyRate = selectedRoomDetail?.monthly_rate || 
-    (property?.promoPrice ? property.promoPrice : (property?.rawPrice || 1500000));
+  const parsedPriceFallback = (() => {
+    const priceText = property?.priceRange || property?.price || '';
+    const match = String(priceText).match(/rp\.?\s*([\d.]+)/i);
+    if (match) {
+      const parsed = parseInt(match[1].replace(/\./g, ''), 10);
+      if (!isNaN(parsed) && parsed > 0) return parsed;
+    }
+    return 0;
+  })();
+
+  const effectiveMonthlyRate = Number(selectedRoomDetail?.monthly_rate) || 
+    (property?.promoPrice ? Number(property.promoPrice) : (Number(property?.rawPrice) || parsedPriceFallback));
 
   const totalRent = effectiveMonthlyRate * durationMonths;
   const deposit = Number(property?.deposit_amount !== undefined && property?.deposit_amount !== null 

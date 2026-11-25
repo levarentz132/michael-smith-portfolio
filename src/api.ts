@@ -754,6 +754,26 @@ export async function fetchProperties(): Promise<Property[]> {
             ? Number(item.id)
             : (KNOWN_PROPERTY_DB_IDS[cleanSlug] || KNOWN_PROPERTY_DB_IDS[cleanCanonSlug] || null);
 
+          const parseMinPriceFromApiItem = (rawItem: any): number => {
+            if (Array.isArray(rawItem.available_room_details) && rawItem.available_room_details.length > 0) {
+              const validRates = rawItem.available_room_details
+                .map((r: any) => Number(r.monthly_rate))
+                .filter((r: number) => Number.isFinite(r) && r > 0);
+              if (validRates.length > 0) return Math.min(...validRates);
+            }
+            if (rawItem.price_range) {
+              const m = String(rawItem.price_range).match(/rp\.?\s*([\d.]+)/i);
+              if (m) {
+                const parsed = parseInt(m[1].replace(/\./g, ''), 10);
+                if (!isNaN(parsed) && parsed > 0) return parsed;
+              }
+            }
+            const directPrice = Number(rawItem.price || rawItem.monthly_rate || 0);
+            if (Number.isFinite(directPrice) && directPrice > 0) return directPrice;
+            return 0;
+          };
+          const minPrice = parseMinPriceFromApiItem(item);
+
           return {
             id: realDbId || (idx + 1),
             dbId: realDbId,
@@ -764,9 +784,9 @@ export async function fetchProperties(): Promise<Property[]> {
             canonicalId: item.canonical_id,
             category: isApt ? 'Luxury Apartment' : 'Premium Boarding Room',
             type: isApt ? 'apartment' : 'kos',
-            price: item.price_range || 'Rp 1.500.000 / bulan',
+            price: item.price_range || (minPrice > 0 ? `Rp ${minPrice.toLocaleString('id-ID')}/bulan` : 'Hubungi Kami'),
             priceRange: item.price_range,
-            rawPrice: 1500000,
+            rawPrice: minPrice,
             location: item.kecamatan || 'Jakarta',
             kecamatan: item.kecamatan,
             address: item.address || item.kecamatan || 'Jakarta',

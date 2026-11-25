@@ -176,6 +176,12 @@ export const MobilePropertyDetail: React.FC<MobilePropertyDetailProps> = ({
     if (property.rawPrice && Number(property.rawPrice) > 0) {
       return Number(property.rawPrice);
     }
+    const priceText = property.priceRange || property.price || '';
+    const match = String(priceText).match(/rp\.?\s*([\d.]+)/i);
+    if (match) {
+      const parsed = parseInt(match[1].replace(/\./g, ''), 10);
+      if (!isNaN(parsed) && parsed > 0) return parsed;
+    }
     return 0;
   }, [activeRoom, property]);
 
@@ -959,7 +965,9 @@ export const MobilePropertyDetail: React.FC<MobilePropertyDetailProps> = ({
 
               <div className="space-y-3 text-xs">
                 <div className="flex justify-between items-center text-slate-300">
-                  <span>Biaya Sewa Pokok (1 Bulan)</span>
+                  <span>
+                    Biaya Sewa Pokok (1 Bulan{activeRoom?.name ? ` • Kamar ${activeRoom.name}` : ''})
+                  </span>
                   <span className="font-bold text-white">
                     Rp {monthlyRent.toLocaleString('id-ID')}
                   </span>
