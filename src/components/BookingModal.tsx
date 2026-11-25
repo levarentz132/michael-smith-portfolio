@@ -657,7 +657,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, pro
                         }}
                         className="w-full py-2.5 px-4 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-bold text-xs text-center transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                       >
-                        <span>🛒 Lihat di Keranjang Pemesanan</span>
+                        <span>🛒 Lihat Halaman Menunggu Pembayaran (Keranjang)</span>
                       </button>
                     )}
 

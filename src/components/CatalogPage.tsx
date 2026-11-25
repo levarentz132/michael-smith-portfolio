@@ -8,7 +8,8 @@ import {
   ArrowLeft, 
   Flame,
   ArrowRight,
-  RefreshCw
+  RefreshCw,
+  ShoppingCart
 } from 'lucide-react';
 import { fetchProperties, slugify } from '../api';
 import type { Property, WebsiteSettings } from '../api';
@@ -17,9 +18,10 @@ import { getPropertyArea, getPropertyAreaInfo, propertyMatchesArea, buildDynamic
 
 interface CatalogPageProps {
   settings?: WebsiteSettings | null;
+  cartCount?: number;
 }
 
-export const CatalogPage: React.FC<CatalogPageProps> = () => {
+export const CatalogPage: React.FC<CatalogPageProps> = ({ cartCount = 0 }) => {
   const navigate = useNavigate();
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -109,6 +111,24 @@ export const CatalogPage: React.FC<CatalogPageProps> = () => {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          <Link
+            to="/cart"
+            className={`relative px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow ${
+              cartCount > 0
+                ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40'
+                : 'bg-white/10 hover:bg-white/20 text-text-primary border border-white/10'
+            }`}
+            title="Keranjang & Menunggu Pembayaran"
+          >
+            <ShoppingCart size={14} />
+            <span className="hidden xs:inline">Keranjang</span>
+            {cartCount > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black">
+                {cartCount}
+              </span>
+            )}
+          </Link>
+
           <Link
             to="/map"
             className="px-3 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow"

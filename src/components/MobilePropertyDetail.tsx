@@ -31,6 +31,7 @@ import {
   Key,
   Users,
   Compass,
+  ShoppingCart,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { Property, WebsiteSettings, UserSession, AvailableRoomDetail } from '../api';
@@ -40,6 +41,8 @@ export interface MobilePropertyDetailProps {
   property: Property;
   settings?: WebsiteSettings | null;
   userSession?: UserSession | null;
+  cartCount?: number;
+  onOpenCart?: () => void;
   selectedRoomName?: string;
   onSelectRoomName: (roomName: string) => void;
   onBookClick: () => void;
@@ -51,6 +54,8 @@ export const MobilePropertyDetail: React.FC<MobilePropertyDetailProps> = ({
   property,
   settings,
   userSession: _userSession,
+  cartCount = 0,
+  onOpenCart,
   selectedRoomName,
   onSelectRoomName,
   onBookClick,
@@ -364,12 +369,32 @@ export const MobilePropertyDetail: React.FC<MobilePropertyDetailProps> = ({
           </div>
         )}
 
-        {/* Right Action Icons: Favorite & Share */}
+        {/* Right Action Icons: Cart, Favorite & Share */}
         <div
           className={`flex items-center gap-2 ${
             !isScrolled ? 'pointer-events-auto' : ''
           }`}
         >
+          <button
+            type="button"
+            onClick={() => (onOpenCart ? onOpenCart() : navigate('/cart'))}
+            className={`relative w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-95 ${
+              cartCount > 0
+                ? 'bg-amber-500/90 text-slate-950 border border-amber-300 shadow-lg'
+                : isScrolled
+                ? 'bg-white/[0.08] hover:bg-white/[0.15] text-white'
+                : 'bg-black/45 backdrop-blur-md text-white border border-white/20 shadow-lg'
+            }`}
+            aria-label="Keranjang Menunggu Pembayaran"
+          >
+            <ShoppingCart size={17} />
+            {cartCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow">
+                {cartCount}
+              </span>
+            )}
+          </button>
+
           <button
             type="button"
             onClick={handleToggleFavorite}

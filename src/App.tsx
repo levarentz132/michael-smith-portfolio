@@ -375,11 +375,22 @@ function App() {
     <>
       <Routes>
         {/* Dedicated Catalog Route */}
-        <Route path="/katalog" element={<CatalogPage settings={settings} />} />
+        <Route path="/katalog" element={<CatalogPage settings={settings} cartCount={cartCount} />} />
         <Route path="/kamar" element={<Navigate to="/katalog" replace />} />
 
         {/* Dedicated Shopping Cart Route */}
-        <Route path="/cart" element={<CartPage settings={settings} onCartChange={refreshCartCount} />} />
+        <Route
+          path="/cart"
+          element={
+            <CartPage
+              settings={settings}
+              session={userSession}
+              onLogout={handleLogout}
+              onLoginClick={() => navigate('/akun')}
+              onCartChange={refreshCartCount}
+            />
+          }
+        />
         <Route path="/keranjang" element={<Navigate to="/cart" replace />} />
 
         {/* Dedicated Favorites Route */}
@@ -534,6 +545,8 @@ function App() {
                   onOpenFavorites={() => navigate('/favorit')}
                   onOpenPortal={() => navigate('/akun')}
                   onOpenSettings={() => setSettingsOpen(true)}
+                  cartCount={cartCount}
+                  onOpenCart={() => navigate('/cart')}
                 />
               </div>
 
@@ -547,7 +560,7 @@ function App() {
                   onLogout={handleLogout}
                   onLoginClick={() => setLoginOpen(true)}
                   onProfileClick={() => navigate('/akun')}
-                  onCartClick={() => setCartOpen(true)}
+                  onCartClick={() => navigate('/cart')}
                   onOpenSettings={() => setSettingsOpen(true)}
                   cartCount={cartCount}
                   settings={settings}
@@ -595,7 +608,7 @@ function App() {
                 onOpenCart={() => {
                   setBookingOpen(false);
                   setSelectedProperty(null);
-                  setCartOpen(true);
+                  navigate('/cart');
                 }}
               />
 
@@ -678,7 +691,7 @@ function App() {
 
       {/* Unpaid Cart Floating Reminder Toast */}
       <AnimatePresence>
-        {cartCount > 0 && !cartOpen && !bookingOpen && !paymentReturnOpen && !loginOpen && !profileOpen && !favoritesOpen && (
+        {cartCount > 0 && location.pathname !== '/cart' && !cartOpen && !bookingOpen && !paymentReturnOpen && !loginOpen && !profileOpen && !favoritesOpen && (
           <motion.div
             initial={{ opacity: 0, y: 50, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -687,7 +700,7 @@ function App() {
             className="fixed bottom-24 sm:bottom-6 left-4 right-4 sm:left-auto sm:right-24 z-40 max-w-sm"
           >
             <div 
-              onClick={() => setCartOpen(true)}
+              onClick={() => navigate('/cart')}
               className="group flex items-center justify-between gap-3 bg-surface/95 backdrop-blur-xl border border-amber-500/50 rounded-2xl p-3 shadow-2xl shadow-black/60 cursor-pointer hover:border-amber-400 hover:scale-[1.02] transition-all duration-200"
             >
               <div className="flex items-center gap-2.5 min-w-0">
@@ -699,7 +712,7 @@ function App() {
                 </div>
                 <div className="text-left min-w-0">
                   <p className="text-xs font-bold text-text-primary truncate">
-                    {cartCount} Kamar di Keranjang Belum Dibayar
+                    {cartCount} Kamar Menunggu Pembayaran
                   </p>
                   <p className="text-[10px] text-muted truncate">
                     Klik untuk selesaikan pembayaran
@@ -710,7 +723,7 @@ function App() {
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setCartOpen(true);
+                  navigate('/cart');
                 }}
                 className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-bg font-bold text-[11px] uppercase tracking-wider shrink-0 hover:from-amber-400 hover:to-amber-500 transition-all shadow"
               >

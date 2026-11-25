@@ -16,6 +16,7 @@ import {
   Star,
   Zap,
   Settings,
+  ShoppingCart,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { Property, WebsiteSettings } from '../api';
@@ -31,6 +32,8 @@ import {
 
 interface MobileAppHomeProps {
   settings?: WebsiteSettings | null;
+  cartCount?: number;
+  onOpenCart?: () => void;
   onOpenLiveChat: () => void;
   onOpenFavorites: () => void;
   onOpenPortal?: () => void;
@@ -39,6 +42,8 @@ interface MobileAppHomeProps {
 
 export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
   settings,
+  cartCount = 0,
+  onOpenCart,
   onOpenLiveChat,
   onOpenFavorites,
   onOpenPortal: _onOpenPortal,
@@ -288,8 +293,27 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
             </div>
           </div>
 
-          {/* Action Icons: Notification Bell & Favorites Heart */}
+          {/* Action Icons: Cart, Favorites Heart, Notification Bell & Settings */}
           <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => (onOpenCart ? onOpenCart() : navigate('/cart'))}
+              className={`relative p-2 rounded-xl transition-all active:scale-95 ${
+                cartCount > 0
+                  ? 'bg-amber-500/20 border border-amber-400/50 text-amber-300 hover:bg-amber-500/30'
+                  : 'bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white'
+              }`}
+              aria-label="Keranjang Menunggu Pembayaran"
+              title="Keranjang & Menunggu Pembayaran"
+            >
+              <ShoppingCart size={18} />
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-amber-400 text-slate-950 text-[9px] font-black flex items-center justify-center shadow animate-pulse">
+                  {cartCount}
+                </span>
+              )}
+            </button>
+
             <button
               type="button"
               onClick={onOpenFavorites}

@@ -335,6 +335,8 @@ export const PropertyPage: React.FC = () => {
           property={property}
           settings={settings}
           userSession={userSession}
+          cartCount={cartCount}
+          onOpenCart={() => navigate('/cart')}
           selectedRoomName={selectedRoomName}
           onSelectRoomName={(name) => setSelectedRoomName(name)}
           onBookClick={handleBookClick}
@@ -359,7 +361,7 @@ export const PropertyPage: React.FC = () => {
           session={userSession}
           onLogout={handleLogout}
           onLoginClick={() => navigate('/')} // Redirect to home for logins
-          onCartClick={() => setCartOpen(true)}
+          onCartClick={() => navigate('/cart')}
           cartCount={cartCount}
           settings={settings}
         />
@@ -881,7 +883,7 @@ export const PropertyPage: React.FC = () => {
         onOpenCart={() => {
           setBookingOpen(false);
           setSelectedRoomName('');
-          setCartOpen(true);
+          navigate('/cart');
         }}
       />
 
