@@ -359,7 +359,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="pt-2 border-t border-stroke/40 space-y-2">
               <div className="flex items-center justify-between text-xs text-muted">
                 <span>{t('settings_version')}</span>
-                <span className="font-mono font-bold text-text-primary">v1.0.9 (Build 10)</span>
+                <span className="font-mono font-bold text-text-primary">v1.0.11 (Build 12)</span>
               </div>
               <div className="flex items-center justify-between text-xs text-muted">
                 <a
