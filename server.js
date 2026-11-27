@@ -2663,6 +2663,52 @@ function invalidateSettingsCache() {
   memorySettingsCacheTime = 0;
 }
 
+// GET Mobile App Version Requirement (Force Update Check)
+app.get('/api/app-version', async (req, res) => {
+  try {
+    let settings = {};
+    try {
+      settings = await getCachedSettings();
+    } catch {
+      settings = {};
+    }
+
+    const minVersionCode = Number(
+      settings.android_min_version_code ||
+      process.env.ANDROID_MIN_VERSION_CODE ||
+      10
+    );
+    const latestVersionName = String(
+      settings.android_latest_version_name ||
+      process.env.ANDROID_LATEST_VERSION_NAME ||
+      '1.0.9'
+    );
+    const updateMessage = String(
+      settings.android_update_message ||
+      process.env.ANDROID_UPDATE_MESSAGE ||
+      'Versi terbaru HighlanderStay telah tersedia dengan peningkatan tampilan, keamanan, dan performa. Silakan perbarui aplikasi untuk melanjutkan.'
+    );
+    const playStoreUrl = String(
+      settings.android_playstore_url ||
+      process.env.ANDROID_PLAYSTORE_URL ||
+      'https://play.google.com/store/apps/details?id=com.highlanderstay.app'
+    );
+
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.json({
+      platform: 'android',
+      min_version_code: Number.isFinite(minVersionCode) ? minVersionCode : 10,
+      latest_version_name: latestVersionName,
+      force_update: true,
+      message: updateMessage,
+      play_store_url: playStoreUrl
+    });
+  } catch (error) {
+    console.error('Error fetching app version:', error);
+    res.status(500).json({ error: 'Failed to fetch app version.' });
+  }
+});
+
 // GET Website Settings
 app.get('/api/settings', async (req, res) => {
   try {

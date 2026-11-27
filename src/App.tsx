@@ -33,6 +33,7 @@ import { FavoritesModal } from './components/FavoritesModal';
 import { SettingsModal } from './components/SettingsModal';
 import { AppWalkthroughModal } from './components/AppWalkthroughModal';
 import { FeedbackModal } from './components/FeedbackModal';
+import { ForceUpdateModal } from './components/ForceUpdateModal';
 import { ShoppingCart } from 'lucide-react';
 import { fetchSettings, fetchProperties, slugify, logoutTenant, fetchCart, clearCartToken } from './api';
 import type { UserSession, Property, WebsiteSettings } from './api';
@@ -64,6 +65,7 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [walkthroughOpen, setWalkthroughOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [forceUpdateRequired, setForceUpdateRequired] = useState(false);
   const [allProperties, setAllProperties] = useState<Property[]>([]);
   const [cartCount, setCartCount] = useState(0);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
@@ -90,6 +92,7 @@ function App() {
 
   // Handle native Android hardware back button
   const handleNativeBackPress = useCallback(() => {
+    if (forceUpdateRequired) { return true; }
     if (feedbackOpen) { setFeedbackOpen(false); return true; }
     if (settingsOpen) { setSettingsOpen(false); return true; }
     if (walkthroughOpen) { setWalkthroughOpen(false); return true; }
@@ -100,7 +103,7 @@ function App() {
     if (cartOpen) { setCartOpen(false); return true; }
     if (bookingOpen) { setBookingOpen(false); return true; }
     return false;
-  }, [feedbackOpen, settingsOpen, walkthroughOpen, paymentReturnOpen, favoritesOpen, profileOpen, loginOpen, cartOpen, bookingOpen]);
+  }, [forceUpdateRequired, feedbackOpen, settingsOpen, walkthroughOpen, paymentReturnOpen, favoritesOpen, profileOpen, loginOpen, cartOpen, bookingOpen]);
 
   useCapacitor(handleNativeBackPress);
 
@@ -768,6 +771,9 @@ function App() {
         userEmail={userSession?.email}
         userName={userSession?.name}
       />
+
+      {/* Native Android Mandatory Force-Update Gate */}
+      <ForceUpdateModal onForceUpdateChange={setForceUpdateRequired} />
     </>
   );
 }
