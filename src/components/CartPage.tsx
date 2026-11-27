@@ -21,8 +21,7 @@ import {
   fetchProperties,
   removeFromCart,
   refreshCartCheckout,
-  isValidCheckoutUrl,
-  isOnlinePaymentEnabled
+  isValidCheckoutUrl
 } from '../api';
 import type { CartData, CartItem, Property, WebsiteSettings, UserSession } from '../api';
 import { Navbar } from './Navbar';
@@ -197,7 +196,6 @@ export const CartPage: React.FC<CartPageProps> = ({
   const items = cartData?.items || [];
   const unpaidItems = items.filter((i) => !i.is_paid);
   const paidItems = items.filter((i) => i.is_paid);
-  const onlinePayEnabled = isOnlinePaymentEnabled();
 
   const handleNavClick = (sec: string) => {
     if (sec === 'work' || sec === 'katalog') navigate('/katalog');
@@ -375,51 +373,51 @@ export const CartPage: React.FC<CartPageProps> = ({
                   </div>
 
                   {/* Price & Actions */}
-                  <div className="border-t sm:border-t-0 sm:border-l border-white/10 pt-3 sm:pt-0 sm:pl-4 flex flex-row sm:flex-col items-center sm:items-end justify-between gap-3 shrink-0">
-                    <div className="text-left sm:text-right">
-                      <span className="text-[10px] text-muted uppercase font-bold block">Total Tagihan</span>
-                      <span className="text-base sm:text-lg font-black text-amber-400 block">
-                        {formatRupiah(item.amount)}
-                      </span>
-                    </div>
+                  <div className="border-t sm:border-t-0 sm:border-l border-white/10 pt-3 sm:pt-0 sm:pl-4 flex flex-col gap-3 shrink-0 sm:min-w-[260px]">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-left">
+                        <span className="text-[10px] text-muted uppercase font-bold block">Total Tagihan</span>
+                        <span className="text-base sm:text-lg font-black text-amber-400 block">
+                          {formatRupiah(item.amount)}
+                        </span>
+                      </div>
 
-                    <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => handleRemove(item.id)}
                         disabled={isItemLoading}
-                        className="p-2.5 rounded-xl bg-white/5 hover:bg-rose-500/20 text-muted hover:text-rose-400 border border-white/10 transition-all cursor-pointer active:scale-95"
+                        className="p-2.5 rounded-xl bg-white/5 hover:bg-rose-500/20 text-muted hover:text-rose-400 border border-white/10 transition-all cursor-pointer active:scale-95 shrink-0"
                         title="Batalkan / Hapus dari Keranjang"
                       >
                         <Trash2 size={16} />
                       </button>
+                    </div>
 
-                      {onlinePayEnabled ? (
-                        <button
-                          type="button"
-                          onClick={() => handlePay(item.id)}
-                          disabled={isItemLoading}
-                          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
-                        >
-                          {isItemLoading ? (
-                            <RefreshCw size={14} className="animate-spin" />
-                          ) : (
-                            <CreditCard size={14} />
-                          )}
-                          <span>Bayar Sekarang</span>
-                          <ArrowRight size={13} />
-                        </button>
-                      ) : (
-                        <a
-                          href={`https://wa.me/${itemWaNumber}?text=${waText}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
-                        >
-                          <MessageCircle size={14} />
-                          <span>Konfirmasi WA</span>
-                        </a>
-                      )}
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={`https://wa.me/${itemWaNumber}?text=${waText}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 px-3 py-2.5 rounded-xl border border-emerald-500/60 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-bold text-xs flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-95 transition-all"
+                      >
+                        <MessageCircle size={14} className="shrink-0" />
+                        <span>Konfirmasi WA</span>
+                      </a>
+
+                      <button
+                        type="button"
+                        onClick={() => handlePay(item.id)}
+                        disabled={isItemLoading}
+                        className="flex-1 px-3 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 whitespace-nowrap shadow-lg shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                      >
+                        {isItemLoading ? (
+                          <RefreshCw size={14} className="animate-spin shrink-0" />
+                        ) : (
+                          <CreditCard size={14} className="shrink-0" />
+                        )}
+                        <span>Bayar</span>
+                        <ArrowRight size={13} className="shrink-0" />
+                      </button>
                     </div>
                   </div>
                 </motion.div>

@@ -17,8 +17,7 @@ import {
   fetchCart, 
   removeFromCart, 
   refreshCartCheckout, 
-  isValidCheckoutUrl,
-  isOnlinePaymentEnabled
+  isValidCheckoutUrl
 } from '../api';
 import type { CartItem, CartData, Property, WebsiteSettings } from '../api';
 
@@ -462,36 +461,33 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
                           </div>
                         ) : isAvailable ? (
                           <div className="flex items-center gap-1.5">
-                            {isOnlinePaymentEnabled() ? (
-                              <button
-                                onClick={() => handlePay(item)}
-                                disabled={actionLoadingId === item.id}
-                                className="px-3.5 py-1.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-bg rounded-full text-xs font-bold transition shadow flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                              >
-                                {actionLoadingId === item.id ? (
-                                  <>
-                                    <div className="w-3.5 h-3.5 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
-                                    <span>Memverifikasi...</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <CreditCard size={13} />
-                                    <span>Bayar</span>
-                                    <ExternalLink size={12} />
-                                  </>
-                                )}
-                              </button>
-                            ) : (
-                              <a
-                                href={`https://wa.me/${getPenjagaWaNumber(item)}?text=${encodeURIComponent(`Halo Penjaga ${item.property_name || item.property?.name || 'Highlanderstay'}, saya ingin konfirmasi booking untuk pesanan #${item.reference || item.id} (Kamar ${item.unit_name || item.unit?.name || 'Standar'}) sebesar ${formatRupiah(item.amount)}.`)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-bg rounded-full text-xs font-bold transition shadow flex items-center gap-1.5"
-                              >
-                                <CheckCircle2 size={13} />
-                                <span>Konfirmasi WA</span>
-                              </a>
-                            )}
+                            <a
+                              href={`https://wa.me/${getPenjagaWaNumber(item)}?text=${encodeURIComponent(`Halo Penjaga ${item.property_name || item.property?.name || 'Highlanderstay'}, saya ingin konfirmasi booking untuk pesanan #${item.reference || item.id} (Kamar ${item.unit_name || item.unit?.name || 'Standar'}) sebesar ${formatRupiah(item.amount)}.`)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 py-1.5 border border-emerald-500/60 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-full text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap"
+                            >
+                              <CheckCircle2 size={13} />
+                              <span>Konfirmasi WA</span>
+                            </a>
+                            <button
+                              onClick={() => handlePay(item)}
+                              disabled={actionLoadingId === item.id}
+                              className="px-3.5 py-1.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-bg rounded-full text-xs font-bold transition shadow flex items-center gap-1.5 whitespace-nowrap cursor-pointer disabled:opacity-50"
+                            >
+                              {actionLoadingId === item.id ? (
+                                <>
+                                  <div className="w-3.5 h-3.5 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
+                                  <span>Memverifikasi...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <CreditCard size={13} />
+                                  <span>Bayar</span>
+                                  <ExternalLink size={12} />
+                                </>
+                              )}
+                            </button>
                           </div>
                         ) : (
                           <span className="text-xs text-rose-400/80 font-medium px-2.5 py-1 bg-rose-500/10 rounded-full border border-rose-500/20">
@@ -517,39 +513,34 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
               </div>
 
               {activeItem ? (
-                <div className="space-y-2">
-                  {isOnlinePaymentEnabled() ? (
-                    <>
-                      <button
-                        onClick={() => handlePay(activeItem)}
-                        disabled={actionLoadingId !== null}
-                        className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-bg font-bold text-xs sm:text-sm rounded-xl transition shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                      >
-                        {actionLoadingId === activeItem.id ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
-                            <span>Mempersiapkan Pembayaran DOKU...</span>
-                          </>
-                        ) : (
-                          <>
-                            <CreditCard size={16} />
-                            <span>Bayar Sekarang dengan DOKU (QRIS/VA)</span>
-                            <ArrowRight size={15} />
-                          </>
-                        )}
-                      </button>
-                    </>
-                  ) : (
-                    <a
-                      href={`https://wa.me/${getPenjagaWaNumber(activeItem)}?text=${encodeURIComponent(`Halo Penjaga ${activeItem.property_name || activeItem.property?.name || 'Highlanderstay'}, saya ingin konfirmasi booking untuk pesanan #${activeItem.reference || activeItem.id} (Kamar ${activeItem.unit_name || activeItem.unit?.name || 'Standar'}) sebesar ${formatRupiah(activeItem.amount)}.`)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-bg font-bold text-xs sm:text-sm rounded-xl transition shadow-lg flex items-center justify-center gap-2"
-                    >
-                      <span>Konfirmasi Booking via WhatsApp Penjaga</span>
-                      <ArrowRight size={15} />
-                    </a>
-                  )}
+                <div className="flex items-center gap-2">
+                  <a
+                    href={`https://wa.me/${getPenjagaWaNumber(activeItem)}?text=${encodeURIComponent(`Halo Penjaga ${activeItem.property_name || activeItem.property?.name || 'Highlanderstay'}, saya ingin konfirmasi booking untuk pesanan #${activeItem.reference || activeItem.id} (Kamar ${activeItem.unit_name || activeItem.unit?.name || 'Standar'}) sebesar ${formatRupiah(activeItem.amount)}.`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 py-3 px-3 border border-emerald-500/60 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-bold text-xs sm:text-sm rounded-xl transition flex items-center justify-center gap-1.5 whitespace-nowrap"
+                  >
+                    <CheckCircle2 size={15} className="shrink-0" />
+                    <span>Konfirmasi WA</span>
+                  </a>
+                  <button
+                    onClick={() => handlePay(activeItem)}
+                    disabled={actionLoadingId !== null}
+                    className="flex-1 py-3 px-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-bg font-bold text-xs sm:text-sm rounded-xl transition shadow-lg flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer disabled:opacity-50"
+                  >
+                    {actionLoadingId === activeItem.id ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-bg/40 border-t-bg rounded-full animate-spin" />
+                        <span>Memproses...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard size={15} className="shrink-0" />
+                        <span>Bayar Sekarang</span>
+                        <ArrowRight size={14} className="shrink-0" />
+                      </>
+                    )}
+                  </button>
                 </div>
               ) : (
                 <div className="p-3 bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs rounded-xl text-center flex items-center justify-center gap-2">
