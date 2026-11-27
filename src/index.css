@@ -93,6 +93,115 @@ html.light [class*="bg-[#0a0d16]"],
       color: #b45309 !important;
     }
 
+    /* Light Theme styling for Promo Ngebut Spesial section */
+    html.light #promo-ngebut-section > div {
+      background: linear-gradient(135deg, #f5f3ff 0%, #fdf4ff 50%, #eef2ff 100%) !important;
+      border-color: #ddd6fe !important;
+      box-shadow: 0 8px 24px -6px rgba(109, 40, 217, 0.12) !important;
+    }
+
+    html.light #promo-ngebut-section [class*="bg-purple-500/20"] {
+      background-color: #ede9fe !important;
+      border-color: #c4b5fd !important;
+      color: #7c3aed !important;
+    }
+
+    html.light #promo-ngebut-section [class*="text-purple-300"] {
+      color: #6d28d9 !important;
+    }
+
+    html.light #promo-ngebut-section [class*="bg-white/[0.07]"] {
+      background-color: #ffffff !important;
+      border-color: #e9d5ff !important;
+      box-shadow: 0 4px 14px -2px rgba(15, 23, 42, 0.08) !important;
+    }
+
+    html.light #promo-ngebut-section [class*="bg-white/10"] {
+      background-color: #f1f5f9 !important;
+      color: #334155 !important;
+    }
+
+    html.light #promo-ngebut-section [class*="text-rose-400"],
+    html.light #promo-ngebut-section [class*="text-rose-300"] {
+      color: #e11d48 !important;
+    }
+
+    html.light #promo-ngebut-section [class*="bg-rose-500/20"] {
+      background-color: #ffe4e6 !important;
+      border-color: #fecdd3 !important;
+    }
+
+    /* Preserve crisp white/light text inside dark photo overlays, dark gradient banners, and solid colored badges/buttons */
+    html.light [class*="from-slate-9"] .text-white,
+    html.light [class*="from-slate-9"] [class*="text-slate-100"],
+    html.light [class*="from-slate-9"] [class*="text-slate-200"],
+    html.light [class*="from-black"] .text-white,
+    html.light [class*="from-black"] [class*="text-slate-100"],
+    html.light [class*="from-black"] [class*="text-slate-200"],
+    html.light [class*="from-rose-9"] .text-white,
+    html.light [class*="from-rose-9"] [class*="text-slate-100"],
+    html.light [class*="from-rose-9"] [class*="text-slate-200"],
+    html.light [class*="from-purple-9"] .text-white,
+    html.light [class*="from-purple-9"] [class*="text-slate-100"],
+    html.light [class*="from-purple-9"] [class*="text-slate-200"],
+    html.light [class*="from-indigo-9"] .text-white,
+    html.light [class*="from-indigo-9"] [class*="text-slate-100"],
+    html.light [class*="from-indigo-9"] [class*="text-slate-200"],
+    html.light [class*="bg-black/"].text-white,
+    html.light [class*="bg-black/"] .text-white,
+    html.light [class*="bg-black/"] [class*="text-slate-200"],
+    html.light [class*="bg-black/"] [class*="text-slate-300"],
+    html.light [class*="bg-rose-5"].text-white,
+    html.light [class*="bg-rose-6"].text-white,
+    html.light [class*="bg-rose-7"].text-white,
+    html.light [class*="bg-rose-9"].text-white,
+    html.light [class*="bg-red-5"].text-white,
+    html.light [class*="bg-red-6"].text-white,
+    html.light [class*="bg-emerald-5"].text-white,
+    html.light [class*="bg-emerald-6"].text-white,
+    html.light [class*="bg-green-6"].text-white,
+    html.light [class*="bg-blue-5"].text-white,
+    html.light [class*="bg-blue-6"].text-white,
+    html.light [class*="bg-indigo-5"].text-white,
+    html.light [class*="bg-indigo-6"].text-white,
+    html.light [class*="bg-purple-5"].text-white,
+    html.light [class*="bg-purple-6"].text-white,
+    html.light [class*="bg-purple-9"].text-white,
+    html.light [class*="bg-pink-6"].text-white,
+    html.light [class*="bg-amber-6"].text-white,
+    html.light [class*="bg-rose-6"] .text-white,
+    html.light [class*="bg-rose-9"] .text-white,
+    html.light [class*="bg-purple-9"] .text-white {
+      color: #ffffff !important;
+    }
+
+    /* Preserve light subtitles & amber highlights inside dark gradient overlays */
+    html.light [class*="from-slate-9"] [class*="text-slate-300"],
+    html.light [class*="from-slate-9"] [class*="text-slate-400"],
+    html.light [class*="from-black"] [class*="text-slate-300"],
+    html.light [class*="from-black"] [class*="text-slate-400"],
+    html.light [class*="from-purple-9"] [class*="text-slate-300"],
+    html.light [class*="from-purple-9"] [class*="text-slate-400"],
+    html.light [class*="from-purple-9"] [class*="text-purple-200"],
+    html.light [class*="from-rose-9"] [class*="text-rose-200"],
+    html.light [class*="from-rose-9"] [class*="text-rose-300"] {
+      color: #e2e8f0 !important;
+    }
+
+    html.light [class*="from-slate-9"] [class*="text-amber-400"],
+    html.light [class*="from-slate-9"] [class*="text-amber-300"],
+    html.light [class*="from-black"] [class*="text-amber-400"],
+    html.light [class*="from-black"] [class*="text-amber-300"],
+    html.light [class*="from-purple-9"] [class*="text-amber-400"],
+    html.light [class*="from-purple-9"] [class*="text-amber-300"] {
+      color: #fbbf24 !important;
+    }
+
+    /* Keep text crisp white inside semi-transparent black badges on photos */
+    html.light [class*="bg-black/"] {
+      color: #ffffff !important;
+    }
+
     html.light [class*="border-white/"],
     html.light [class*="border-slate-800"],
     html.light [class*="border-slate-700"] {

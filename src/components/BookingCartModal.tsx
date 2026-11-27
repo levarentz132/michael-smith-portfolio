@@ -20,18 +20,22 @@ import {
   isValidCheckoutUrl,
   isOnlinePaymentEnabled
 } from '../api';
-import type { CartItem, CartData } from '../api';
+import type { CartItem, CartData, Property, WebsiteSettings } from '../api';
 
 interface BookingCartModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectRooms?: () => void;
+  properties?: Property[];
+  settings?: WebsiteSettings | null;
 }
 
 export const BookingCartModal: React.FC<BookingCartModalProps> = ({
   isOpen,
   onClose,
-  onSelectRooms
+  onSelectRooms,
+  properties = [],
+  settings = null,
 }) => {
   const [cartData, setCartData] = useState<CartData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -46,6 +50,41 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
       currency: 'IDR',
       maximumFractionDigits: 0
     }).format(amount);
+  };
+
+  const normalizeWaNumber = (raw: string | undefined | null): string => {
+    const digits = (raw || '').replace(/[^0-9]/g, '');
+    if (!digits) return '';
+    if (digits.startsWith('0')) return `62${digits.slice(1)}`;
+    return digits;
+  };
+
+  const getPenjagaWaNumber = (item: CartItem): string => {
+    const directPhone =
+      (item.property as { phone?: string } | undefined)?.phone ||
+      (item as { property_phone?: string }).property_phone;
+    if (directPhone) {
+      const normalized = normalizeWaNumber(directPhone);
+      if (normalized) return normalized;
+    }
+
+    const propId = item.property?.id;
+    const propName = (item.property_name || item.property?.name || '').trim().toLowerCase();
+    const matched = properties.find((p) => {
+      if (propId && p.id && String(p.id) === String(propId)) return true;
+      if (propName && p.title) {
+        const title = p.title.trim().toLowerCase();
+        return title === propName || propName.includes(title) || title.includes(propName);
+      }
+      return false;
+    });
+
+    if (matched?.phone) {
+      const normalized = normalizeWaNumber(matched.phone);
+      if (normalized) return normalized;
+    }
+
+    return normalizeWaNumber(settings?.whatsapp_number) || '6281234567890';
   };
 
   const formatDate = (dateStr: string | undefined | null) => {
@@ -444,13 +483,13 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
                               </button>
                             ) : (
                               <a
-                                href={`https://wa.me/6281234567890?text=${encodeURIComponent(`Halo Admin Highlanderstay, saya ingin konfirmasi sewa untuk item #${item.id} (${item.unit_name || 'Kamar'}).`)}`}
+                                href={`https://wa.me/${getPenjagaWaNumber(item)}?text=${encodeURIComponent(`Halo Penjaga ${item.property_name || item.property?.name || 'Highlanderstay'}, saya ingin konfirmasi booking untuk pesanan #${item.reference || item.id} (Kamar ${item.unit_name || item.unit?.name || 'Standar'}) sebesar ${formatRupiah(item.amount)}.`)}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-bg rounded-full text-xs font-bold transition shadow flex items-center gap-1.5"
                               >
                                 <CheckCircle2 size={13} />
-                                <span>Konfirmasi</span>
+                                <span>Konfirmasi WA</span>
                               </a>
                             )}
                           </div>
@@ -502,12 +541,12 @@ export const BookingCartModal: React.FC<BookingCartModalProps> = ({
                     </>
                   ) : (
                     <a
-                      href={`https://wa.me/6281234567890?text=${encodeURIComponent(`Halo Admin Highlanderstay, saya ingin konfirmasi sewa untuk pesanan #${activeItem.id} (${activeItem.unit_name || 'Kamar'}).`)}`}
+                      href={`https://wa.me/${getPenjagaWaNumber(activeItem)}?text=${encodeURIComponent(`Halo Penjaga ${activeItem.property_name || activeItem.property?.name || 'Highlanderstay'}, saya ingin konfirmasi booking untuk pesanan #${activeItem.reference || activeItem.id} (Kamar ${activeItem.unit_name || activeItem.unit?.name || 'Standar'}) sebesar ${formatRupiah(activeItem.amount)}.`)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-bg font-bold text-xs sm:text-sm rounded-xl transition shadow-lg flex items-center justify-center gap-2"
                     >
-                      <span>Konfirmasi Pembayaran via WhatsApp</span>
+                      <span>Konfirmasi Booking via WhatsApp Penjaga</span>
                       <ArrowRight size={15} />
                     </a>
                   )}

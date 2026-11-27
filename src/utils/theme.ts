@@ -35,11 +35,11 @@ export function applyTheme(mode: ThemeMode): void {
     root.classList.remove('dark');
   }
 
-  // Sync native Android/iOS status bar with active theme
+  // Keep native Android status bar icons crisp white over the #07090e system bar background
   if (Capacitor.isNativePlatform()) {
-    StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light }).catch(() => {});
+    StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
     if (Capacitor.getPlatform() === 'android') {
-      StatusBar.setBackgroundColor({ color: isDark ? '#07090e' : '#f8fafc' }).catch(() => {});
+      StatusBar.setBackgroundColor({ color: '#07090e' }).catch(() => {});
     }
   }
 

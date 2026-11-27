@@ -385,6 +385,7 @@ function App() {
             <CartPage
               settings={settings}
               session={userSession}
+              properties={allProperties}
               onLogout={handleLogout}
               onLoginClick={() => navigate('/akun')}
               onCartChange={refreshCartCount}
@@ -615,6 +616,8 @@ function App() {
               {/* Standalone Booking Cart Modal */}
               <BookingCartModal
                 isOpen={cartOpen}
+                properties={allProperties}
+                settings={settings}
                 onClose={() => {
                   setCartOpen(false);
                   refreshCartCount();
@@ -702,7 +705,7 @@ function App() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 30, scale: 0.95 }}
             transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-            className="fixed bottom-24 sm:bottom-6 left-4 right-4 sm:left-auto sm:right-24 z-40 max-w-sm"
+            className={`fixed ${location.pathname.startsWith('/property') ? 'bottom-40' : 'bottom-24'} sm:bottom-6 left-4 right-4 sm:left-auto sm:right-24 z-40 max-w-sm`}
           >
             <div 
               onClick={() => navigate('/cart')}

@@ -908,15 +908,15 @@ export const MobilePropertyDetail: React.FC<MobilePropertyDetailProps> = ({
           </span>
         </div>
 
-        {/* Bottom Bar: Price, Estimasi Pembayaran, Tanya Pemilik, Ajukan Sewa */}
-        <div className="bg-[#0e1424] border-t border-white/10 px-4 py-3 flex items-center justify-between gap-3">
-          {/* Left Column: Price & Estimasi Pembayaran Link */}
-          <div className="flex flex-col min-w-0 pr-1">
-            <div className="flex items-baseline gap-1">
-              <span className="text-sm font-black text-white truncate">
+        {/* Bottom Bar: Row 1 = Full Price + Estimasi Pembayaran, Row 2 = Tanya Pemilik + Ajukan Sewa */}
+        <div className="bg-[#0e1424] border-t border-white/10 px-4 pt-2.5 pb-3 flex flex-col gap-2.5">
+          {/* Row 1: Full Price (never cut off) & Estimasi Pembayaran Link */}
+          <div className="flex items-baseline justify-between gap-2">
+            <div className="flex items-baseline gap-1 min-w-0">
+              <span className="text-base font-black text-white whitespace-nowrap">
                 {monthlyRent > 0 ? `Rp ${monthlyRent.toLocaleString('id-ID')}` : (property.price || 'Rp -')}
               </span>
-              <span className="text-[11px] text-slate-400 font-normal">
+              <span className="text-xs text-slate-400 font-medium whitespace-nowrap">
                 /bulan
               </span>
             </div>
@@ -924,14 +924,14 @@ export const MobilePropertyDetail: React.FC<MobilePropertyDetailProps> = ({
             <button
               type="button"
               onClick={() => setIsEstimasiOpen(true)}
-              className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 text-left underline underline-offset-2 active:opacity-75 transition-opacity"
+              className="text-xs font-bold text-emerald-400 hover:text-emerald-300 underline underline-offset-2 whitespace-nowrap shrink-0 active:opacity-75 transition-opacity"
             >
               Estimasi pembayaran
             </button>
           </div>
 
-          {/* Right Column: 2 Action Buttons Side-by-Side */}
-          <div className="flex items-center gap-2 shrink-0">
+          {/* Row 2: 2 Action Buttons Side-by-Side (Full Width) */}
+          <div className="flex items-center gap-2.5">
             {/* Button 1: "Tanya Pemilik" */}
             <button
               type="button"
@@ -940,9 +940,9 @@ export const MobilePropertyDetail: React.FC<MobilePropertyDetailProps> = ({
                   `Halo Pengelola, saya tertarik dengan properti "${property.title}" (${property.location}). Apakah masih tersedia kamar untuk disurvei?`
                 )
               }
-              className="px-3 py-2.5 rounded-xl border border-emerald-500 bg-transparent text-emerald-400 hover:bg-emerald-500/10 text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all"
+              className="flex-1 py-2.5 px-3 rounded-xl border border-emerald-500 bg-transparent text-emerald-400 hover:bg-emerald-500/10 text-xs font-bold flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-95 transition-all"
             >
-              <MessageCircle size={14} className="text-emerald-400" />
+              <MessageCircle size={15} className="text-emerald-400 shrink-0" />
               <span>Tanya Pemilik</span>
             </button>
 
@@ -951,7 +951,7 @@ export const MobilePropertyDetail: React.FC<MobilePropertyDetailProps> = ({
               type="button"
               disabled={!isAvailable}
               onClick={onBookClick}
-              className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1 shadow-lg active:scale-95 transition-all ${
+              className={`flex-[1.2] py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1 whitespace-nowrap shadow-lg active:scale-95 transition-all ${
                 isAvailable
                   ? 'bg-[#10b981] hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20 cursor-pointer'
                   : 'bg-slate-700 text-slate-400 cursor-not-allowed'

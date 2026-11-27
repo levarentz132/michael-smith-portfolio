@@ -18,18 +18,20 @@ import {
 } from 'lucide-react';
 import {
   fetchCart,
+  fetchProperties,
   removeFromCart,
   refreshCartCheckout,
   isValidCheckoutUrl,
   isOnlinePaymentEnabled
 } from '../api';
-import type { CartData, WebsiteSettings, UserSession } from '../api';
+import type { CartData, CartItem, Property, WebsiteSettings, UserSession } from '../api';
 import { Navbar } from './Navbar';
 import { useSEO } from '../hooks/useSEO';
 
 interface CartPageProps {
   settings?: WebsiteSettings | null;
   session?: UserSession | null;
+  properties?: Property[];
   onLogout?: () => void;
   onLoginClick?: () => void;
   onCartChange?: () => void;
@@ -38,12 +40,14 @@ interface CartPageProps {
 export const CartPage: React.FC<CartPageProps> = ({
   settings,
   session = null,
+  properties: propProperties,
   onLogout,
   onLoginClick,
   onCartChange,
 }) => {
   const navigate = useNavigate();
   const [cartData, setCartData] = useState<CartData | null>(null);
+  const [localProperties, setLocalProperties] = useState<Property[]>(propProperties || []);
   const [loading, setLoading] = useState<boolean>(true);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -143,11 +147,57 @@ export const CartPage: React.FC<CartPageProps> = ({
     }
   };
 
+  useEffect(() => {
+    if (propProperties && propProperties.length > 0) {
+      setLocalProperties(propProperties);
+      return;
+    }
+    fetchProperties()
+      .then((list) => {
+        if (Array.isArray(list) && list.length > 0) setLocalProperties(list);
+      })
+      .catch(() => {});
+  }, [propProperties]);
+
+  const normalizeWaNumber = (raw: string | undefined | null): string => {
+    const digits = (raw || '').replace(/[^0-9]/g, '');
+    if (!digits) return '';
+    if (digits.startsWith('0')) return `62${digits.slice(1)}`;
+    return digits;
+  };
+
+  const getPenjagaWaNumber = (item: CartItem): string => {
+    const directPhone =
+      (item.property as { phone?: string } | undefined)?.phone ||
+      (item as { property_phone?: string }).property_phone;
+    if (directPhone) {
+      const normalized = normalizeWaNumber(directPhone);
+      if (normalized) return normalized;
+    }
+
+    const propId = item.property?.id;
+    const propName = (item.property_name || item.property?.name || '').trim().toLowerCase();
+    const matched = localProperties.find((p) => {
+      if (propId && p.id && String(p.id) === String(propId)) return true;
+      if (propName && p.title) {
+        const title = p.title.trim().toLowerCase();
+        return title === propName || propName.includes(title) || title.includes(propName);
+      }
+      return false;
+    });
+
+    if (matched?.phone) {
+      const normalized = normalizeWaNumber(matched.phone);
+      if (normalized) return normalized;
+    }
+
+    return normalizeWaNumber(settings?.whatsapp_number) || '6281234567890';
+  };
+
   const items = cartData?.items || [];
   const unpaidItems = items.filter((i) => !i.is_paid);
   const paidItems = items.filter((i) => i.is_paid);
   const onlinePayEnabled = isOnlinePaymentEnabled();
-  const waNumber = (settings?.whatsapp_number || '6281234567890').replace(/[^0-9]/g, '');
 
   const handleNavClick = (sec: string) => {
     if (sec === 'work' || sec === 'katalog') navigate('/katalog');
@@ -272,8 +322,9 @@ export const CartPage: React.FC<CartPageProps> = ({
               const rentAmt = Number(item.rent_amount || Math.max(0, (item.amount || 0) - depositAmt));
               const propName = item.property_name || item.property?.name || 'Kamar Highlanderstay';
               const unitName = item.unit_name || item.unit?.name || 'Unit Standar';
+              const itemWaNumber = getPenjagaWaNumber(item);
               const waText = encodeURIComponent(
-                `Halo Admin Highlanderstay, saya ingin konfirmasi pembayaran untuk pesanan #${item.reference || item.id} (${propName} - Kamar ${unitName}) sebesar ${formatRupiah(item.amount)}.`
+                `Halo Penjaga ${propName}, saya ingin konfirmasi booking untuk pesanan #${item.reference || item.id} (Kamar ${unitName}) sebesar ${formatRupiah(item.amount)}.`
               );
 
               return (
@@ -360,7 +411,7 @@ export const CartPage: React.FC<CartPageProps> = ({
                         </button>
                       ) : (
                         <a
-                          href={`https://wa.me/${waNumber}?text=${waText}`}
+                          href={`https://wa.me/${itemWaNumber}?text=${waText}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
