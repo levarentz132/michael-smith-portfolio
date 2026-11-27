@@ -675,6 +675,11 @@ function App() {
       } />
       </Routes>
 
+      {/* Mobile bottom spacer so fixed bottom navbar never blocks page content */}
+      {!location.pathname.startsWith('/property') && location.pathname !== '/map' && (
+        <div className="md:hidden h-24 bg-[#07090e] shrink-0" aria-hidden="true" />
+      )}
+
       {/* Mobile App Bottom Navigation Bar (Sticky on all pages except Property Detail) */}
       {!location.pathname.startsWith('/property') && (
         <MobileBottomNav

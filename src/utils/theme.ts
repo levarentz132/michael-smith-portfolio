@@ -1,3 +1,6 @@
+import { Capacitor } from '@capacitor/core';
+import { StatusBar, Style } from '@capacitor/status-bar';
+
 export type ThemeMode = 'dark' | 'light' | 'system';
 
 const THEME_KEY = 'hs_theme_preference';
@@ -30,6 +33,14 @@ export function applyTheme(mode: ThemeMode): void {
   } else {
     root.classList.add('light');
     root.classList.remove('dark');
+  }
+
+  // Sync native Android/iOS status bar with active theme
+  if (Capacitor.isNativePlatform()) {
+    StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light }).catch(() => {});
+    if (Capacitor.getPlatform() === 'android') {
+      StatusBar.setBackgroundColor({ color: isDark ? '#07090e' : '#f8fafc' }).catch(() => {});
+    }
   }
 
   // Dispatch custom event so React hooks can re-render

@@ -261,12 +261,12 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
   };
 
   return (
-    <div className="md:hidden min-h-screen bg-[#07090e] text-white pb-24 selection:bg-amber-500 selection:text-black">
+    <div className="md:hidden min-h-screen bg-[#07090e] text-white pb-28 selection:bg-amber-500 selection:text-black">
       {/* Smart Install Banner for Mobile Web Browsers */}
       <PlayStoreSmartBanner />
 
       {/* 1. STICKY TOP APP BAR (Mamikos Style) */}
-      <header className="sticky top-0 z-40 bg-[#07090e]/95 backdrop-blur-xl border-b border-white/[0.08] px-3.5 pt-3 pb-2.5 shadow-md">
+      <header className="sticky top-0 z-40 bg-[#07090e]/95 backdrop-blur-xl border-b border-white/[0.08] px-3.5 pt-[calc(env(safe-area-inset-top,0px)+1rem)] pb-3 shadow-md">
         {/* Top Mascot / Logo Row */}
         <div className="flex items-center justify-between gap-2 mb-2.5">
           <div className="flex items-center gap-2">
@@ -857,7 +857,7 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
       {/* 8. CITY & AREA PICKER BOTTOM SHEET */}
       <AnimatePresence>
         {isAreaPickerOpen && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="fixed inset-0 z-[60] flex items-end justify-center">
             {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
@@ -873,7 +873,7 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-              className="relative w-full max-h-[75vh] bg-[#0c101a] border-t border-slate-700 rounded-t-3xl p-4 overflow-hidden flex flex-col z-10"
+              className="relative w-full max-h-[78vh] bg-[#0c101a] border-t border-slate-700 rounded-t-3xl px-4 pt-4 pb-[calc(env(safe-area-inset-bottom,0px)+2rem)] overflow-hidden flex flex-col z-10"
             >
               <div className="w-12 h-1 bg-slate-700 rounded-full mx-auto mb-3" />
               <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-2">
@@ -922,7 +922,7 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
       {/* 9. NOTIFICATION SHEET */}
       <AnimatePresence>
         {notificationsOpen && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="fixed inset-0 z-[60] flex items-end justify-center">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -935,7 +935,7 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-              className="relative w-full max-h-[70vh] bg-[#0c101a] border-t border-slate-700 rounded-t-3xl p-4 overflow-hidden flex flex-col z-10"
+              className="relative w-full max-h-[78vh] bg-[#0c101a] border-t border-slate-700 rounded-t-3xl px-4 pt-4 pb-[calc(env(safe-area-inset-bottom,0px)+2rem)] overflow-hidden flex flex-col z-10"
             >
               <div className="w-12 h-1 bg-slate-700 rounded-full mx-auto mb-3" />
               <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
@@ -985,32 +985,53 @@ export const MobileAppHome: React.FC<MobileAppHomeProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Compact App Footer */}
-      <footer className="mt-8 px-4 text-center text-slate-500 text-[11px]">
-        {/* Play Store App CTA in Mobile Web Footer */}
-        <div className="flex justify-center mb-3">
+      {/* Mobile App Footer */}
+      <footer className="mt-10 mx-3.5 mb-6 rounded-2xl bg-[#0c101a] border border-white/[0.08] px-4 py-5 text-center text-slate-400 text-[11px]">
+        {/* Play Store App CTA in Mobile Web Footer (hidden in native app) */}
+        <div className="flex justify-center mb-3 empty:hidden">
           <PlayStoreBadge variant="compact" subtext="Download di" />
         </div>
-        <p className="font-semibold text-slate-400">HighlanderStay Mobile App</p>
-        <p className="text-[10px] mt-0.5">Hunian Kost & Apartemen Modern di Jakarta</p>
-        <div className="mt-2.5 flex items-center justify-center gap-3">
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <img
+            src={settings?.logo_image || '/logo.png'}
+            alt="HighlanderStay"
+            className="w-5 h-5 object-contain rounded"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = '/favicon.svg';
+            }}
+          />
+          <p className="font-bold text-white text-xs tracking-tight">HighlanderStay</p>
+        </div>
+        <p className="text-[11px] text-slate-400">Hunian Kost & Apartemen Modern di Jakarta</p>
+        <div className="mt-3 pt-3 border-t border-white/[0.06] flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5">
           <button
             type="button"
             onClick={() => navigate('/map')}
             className="text-[11px] text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1 transition-colors"
           >
             <MapPin className="w-3.5 h-3.5 text-emerald-400" />
-            Peta Lokasi (/map)
+            Peta Lokasi
           </button>
           <span className="text-slate-600">•</span>
           <button
             type="button"
             onClick={onOpenLiveChat}
-            className="text-[10px] text-amber-400/90 underline hover:text-amber-300"
+            className="text-[11px] text-amber-400 hover:text-amber-300 font-semibold transition-colors"
           >
             Hubungi CS
           </button>
+          <span className="text-slate-600">•</span>
+          <button
+            type="button"
+            onClick={() => navigate('/privacy-policy')}
+            className="text-[11px] text-slate-400 hover:text-white transition-colors"
+          >
+            Kebijakan Privasi
+          </button>
         </div>
+        <p className="text-[10px] text-slate-500 mt-3">
+          © {new Date().getFullYear()} HighlanderStay. All rights reserved.
+        </p>
       </footer>
     </div>
   );
